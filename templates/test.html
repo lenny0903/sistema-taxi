@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Test Rol</title></head>
+<body>
+  <span id="userRole"></span>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('token');
+      const rol = localStorage.getItem('rol');
+      console.log("Token:", token);
+      console.log("Rol leído:", rol);
+      document.getElementById('userRole').textContent = `Rol: ${rol}`;
+    });
+  </script>
+</body>
+</html>

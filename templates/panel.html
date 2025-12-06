@@ -1,0 +1,37 @@
+<form id="formDespacho">
+  <label>Cliente:</label>
+  <select id="desCliente"></select>
+
+  <label>Conductor:</label>
+  <select id="desConductor"></select>
+
+  <label>Auto:</label>
+  <select id="desAuto"></select>
+
+  <button type="submit">Crear despacho</button>
+</form>
+
+<script>
+document.getElementById("formDespacho").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const cliente_id = document.getElementById("desCliente").value;
+  const conductor_id = document.getElementById("desConductor").value;
+  const auto_id = document.getElementById("desAuto").value;
+
+  const res = await apiFetch("/despachos/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cliente_id, conductor_id, auto_id })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    alert("Despacho creado con éxito");
+    console.log("Nuevo despacho:", data);
+    // Aquí puedes actualizar la tabla de despachos en el dashboard
+  } else {
+    alert("Error: " + data.error);
+  }
+});
+</script>

@@ -1,0 +1,2100 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Sistema de Gestión de Taxis</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .hidden { display: none; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <!-- Barra superior -->
+  <header class="bg-indigo-700 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Sistema de Gestión de Taxis</h1>
+    <div>
+      <span id="userRole" class="mr-4"></span>
+      <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded">Salir</button>
+    </div>
+  </header>
+
+  <!-- Layout principal -->
+  <div class="flex">
+    <!-- Menú lateral -->
+   <nav class="w-64 bg-white shadow-md h-screen p-4">
+      <ul class="space-y-2">
+        <li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>
+        <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores</button></li>
+        <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos</button></li>
+        <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho</button></li>
+        <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos</button></li>
+        <li class="menu-admin"><button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
+      </ul>
+   </nav>
+
+    
+    <!-- Contenido principal -->
+    <main class="flex-1 p-6 space-y-8">
+      <!-- Sección: Clientes -->
+     <section id="clientesEditar" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Gestión de Clientes</h2>
+
+        <!-- Formulario para editar cliente existente -->
+        <form id="formCliente" class="space-y-2">
+          <label class="block">Nombre:</label>
+          <div class="flex gap-2">
+            <input type="text" id="cliNombreEdit" class="border p-2 w-full">
+            <button type="button" 
+                    class="bg-blue-500 text-white px-3 py-1 rounded"
+                    onclick="modificarCampoCliente('nombre')">Modificar</button>
+          </div>
+
+          <label class="block">Teléfono:</label>
+          <input type="text" id="cliTelefonoEdit"
+                maxlength="11"
+                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                readonly
+                class="border p-2 w-full">
+          <label class="block">Dirección:</label>
+          <div class="flex gap-2">
+            <input type="text" id="cliDireccionEdit" class="border p-2 w-full">
+            <button type="button" 
+                    class="bg-blue-500 text-white px-3 py-1 rounded"
+                    onclick="modificarCampoCliente('direccion')">Modificar</button>
+          </div>
+        </form>
+
+        <!-- Formulario para crear cliente nuevo -->
+        <form id="formClienteNuevo" class="space-y-2 mt-6">
+          <label class="block">Nombre:</label>
+          <input type="text" id="cliNombreNuevo" class="border p-2 w-full">
+
+          <label class="block">Teléfono:</label>
+          <input type="text" id="cliTelefonoNuevo"
+                  maxlength="11"
+                  pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                  title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                  required
+                  class="border p-2 w-full">
+
+          <label class="block">Dirección:</label>
+          <input type="text" id="cliDireccionNuevo" class="border p-2 w-full">
+
+          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+        </form>
+
+        <!-- Tabla de clientes -->
+        <table id="tablaClientes" class="mt-4">
+          <thead>
+            <tr><th>Nombre</th><th>Teléfono</th><th>Dirección</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+  <section id="conductores" class="seccion hidden">
+    <h2 class="text-2xl font-bold mb-4">Gestión de Conductores</h2>
+
+    <!-- Formulario de creación -->
+    <form id="formConductor" class="space-y-2 flex gap-2">
+      <div class="flex-1">
+        <label class="block">Nro de Cédula:</label>
+        <input type="text" id="conCedula" name="nro_cedula" class="border p-2 w-full" required>
+
+        <label class="block">Nombre:</label>
+        <input type="text" id="conNombre" name="nombre" class="border p-2 w-full" required>
+
+        <label class="block">Teléfono:</label>
+        <input type="text" id="conTelefono" name="nro_telefono"
+              maxlength="11"
+              pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+              title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+              class="border p-2 w-full" required>
+      </div>
+
+      <div class="flex gap-2 items-end">
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+        
+      </div>
+    </form>
+
+    <!-- Tabla de conductores -->
+    <table id="tablaConductores" class="mt-4">
+      <thead>
+        <tr>
+          <th>Nro de Cédula</th>
+          <th>Nombre</th>
+          <th>Teléfono</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <!-- Formulario de edición oculto -->
+    <div id="formConductorEditContainer" class="hidden mt-6">
+      <h3 class="text-xl font-bold">Editar Conductor</h3>
+      <form id="formConductorEdit" class="space-y-2">
+        <label class="block">Nombre:</label>
+        <input type="text" id="conNombreEdit" class="border p-2 w-full">
+
+        <label class="block">Teléfono:</label>
+        <input type="text" id="conTelefonoEdit" class="border p-2 w-full">
+
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+      </form>
+    </div>
+  </section>
+
+     <!-- Sección: Autos -->
+  <section id="autos" class="seccion hidden">
+    <h2 class="text-2xl font-bold mb-4">Gestión de Autos</h2>
+
+    <!-- Formulario de creación -->
+    <form id="formAuto" class="space-y-2">
+      <label class="block">Placa:</label>
+      <input type="text" id="autoPlaca" class="border p-2 w-full" required>
+
+      <label class="block">Tipo:</label>
+      <input type="text" id="autoTipo" class="border p-2 w-full" required>
+
+      <label class="block">Marca:</label>
+      <input type="text" id="autoMarca" class="border p-2 w-full" required>
+
+      <label class="block">Modelo:</label>
+      <input type="text" id="autoModelo" class="border p-2 w-full" required>
+
+      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+    </form>
+
+    <!-- Tabla de autos -->
+    <table id="tablaAutos" class="mt-4 w-full border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Marca</th>
+          <th>Modelo</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- Formulario de edición oculto -->
+    <div id="formAutoEditContainer" class="hidden mt-6">
+      <h3 class="text-xl font-bold">Editar Auto</h3>
+      <form id="formAutoEdit" class="space-y-2">
+        <label class="block">Placa:</label>
+        <input type="text" id="autoPlacaEdit" class="border p-2 w-full" readonly>
+
+        <label class="block">Tipo:</label>
+        <input type="text" id="autoTipoEdit" class="border p-2 w-full">
+         
+        <label class="block">Marca:</label>
+        <input type="text" id="autoMarcaEdit" class="border p-2 w-full">
+
+        <label class="block">Modelo:</label>
+        <input type="text" id="autoModeloEdit" class="border p-2 w-full">
+
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+      </form>
+    </div>
+  </section>
+
+      <!-- Sección: Despachos -->
+      <section id="despachos" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
+
+        <form id="formDespacho" class="space-y-2">
+          <label class="block">Teléfono del cliente:</label>
+          <input type="text" id="desTelefono"
+                maxlength="11"
+                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                class="border p-2 w-full">
+          <label class="block">Origen:</label>
+          <input type="text" id="desOrigen" class="border p-2 w-full" disabled>
+
+          <label class="block">Destino:</label>
+          <input type="text" id="desDestino" class="border p-2 w-full" disabled>
+
+          <label class="block">Tarifa:</label>
+          <input type="number" id="desTarifa" class="border p-2 w-full" disabled>
+
+          <label class="block">Cliente:</label>
+          <select id="desCliente" class="border p-2 w-full"></select>
+
+          <label class="block">Conductor:</label>
+          <select id="desConductor" class="border p-2 w-full"></select>
+
+          <label class="block">Auto:</label>
+          <select id="desAuto" class="border p-2 w-full"></select>
+          <button type="button"
+            class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
+            onclick="abrirModalEditarCliente()">Modificar cliente
+          </button>
+          <button id="btnCrearDespacho" type="busubmit" class="bg-green-500 text-white px-4 py-2 rounded" disabled>
+            Crear despacho
+          </button>
+          <button id="btnListaEspera" type="button" 
+                  class="bg-yellow-500 text-white px-4 py-2 rounded ml-2" disabled>
+                  Enviar a lista de espera
+          </button>
+
+        </form>
+
+        <table id="tablaDespachos" class="mt-4">
+          <thead><tr><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <div id="turnosActivos" class="mt-6"></div>
+
+        <div class="mt-4 flex gap-4">
+          <label class="block">Conductor:</label>
+          <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+          <label class="block">Auto:</label>
+          <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+          <button id="btnIniciarTurno" type="button"
+                  class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
+            Iniciar turno
+          </button>
+        </div>
+      </section>
+      <!-- Sección: Despachos Activos -->
+      <section id="despachosActivos" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Despachos Activos</h2>
+        
+        <table id="tablaDespachosActivos" class="mt-4 w-full border-collapse border border-gray-300">
+          <thead class="bg-gray-100">
+             <tr data-id="${d.id_despacho}"> <!-- 🚦 id oculto -->
+              <th class="border px-2 py-1">Teléfono Cliente</th>
+              <th class="border px-2 py-1">Cliente</th>
+              <th class="border px-2 py-1">Conductor</th>
+              <th class="border px-2 py-1">Auto</th>
+              <th class="border px-2 py-1">Origen</th>
+              <th class="border px-2 py-1">Destino</th>
+              <th class="border px-2 py-1">Estado</th>
+              <th class="border px-2 py-1">Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="mt-4">
+          <label class="block">Asignar conductor:</label>
+          <select id="conductorAsignacion" class="border p-2 w-full"></select>
+          <button id="btnAsignarDespacho" class="bg-blue-500 text-white px-4 py-2 rounded mt-2">
+            Asignar al despacho seleccionado
+          </button>
+        </div>
+         <!-- Cola de clientes en espera -->
+        <div class="mt-8">
+          <h2 class="text-xl font-bold mb-2">Clientes en Espera</h2>
+          <table id="tablaClientesEspera" class="w-full border-collapse border border-gray-300">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border px-2 py-1">#</th>
+                <th class="border px-2 py-1">Teléfono Cliente</th>
+                <th class="border px-2 py-1">Nombre</th>
+                <th class="border px-2 py-1">Origen</th>
+                <th class="border px-2 py-1">Destino</th>
+                <th class="border px-2 py-1">Hora Solicitud</th>
+                <th class="border px-2 py-1">Tarifa</th>
+                <th class="border px-2 py-1">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Aquí se llenan los clientes en espera con JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Sección: Reportes -->
+      <section id="reportes" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Reportes</h2>
+        <div class="flex gap-4 mb-4">
+          <div>
+            <label for="fechaInicio">Fecha inicio:</label>
+            <input type="date" id="fechaInicio" class="border p-2 rounded">
+          </div>
+          <div>
+            <label for="fechaFin">Fecha fin:</label>
+            <input type="date" id="fechaFin" class="border p-2 rounded">
+          </div>
+        </div>
+        <button id="btnGenerarReporte" class="bg-blue-500 text-white px-4 py-2 rounded">
+          Generar Reporte General
+        </button>
+        <div id="reporteResultado" class="mt-4"></div>
+        <button id="btnReporteConductores" class="bg-green-500 text-white px-4 py-2 rounded">
+          Reporte por Conductor
+        </button>
+        <div id="reporteConductoresResultado" class="mt-4"></div>
+      </section>
+
+    </main>
+  </div>
+    <!-- Contenedor para los toasts -->
+  <div id="toastContainer" style="
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+  "></div>
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+  <script>
+    // Función para mostrar toasts(mensajes flotantes)
+    function mostrarToast(mensaje, tipo="info") {
+      const container = document.getElementById("toastContainer");
+
+      // Crear el toast
+      const toast = document.createElement("div");
+      toast.textContent = mensaje;
+      toast.style.background = tipo === "error" ? "#e74c3c" : "#2ecc71";
+      toast.style.color = "#fff";
+      toast.style.padding = "10px 20px";
+      toast.style.marginTop = "10px";
+      toast.style.borderRadius = "5px";
+      toast.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+      toast.style.fontWeight = "bold";
+      toast.style.fontFamily = "sans-serif";
+      toast.style.opacity = "0";
+      toast.style.transition = "opacity 0.3s ease";
+
+      container.appendChild(toast);
+
+      // Animar aparición
+      requestAnimationFrame(() => {
+        toast.style.opacity = "1";
+      });
+
+      // Desaparecer después de 3 segundos
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+    // Validación centralizada de teléfonos
+    function validarTelefono(campoId) {
+      const campo = document.getElementById(campoId);
+      if (!campo) return;
+
+      campo.addEventListener('input', e => {
+        let valor = e.target.value.replace(/\D/g, ''); // solo números
+        e.target.value = valor;
+
+        const prefijos = ["0276", "0412", "0414", "0416", "0424", "0426"];
+        const tienePrefijo = prefijos.some(pref => valor.startsWith(pref));
+        const longitudValida = valor.length === 11;
+
+        if (!tienePrefijo) {
+          campo.setCustomValidity("Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426");
+        } else if (!longitudValida) {
+          campo.setCustomValidity("El número debe tener exactamente 11 dígitos");
+        } else {
+          campo.setCustomValidity("");
+        }
+      });
+    }
+
+
+    // Activar validación en todos los campos de teléfono
+    document.addEventListener("DOMContentLoaded", () => {
+      validarTelefono('cliTelefonoNuevo'); // crear cliente
+      validarTelefono('cliTelefonoEdit');  // editar cliente
+      validarTelefono('desTelefono');      // despacho
+      validarTelefono('conTelefono');      // conductor
+    });
+
+
+    // Mostrar secciones
+    function mostrarSeccion(id) {
+      document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    const rol = localStorage.getItem('rol');
+
+    if (!token) {
+      window.location.href = '/index.html';
+      return;
+    }
+
+    console.log("Token:", token);
+    console.log("Rol leído:", rol);
+
+    const roleSpan = document.getElementById('userRole');
+    if (roleSpan) {
+      roleSpan.textContent = `Rol: ${rol}`;
+    } else {
+      console.error("Elemento #userRole no encontrado en el DOM");
+    }
+
+    if (rol && rol.toLowerCase() === 'operador') {
+      document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+    }
+
+    // apiFetch con token y merge de opciones
+    window.apiFetch = (url, options = {}) => {
+      const token = localStorage.getItem('token');
+      const baseHeaders = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      };
+
+      return fetch(url, {
+        ...options,
+        headers: { ...baseHeaders, ...(options.headers || {}) }
+      });
+    };
+    // 🔗 Enlazar botón "Crear turno" con la función
+    const btnCrearTurno = document.getElementById("btnCrearTurno");
+    if (btnCrearTurno) {
+      btnCrearTurno.addEventListener("click", async (e) => {
+        e.preventDefault(); // 🔑 evita submit doble si el botón está dentro de un form
+        btnCrearTurno.disabled = true; // 🔑 evita doble clic
+
+        try {
+          await crearTurno();
+        } finally {
+          btnCrearTurno.disabled = false; // 🔑 se vuelve a habilitar al terminar
+        }
+      });
+    }
+    // Carga inicial
+    cargarClientes();
+    cargarConductores();
+    cargarAutosTabla();
+    //cargarAutosActivosSelect();
+    //cargarConductoresEnTurno()
+    cargarAutosDisponiblesSelect();
+    cargarDespachos();
+    cargarTurnos();
+    //cargarConductoresDisponibles();
+    cargarConductoresEnTurnoCrear();
+    cargarConductoresEnTurnoDespacho();
+    mostrarSeccion('despachos');
+  });
+
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = '/index.html';
+    });
+
+    // Clientes
+    async function cargarClientes() {
+      try {
+        const res = await apiFetch('/clientes');
+        const data = await res.json();
+
+        // Llenar SOLO la tabla de clientes
+        const tbody = document.querySelector('#tablaClientes tbody');
+        tbody.innerHTML = Array.isArray(data)
+          ? data.map(c => `
+            <tr onclick="seleccionarCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+              <td>${c.nombre}</td>
+              <td>${c.nro_telefono}</td>
+              <td>${c.direccion || '-'}</td>
+            </tr>
+          `).join('')
+          : "<tr><td colspan='3'>No hay clientes registrados</td></tr>";
+
+        // ⚠️ Importante: NO llenar aquí el select #desCliente
+        // Ese select se llena únicamente en validarClientePorTelefono()
+      } catch (err) {
+        console.error("❌ Error cargando clientes:", err);
+      }
+    }
+    ///Cargar clientes en la tabla dinámica lista espera
+    async function cargarListaEspera() {
+      try {
+        const res = await apiFetch("/lista_espera");
+        const data = await res.json();
+
+        const tbody = document.querySelector("#tablaClientesEspera tbody");
+        tbody.innerHTML = Array.isArray(data) ? data.map((c, idx) => `
+          <tr>
+            <td class="border px-2 py-1">${idx + 1}</td>
+            <td>${c.nro_telefono || c.cliente_telefono || ""}</td>
+            <td class="border px-2 py-1">${c.cliente_nombre}</td>
+            <td class="border px-2 py-1">${c.origen}</td>
+            <td class="border px-2 py-1">${c.destino}</td>
+            <td class="border px-2 py-1">${c.hora}</td>
+            <td class="border px-2 py-1">${c.tarifa}</td>
+            <td class="border px-2 py-1">${c.estado}</td>
+            <td class="border px-2 py-1">
+              <button class="bg-red-500 text-white px-2 py-1 rounded"
+                      onclick="cancelarCliente(${c.id})">
+                Cancelar
+              </button>
+              <button class="bg-green-500 text-white px-2 py-1 rounded"
+                      onclick="crearDespachoDesdeEspera(${c.id})">
+                Crear despacho
+              </button>
+            </td>
+          </tr>
+        `).join("") : "<tr><td colspan='7'>No hay clientes en espera</td></tr>";
+      } catch (err) {
+        console.error("Error cargando lista de espera:", err);
+      }
+    }
+
+    document.getElementById('formCliente').addEventListener('submit', async e => {
+      e.preventDefault();
+      const cliente = {
+        nombre: document.getElementById('cliNombre').value,
+        nro_telefono: document.getElementById('cliTelefono').value,
+        direccion: document.getElementById('cliDireccion').value
+      };
+      await apiFetch('/clientes', { method: 'POST', body: JSON.stringify(cliente) });
+      e.target.reset();
+      cargarClientes();
+    });
+    //Función para seleccionar cliente y rellenar formulario de edición
+    function seleccionarCliente(c) {
+      document.getElementById('cliNombreEdit').value = c.nombre || '';
+      document.getElementById('cliTelefonoEdit').value = c.nro_telefono || c.telefono || '';
+      document.getElementById('cliDireccionEdit').value = c.direccion || '';
+    }
+ 
+    // Conductores
+    async function cargarConductores() {
+      const res = await apiFetch('/conductores');
+      const data = await res.json();
+
+      const tbody = document.querySelector('#tablaConductores tbody');
+      tbody.innerHTML = ""; // limpiar tabla
+
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach(c => {
+          const tr = document.createElement("tr");
+          tr.classList.add("cursor-pointer", "hover:bg-gray-100");
+
+          tr.innerHTML = `
+            <td>${c.nro_cedula}</td>
+            <td>${c.nombre}</td>
+            <td>${c.nro_telefono}</td>
+          `;
+
+          // Listener para activar edición
+          tr.addEventListener("click", () => seleccionarConductor(c));
+
+          tbody.appendChild(tr);
+        });
+      } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No hay conductores registrados</td></tr>";
+      }
+    }
+
+    
+    // Poblar select de conductores en turno para el despacho
+    async function cargarConductoresEnTurnoDespacho() {
+      const res = await apiFetch("/conductores/en_turno_disponibles");
+      const data = await res.json();
+      console.log("Conductores en turno disponibles:", data);
+
+      const select = document.getElementById("desConductor");
+      const btnListaEspera = document.getElementById("btnListaEspera");
+      select.innerHTML = "";
+
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach(t => {
+          const option = document.createElement("option");
+          option.value = t.conductor.id_conductor;
+          option.textContent = `${t.conductor.nombre} (${t.auto.nro_placa})`;
+          select.appendChild(option);
+        });
+        btnListaEspera.disabled = true;   // 🚦 hay conductores → botón deshabilitado
+      } else {
+        const option = document.createElement("option");
+        option.disabled = true;
+        option.textContent = "No hay conductores disponibles";
+        select.appendChild(option);
+        btnListaEspera.disabled = false;  // 🚦 no hay conductores → botón habilitado
+        //console.log("🚦 No hay conductores en turno → habilitando lista de espera");
+        cargarListaEspera();
+      }
+      return data; 
+    }
+
+  
+  document.getElementById('formConductor').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const conductor = {
+      nro_cedula: document.getElementById('conCedula').value.trim(),
+      nombre: document.getElementById('conNombre').value.trim(),
+      nro_telefono: document.getElementById('conTelefono').value.trim()
+    };
+
+    try {
+      const res = await apiFetch('/conductores', {
+        method: 'POST',
+        body: JSON.stringify(conductor)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Conductor creado correctamente");
+        e.target.reset();
+        cargarConductores();
+        //cargarConductoresActivosSelect();
+      } else {
+        alert(data.error || "Error al crear conductor");
+      }
+    } catch (err) {
+      console.error("Error en creación de conductor:", err);
+      alert("Error inesperado al crear conductor");
+    }
+  });
+
+
+
+    // Cargar autos Disponibles en el select de crear despacho
+    async function cargarAutosActivosSelect() {
+      try {
+        const res = await apiFetch('/conductores/en_turno_disponibles');
+        const data = await res.json();
+
+        const sel = document.getElementById('desAuto');
+        sel.innerHTML = "";
+
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(t => {
+            if (t.auto) {
+              const opt = document.createElement("option");
+              opt.value = t.auto.id_auto;
+              opt.textContent = `${t.auto.nro_placa || t.auto.placa || '—'} - ${t.conductor.nombre}`;
+              sel.appendChild(opt);
+            }
+          });
+        } else {
+          const opt = document.createElement("option");
+          opt.disabled = true;
+          opt.textContent = "No hay autos disponibles";
+          sel.appendChild(opt);
+        }
+      } catch (err) {
+        console.error("Error cargando autos disponibles:", err);
+        const sel = document.getElementById('desAuto');
+        if (sel) {
+          sel.innerHTML = '<option disabled>Error al cargar autos</option>';
+        }
+      }
+  }
+
+
+    document.getElementById('formAuto').addEventListener('submit', async e => {
+      e.preventDefault();
+      const auto = {
+        nro_placa: document.getElementById('autoPlaca').value,
+        tipo_auto: document.getElementById('autoTipo').value,
+        marca: document.getElementById('autoMarca').value,
+        modelo: document.getElementById('autoModelo').value
+      };
+      await apiFetch('/autos', { method: 'POST', body: JSON.stringify(auto) });
+      e.target.reset();
+      cargarAutosTabla();             // refresca la tabla
+      cargarAutosActivosSelect();     // refresca el select de despachos
+      cargarAutosDisponiblesSelect(); // refresca el select de turnos
+    });
+// Modificar campo específico de cliente con token
+  async function modificarCampoCliente(campo) {
+    const telefono = document.getElementById("cliTelefonoEdit").value.trim();
+    let valor;
+
+    if (campo === "nombre") {
+      valor = document.getElementById("cliNombreEdit").value.trim();
+    } else if (campo === "direccion") {
+      valor = document.getElementById("cliDireccionEdit").value.trim();
+    }
+
+    if (!telefono || !valor) {
+      alert("Debes ingresar teléfono y el nuevo valor.");
+      return;
+    }
+
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify({ [campo]: valor })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(`Cliente actualizado: ${campo} cambiado a ${valor}`);
+      cargarClientes(); // refresca tabla
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+  // Modificar cliente desde el panel de despacho
+  async function modificarClienteDesdeDespacho() {
+    const telefono = document.getElementById("desTelefono").value.trim();
+    const direccion = document.getElementById("desOrigen").value.trim();
+
+    if (!telefono || !direccion) {
+      alert("Debes ingresar teléfono y dirección para modificar.");
+      return;
+    }
+
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify({ direccion })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(`Cliente actualizado: dirección cambiada a ${direccion}`);
+      cargarClientes();
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+  //Cargar conductores en turno activos para el select de crear turno
+    async function cargarConductoresEnTurnoCrear() {
+    try {
+      const res = await apiFetch('/conductores/disponibles_conductores');
+      const data = await res.json();
+
+      console.log("Conductores disponibles recibidos:", data);
+
+      const sel = document.getElementById('nuevoConductor');
+      sel.innerHTML = "";
+
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id_conductor;
+          opt.textContent = `${c.nombre}`;
+          sel.appendChild(opt);
+        });
+      } else {
+        const opt = document.createElement("option");
+        opt.disabled = true;
+        opt.textContent = "No hay conductores disponibles";
+        sel.appendChild(opt);
+      }
+    } catch (err) {
+      console.error("Error cargando conductores disponibles:", err);
+      const sel = document.getElementById('nuevoConductor');
+      sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
+    }
+  }
+
+//cargar autos disponibles para el select de crear turno
+ 
+  // Función para crear turno desde el panel
+  async function crearTurno() {
+    const conductorId = document.getElementById("desConductor").value;
+    const autoId = document.getElementById("selectAuto").value;
+    const usuarioId = localStorage.getItem("usuario_id"); // operador logueado
+
+    try {
+      const res = await window.apiFetch("/turnos/activos", {
+        method: "POST",
+        body: JSON.stringify({
+          conductor_id: conductorId,
+          auto_id: autoId,
+          usuario_id: usuarioId   // opcional según tu modelo
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // ✅ Turno creado correctamente
+        alert("Turno creado: " + data.id_turno);
+        cargarTurnos(); // refresca la tabla dinámica
+        //cargarConductoresDisponiblesDespacho();
+        cargarConductoresEnTurnoCrear();
+        cargarConductoresEnTurnoDespacho();
+        cargarAutosDisponiblesSelect();
+      } else {
+        // ❌ Error de validación desde backend
+        alert("Error: " + (data.error || "No se pudo crear el turno"));
+      }
+    } catch (err) {
+      console.error("Error creando turno:", err);
+      alert("Error inesperado al crear turno");
+    }
+  }
+ 
+ 
+    // Despachos
+    async function cargarDespachos() {
+      const res = await apiFetch('/despachos/activos');
+      const data = await res.json();
+      const tbody = document.querySelector('#tablaDespachos tbody');
+      tbody.innerHTML = Array.isArray(data)
+        ? data.map(d => `<tr><td>${d.origen || ''}</td><td>${d.destino || ''}</td><td>${d.tarifa || ''}</td><td>${d.estado_despacho || d.estado || ''}</td></tr>`).join('')
+        : '';
+    }
+    //Para enviar a tabla de la bd lista de espera
+    async function enviarAListaEspera() {
+      const cliente_id = document.getElementById("desCliente").value;
+      const origen = document.getElementById("desOrigen").value;
+      const destino = document.getElementById("desDestino").value;
+      const hora = new Date().toISOString();
+      const nro_telefono = document.getElementById("desTelefono").value;
+      const tarifa = document.getElementById("desTarifa").value;
+      if (!cliente_id) {
+        alert("Debe seleccionar un cliente antes de enviar a lista de espera.");
+        return;
+      }
+
+      try {
+        const res = await apiFetch("/lista_espera", {
+          method: "POST",
+          body: JSON.stringify({
+            cliente_id,
+            origen,
+            destino,
+            hora,
+            nro_telefono,
+            tarifa,
+            estado: "en espera"
+          })
+        });
+
+        if (res.ok) {
+          alert("Cliente enviado a lista de espera.");
+          console.log("🚦 Enviando a lista_espera:", {
+            cliente_id, origen, destino, hora, nro_telefono, tarifa
+          });
+
+          cargarListaEspera(); // refresca la tabla desde el backend
+        } else {
+          alert("Error al enviar cliente a lista de espera.");
+        }
+      } catch (err) {
+        console.error("Error en lista de espera:", err);
+      }
+    }
+
+   // Turnos activos
+  async function cargarTurnos() {
+    try {
+      const res = await apiFetch('/turnos/activos'); // solo activos
+      const data = await res.json();
+      const contenedor = document.getElementById('turnosActivos');
+      console.log("▶️ Ejecutando cargarTurnos()", data);
+
+      contenedor.innerHTML = `
+        <h3 class="text-xl font-bold mt-6">Turnos activos</h3>
+        <table class="mt-2 border-collapse border border-gray-300 w-full">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border px-2 py-1">ID Turno</th>
+              <th class="border px-2 py-1">Conductor</th>
+              <th class="border px-2 py-1">Auto</th>
+              <th class="border px-2 py-1">Inicio</th>
+              <th class="border px-2 py-1">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              Array.isArray(data) && data.length > 0
+                ? data.map(t => `
+                  <tr class="hover:bg-gray-50 transition">
+                    <td class="border px-2 py-1">${t.id_turno}</td>
+                    <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
+                    <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
+                    <td class="border px-2 py-1">${t.inicio}</td>
+                    <td class="border px-2 py-1 text-center">
+                      <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                              onclick="finalizarTurno(${t.id_turno})">
+                        Finalizar
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')
+                : `<tr><td colspan="5" class="text-center py-2">No hay turnos activos</td></tr>`
+            }
+          </tbody>
+        </table>
+      `;
+      return data; // 🔑 devolver el array al listener
+    } catch (err) {
+      console.error("❌ Error cargando turnos:", err);
+      const contenedor = document.getElementById('turnosActivos');
+      contenedor.innerHTML = "<p class='text-red-600'>Error al cargar turnos activos</p>";
+      return []; // 🔑 devolver array vacío en caso de error
+    }
+  }
+
+  
+   
+   
+    async function cargarConductoresDisponibles() {
+      const res = await apiFetch('/conductores');
+      const data = await res.json();
+      const sel = document.getElementById('nuevoConductor');
+      sel.innerHTML = Array.isArray(data)
+        ? data.map(c => `<option value="${c.id_conductor}">${c.nombre}</option>`).join('')
+        : '';
+    }
+
+    async function cargarAutosDisponiblesSelect() {
+      const res = await apiFetch('/autos/disponibles');
+      const data = await res.json();
+      const sel = document.getElementById('nuevoAuto');
+      sel.innerHTML = Array.isArray(data) && data.length > 0
+        ? data.map(a => `<option value="${a.id_auto}">${a.nro_placa || a.placa || '—'}</option>`).join('')
+        : '<option disabled>No hay autos disponibles</option>';
+    }
+
+    // Validar cliente por teléfono con opción de crear nuevo
+    async function validarClientePorTelefono() {
+      const telefono = document.getElementById('desTelefono').value.trim();
+      if (!telefono) return null; // 🔑 devolver null si no hay teléfono
+
+      try {
+        const res = await apiFetch(`/clientes/buscar?telefono=${telefono}`);
+        const data = await res.json();
+        const selCliente = document.getElementById('desCliente');
+
+        if (Array.isArray(data) && data.length > 0) {
+          // Cliente encontrado
+          selCliente.innerHTML = `<option value="${data[0].id_cliente || data[0].id_clientes}">${data[0].nombre}</option>`;
+          document.getElementById('desOrigen').value = data[0].direccion;
+
+          // 🔹 Rellenar también el formulario de edición de clientes
+          document.getElementById('cliNombreEdit').value = data[0].nombre || '';
+          document.getElementById('cliTelefonoEdit').value = data[0].nro_telefono || data[0].telefono || '';
+          document.getElementById('cliDireccionEdit').value = data[0].direccion || '';
+
+          activarCamposDespacho(true);
+
+          return data[0]; // ✅ devolver el cliente encontrado
+        } else {
+          // Cliente no encontrado
+          selCliente.innerHTML = '';
+          document.getElementById('desOrigen').value = '';
+          activarCamposDespacho(false);
+
+          if (confirm("Cliente no registrado. ¿Desea crear uno nuevo?")) {
+            const nombre = prompt("Ingrese el nombre del cliente:");
+            const direccion = prompt("Ingrese la dirección del cliente:");
+
+            if (nombre && direccion) {
+              const nuevoCliente = { telefono, nombre, direccion };
+              const resPost = await apiFetch("/clientes", {
+                method: "POST",
+                body: JSON.stringify(nuevoCliente)
+              });
+              const result = await resPost.json();
+
+              if (resPost.ok) {
+                alert("✅ Cliente creado correctamente");
+                selCliente.innerHTML = `<option value="${result.id_cliente || result.id_clientes}">${nombre}</option>`;
+                document.getElementById('desOrigen').value = direccion;
+
+                // 🔹 Rellenar también el formulario de edición con el nuevo cliente
+                document.getElementById('cliNombreEdit').value = nombre;
+                document.getElementById('cliTelefonoEdit').value = telefono;
+                document.getElementById('cliDireccionEdit').value = direccion;
+
+                activarCamposDespacho(true);
+
+                return result; // ✅ devolver el nuevo cliente creado
+              } else {
+                alert("❌ Error al crear cliente: " + (result.error || "verifica datos"));
+                return null;
+              }
+            }
+          }
+
+          return null; // 🔑 devolver null si no se crea cliente
+        }
+      } catch (err) {
+        console.error("❌ Error validando cliente:", err);
+        return null; // 🔑 blindaje en caso de error
+      }
+    }
+
+
+    // Habilitación automática del botón al completar selects
+    function verificarDespachoListo() {
+      const cliente   = document.getElementById('desCliente').value.trim();
+      const conductor = document.getElementById('desConductor').value.trim();
+      const auto      = document.getElementById('desAuto').value.trim();
+      const destino   = document.getElementById('desDestino').value.trim();
+      const tarifa    = document.getElementById('desTarifa').value.trim();
+
+      const listo = cliente && conductor && auto && destino && tarifa;
+      document.getElementById('btnCrearDespacho').disabled = !listo;
+    }
+
+    // Activar/desactivar campos del despacho
+    function activarCamposDespacho(estado) {
+      document.getElementById('desOrigen').disabled = !estado;
+      document.getElementById('desDestino').disabled = !estado;
+      document.getElementById('desTarifa').disabled = !estado;
+      document.getElementById('desCliente').disabled = !estado;
+      document.getElementById('desConductor').disabled = !estado;
+      document.getElementById('desAuto').disabled = !estado;
+    }
+
+    // Listeners
+   // document.getElementById('desTelefono').addEventListener('keydown', e => {
+   //   if (e.key === 'Enter') {
+   //     e.preventDefault();
+   //     validarClientePorTelefono();
+   //   }
+   // });
+    // Validar cédula de conductor al presionar Enter
+    document.getElementById("conCedula").addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const cedula = event.target.value.trim();
+        if (!cedula) {
+          alert("Debe ingresar un número de cédula");
+          return;
+        }
+
+        const res = await fetch(`/conductores/buscar?nro_cedula=${cedula}`);
+        const data = await res.json();
+
+        const tbody = document.querySelector("#tablaConductores tbody");
+
+        if (data.length > 0) {
+          alert("La cédula ya está registrada");
+          // Mostrar en la tabla
+          tbody.innerHTML = `
+            <tr>
+              <td>${data[0].nro_cedula}</td>
+              <td>${data[0].nombre}</td>
+              <td>${data[0].nro_telefono}</td>
+            </tr>
+          `;
+        } else {
+          alert("Cédula válida, puede continuar con el registro");
+          document.getElementById("conNombre").focus();
+          // Limpiar tabla si estaba mostrando algo
+          tbody.innerHTML = "";
+        }
+      }
+    });
+
+
+    document.getElementById('desCliente').addEventListener('change', verificarDespachoListo);
+    document.getElementById('desConductor').addEventListener('change', verificarDespachoListo);
+    document.getElementById('desAuto').addEventListener('change', verificarDespachoListo);
+    document.getElementById('desDestino').addEventListener('input', verificarDespachoListo);
+    document.getElementById('desTarifa').addEventListener('input', verificarDespachoListo);
+    document.addEventListener('DOMContentLoaded', () => {
+      validarTelefono('cliTelefonoNuevo'); // formulario de cliente nuevo
+      validarTelefono('cliTelefonoEdit');  // formulario de edición de cliente
+      validarTelefono('desTelefono');      // formulario de despacho
+      validarTelefono('conTelefono');      // formulario de conductor
+    });
+    
+   
+   // Submit único del formulario de despacho-creación del despacho
+  document.getElementById('formDespacho').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const despacho = {
+      cliente_id: parseInt(document.getElementById('desCliente').value),
+      conductor_id: parseInt(document.getElementById('desConductor').value),
+      auto_id: parseInt(document.getElementById('desAuto').value),
+      origen_despacho: document.getElementById('desOrigen').value.trim(),
+      destino_despacho: document.getElementById('desDestino').value.trim(),
+      tarifa: parseFloat(document.getElementById('desTarifa').value),
+      estado_despacho: "en curso"
+    };
+
+    // Validación rápida
+    if (!despacho.origen_despacho || !despacho.destino_despacho) {
+      alert("⚠️ Debes ingresar origen y destino del despacho.");
+      return;
+    }
+
+    try {
+      const res = await apiFetch('/despachos', {
+        method: 'POST',
+        body: JSON.stringify(despacho)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("✅ Despacho creado correctamente");
+
+        // 🔹 Si el cliente venía de la lista de espera, eliminarlo ahora
+        if (window.clienteEnEsperaSeleccionado) {
+          await apiFetch(`/lista-espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
+          window.clienteEnEsperaSeleccionado = null;
+          cargarListaEspera();
+        }
+
+        // 🔹 Refrescar tablas y selects
+        cargarDespachos();
+        cargarDespachosActivos();
+        //cargarConductoresDisponiblesDespacho();
+        cargarConductoresEnTurnoDespacho()
+
+        // 🔹 Limpieza de formulario
+        e.target.reset();
+        document.getElementById('btnCrearDespacho').disabled = true;
+
+      } else {
+        alert("❌ Error al crear despacho: " + (data.error || "verifica datos"));
+      }
+    } catch (err) {
+      console.error("Error en creación de despacho:", err);
+      alert("❌ Error inesperado al crear despacho");
+    }
+  });
+
+   // Generar reporte entre fechas
+    document.getElementById("btnGenerarReporte").addEventListener("click", async () => {
+      const inicio = document.getElementById("fechaInicio").value;
+      const fin = document.getElementById("fechaFin").value;
+
+      if (!inicio || !fin) {
+        alert("Debes seleccionar fecha de inicio y fecha de fin");
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
+        const data = await res.json();
+
+        const contenedor = document.getElementById("reporteResultado");
+        contenedor.innerHTML = Array.isArray(data) && data.length > 0
+          ? `<table class="border-collapse border w-full">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="border px-2 py-1">ID</th>
+                  <th class="border px-2 py-1">Cliente</th>
+                  <th class="border px-2 py-1">Conductor</th>
+                  <th class="border px-2 py-1">Auto</th>
+                  <th class="border px-2 py-1">Origen</th>
+                  <th class="border px-2 py-1">Destino</th>
+                  <th class="border px-2 py-1">Fecha</th>
+                  <th class="border px-2 py-1">Tarifa</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.map(r => `
+                  <tr>
+                    <td class="border px-2 py-1">${r.id_despacho}</td>
+                    <td class="border px-2 py-1">${r.cliente_nombre}</td>
+                    <td class="border px-2 py-1">${r.conductor_nombre}</td>
+                    <td class="border px-2 py-1">${r.auto_placa}</td>
+                    <td class="border px-2 py-1">${r.origen}</td>
+                    <td class="border px-2 py-1">${r.destino}</td>
+                    <td class="border px-2 py-1">${r.fecha}</td>
+                    <td class="border px-2 py-1">${r.tarifa}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>`
+          : "<p>No hay resultados en el rango seleccionado</p>";
+      } catch (err) {
+        console.error("❌ Error generando reporte:", err);
+        alert("Error al generar reporte");
+      }
+   });
+
+  // Generar reporte agregado por conductor entre fechas(total despachos y tarifa)
+  document.getElementById("btnReporteConductores").addEventListener("click", async () => {
+    const inicio = document.getElementById("fechaInicio").value;
+    const fin = document.getElementById("fechaFin").value;
+
+    if (!inicio || !fin) {
+      alert("Debes seleccionar fecha de inicio y fecha de fin");
+      return;
+    }
+
+    try {
+      const res = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
+      const data = await res.json();
+
+      const contenedor = document.getElementById("reporteConductoresResultado");
+      contenedor.innerHTML = Array.isArray(data) && data.length > 0
+        ? `<table class="border-collapse border w-full">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border px-2 py-1">Conductor</th>
+                <th class="border px-2 py-1">Total Servicios</th>
+                <th class="border px-2 py-1">Total Tarifa</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(r => `
+                <tr>
+                  <td class="border px-2 py-1">${r.conductor}</td>
+                  <td class="border px-2 py-1">${r.total_servicios}</td>
+                  <td class="border px-2 py-1">${r.total_tarifa.toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>`
+        : "<p>No hay resultados en el rango seleccionado</p>";
+    } catch (err) {
+      console.error("❌ Error generando reporte por conductor:", err);
+      alert("Error al generar reporte por conductor");
+    }
+  });
+  
+ 
+  let despachoSeleccionado = null;
+
+  // Cargar despachos activos
+  async function cargarDespachosActivos() {
+    try {
+      const res = await apiFetch('/despachos/activos');
+      const data = await res.json();
+      const tbody = document.querySelector('#tablaDespachosActivos tbody');
+
+      tbody.innerHTML = Array.isArray(data)
+        ? data.map(d => `
+          <tr class="hover:bg-gray-50 transition">
+            <td class="border px-2 py-1">${d.cliente_telefono || ""}</td>
+            <td class="border px-2 py-1">${d.cliente_nombre}</td>
+            <td class="border px-2 py-1">${d.conductor_nombre || '—'}</td>
+            <td class="border px-2 py-1">${d.auto_placa}</td>
+            <td class="border px-2 py-1">${d.origen}</td>
+            <td class="border px-2 py-1">${d.destino}</td>
+            <td class="border px-2 py-1">${d.estado_despacho}</td>
+            <td class="border px-2 py-1 text-center">
+              <button class="bg-green-500 text-white px-3 py-1 rounded mr-2"
+                      onclick="finalizarDespacho(${d.id_despacho})">
+                Finalizar
+              </button>
+              <button class="bg-red-500 text-white px-3 py-1 rounded mr-2"
+                      onclick="cancelarDespacho(${d.id_despacho})">
+                Cancelar
+              </button>
+              <button class="bg-indigo-500 text-white px-3 py-1 rounded"
+                      onclick="seleccionarDespacho(${d.id_despacho})">
+                Seleccionar
+              </button>
+            </td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="6" class="text-center text-gray-600">No hay despachos activos</td></tr>';
+
+      return data; // 🔑 devolver el array al listener
+    } catch (err) {
+      console.error("❌ Error cargando despachos activos:", err);
+      const tbody = document.querySelector('#tablaDespachosActivos tbody');
+      tbody.innerHTML = "<tr><td colspan='6' class='text-center text-red-600'>Error al cargar despachos</td></tr>";
+      return []; // 🔑 blindaje en caso de error
+    }
+  }
+
+  // Conductores - Editar para modificar datos
+  let conductorSeleccionado = null; // se define al hacer clic en la fila de la tabla
+
+  function seleccionarConductor(c) {
+    conductorSeleccionado = c;
+    document.getElementById("formConductorEditContainer").classList.remove("hidden");
+    document.getElementById("conNombreEdit").value = c.nombre;
+    document.getElementById("conTelefonoEdit").value = c.nro_telefono;
+  }
+  document.getElementById("formConductorEdit").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const conductor = {
+      nombre: document.getElementById("conNombreEdit").value.trim(),
+      nro_telefono: document.getElementById("conTelefonoEdit").value.trim()
+    };
+
+    const res = await apiFetch(`/conductores/${conductorSeleccionado.id_conductor}`, {
+      method: "PUT",
+      body: JSON.stringify(conductor)
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("Conductor actualizado correctamente");
+      cargarConductores();
+      document.getElementById("formConductorEditContainer").classList.add("hidden");
+    } else {
+      alert(data.error || "Error al actualizar conductor");
+    }
+  });
+  
+      
+
+    // Validar placa con Enter
+  document.addEventListener("DOMContentLoaded", () => {  
+    document.getElementById("autoPlaca").addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const placa = event.target.value.trim();
+        if (!placa) {
+          alert("Debe ingresar una placa");
+          return;
+        }
+
+        const res = await fetch(`/autos/buscar?placa=${placa}`);
+        const data = await res.json();
+
+        const tbody = document.querySelector("#tablaAutos tbody");
+
+        if (data.length > 0) {
+          alert("La placa ya está registrada");
+          tbody.innerHTML = `
+            <tr>
+              <td>${data[0].placa}</td>
+              <td>${data[0].tipo}</td>
+              <td>${data[0].marca}</td>
+              <td>${data[0].modelo}</td>
+            </tr>
+          `;
+        } else {
+          alert("Placa válida, puede continuar con el registro");
+          document.getElementById("autoTipo").focus();
+          tbody.innerHTML = "";
+        }
+      }
+    });
+
+    // Crear auto
+    document.getElementById("formAuto").addEventListener("submit", async e => {
+      e.preventDefault();
+      const auto = {
+        nro_placa: document.getElementById("autoPlaca").value.trim(),
+        tipo_auto: document.getElementById("autoTipo").value.trim(),
+        marca: document.getElementById("autoMarca").value.trim(),
+        modelo: document.getElementById("autoModelo").value.trim()
+      };
+
+      const res = await apiFetch("/autos", {
+        method: "POST",
+        body: JSON.stringify(auto)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Auto creado correctamente");
+        e.target.reset();
+        cargarAutosTabla();
+        cargarAutosActivosSelect();
+        cargarAutosDisponiblesSelect();
+      } else {
+        alert(data.error || "Error al crear auto");
+      }
+    });
+
+    // Cargar autos en tabla
+    async function cargarAutosTablaLegacy() {
+      const res = await apiFetch("/autos");
+      const data = await res.json();
+
+      const tbody = document.querySelector("#tablaAutos tbody");
+      tbody.innerHTML = "";
+
+      data.forEach(a => {
+        const tr = document.createElement("tr");
+        tr.classList.add("cursor-pointer", "hover:bg-gray-100");
+        tr.innerHTML = `<td>${a.placa}</td><td>${a.tipo}</td><td>${a.marca}</td><td>${a.modelo}</td>`;
+        tr.addEventListener("click", () => seleccionarAuto(a));
+        tbody.appendChild(tr);
+      });
+    }
+    
+    // Seleccionar auto para edición
+    function seleccionarAuto(a) {
+      autoSeleccionado = a;
+      document.getElementById("formAutoEditContainer").classList.remove("hidden");
+      document.getElementById("autoTipoEdit").value = a.tipo_auto;
+      document.getElementById("autoMarcaEdit").value = a.marca;
+      document.getElementById("autoModeloEdit").value = a.modelo;
+      document.getElementById("autoPlacaEdit").value = a.nro_placa || a.placa;
+    }
+    window.seleccionarAuto = seleccionarAuto;
+    // Editar auto
+    document.getElementById("formAutoEdit").addEventListener("submit", async e => {
+      e.preventDefault();
+      const auto = {
+        nro_placa: document.getElementById("autoPlacaEdit").value.trim(),
+        tipo_auto: document.getElementById("autoTipoEdit").value.trim(),
+        marca: document.getElementById("autoMarcaEdit").value.trim(),
+        modelo: document.getElementById("autoModeloEdit").value.trim()
+      };
+
+      const res = await apiFetch(`/autos/${autoSeleccionado.id_auto}`, {
+        method: "PUT",
+        body: JSON.stringify(auto)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Auto actualizado correctamente");
+        cargarAutosTabla();
+        cargarAutosActivosSelect();
+        cargarAutosDisponiblesSelect();
+        document.getElementById("formAutoEditContainer").classList.add("hidden");
+      } else {
+        alert(data.error || "Error al actualizar auto");
+      }
+    });
+
+  });
+  // Abrir modal para editar cliente desde despacho
+  async function guardarCambiosCliente() {
+    const telefono = document.getElementById('cliTelefonoEdit').value.trim();
+    const nombre = document.getElementById('modalNombre').value.trim();
+    const direccion = document.getElementById('modalDireccion').value.trim();
+
+    if (!telefono) {
+      alert("No hay teléfono cargado para este cliente.");
+      return;
+    }
+
+    const payload = {};
+    if (nombre) payload.nombre = nombre;
+    if (direccion) payload.direccion = direccion;
+
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("Cliente actualizado correctamente");
+      cerrarModal();
+      cargarClientes();
+
+      // 🔹 Actualizar también el campo origen en despachos
+      if (direccion) {
+        document.getElementById('desOrigen').value = direccion;
+      }
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+ // Cargar conductores activos en el select de crear despacho
+  async function cargarConductoresActivosSelect() {
+    try {
+      const res = await apiFetch('/conductores/activos');
+      const data = await res.json();
+
+      const sel = document.getElementById('desConductor');
+      sel.innerHTML = "";
+
+      if (Array.isArray(data) && data.length > 0) {
+       data.forEach(t => {
+          if (t.conductor.estado === "Disponible") {   // 🔑 solo disponibles
+            console.log("Conductor recibido:", t.conductor);
+            const opt = document.createElement("option");
+            opt.value = t.conductor.id_conductor || t.conductor.id || t.conductor_id;
+            opt.textContent = `${t.conductor.nombre || t.conductor.conductor_nombre || "??"} - ${t.auto?.nro_placa || "-"}`;
+            sel.appendChild(opt);
+          }  
+        });
+
+      } else {
+        const opt = document.createElement("option");
+        opt.disabled = true;
+        opt.textContent = "No hay conductores activos";
+        sel.appendChild(opt);
+      }
+    } catch (err) {
+      console.error("Error al cargar conductores activos:", err);
+      const sel = document.getElementById('desConductor');
+      if (sel) {
+        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
+      }
+    }
+  }
+
+
+
+  // Seleccionar un despacho
+  function seleccionarDespacho(id) {
+    despachoSeleccionado = id;
+    alert(`Despacho ${id} seleccionado`);
+  }
+   
+  // Cargar conductores disponibles para asignación
+  async function cargarConductoresAsignacion() {
+    const res = await apiFetch('/conductores/en_turno_disponibles');
+    const data = await res.json();
+    const sel = document.getElementById('conductorAsignacion');
+    sel.innerHTML = Array.isArray(data)
+      ? data.map(c => `<option value="${c.id_conductor}">${c.nombre}</option>`).join('')
+      : '<option disabled>No hay conductores activos</option>';
+  }
+
+  // Asignar despacho al conductor seleccionado
+  document.getElementById('btnAsignarDespacho').addEventListener('click', async () => {
+    if (!despachoSeleccionado) {
+      alert('Seleccione un despacho primero.');
+      return;
+    }
+    const conductorId = document.getElementById('conductorAsignacion').value;
+    if (!conductorId) {
+      alert('Seleccione un conductor.');
+      return;
+    }
+
+    const res = await apiFetch(`/despachos/${despachoSeleccionado}/asignar`, {
+      method: 'PUT',
+      body: JSON.stringify({ conductor_id: parseInt(conductorId) })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      alert('✅ Despacho asignado correctamente');
+      cargarDespachosActivos();
+    } else {
+      alert('❌ Error al asignar despacho: ' + (data.error || 'verifica datos'));
+    }
+  });
+  // cargar autos en tabla
+  async function cargarAutosTabla() {
+    const res = await apiFetch("/autos");
+    const data = await res.json();
+
+    const tbody = document.querySelector("#tablaAutos tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(a => {
+      const tr = document.createElement("tr");
+      tr.classList.add("cursor-pointer", "hover:bg-gray-100");
+      tr.innerHTML = `
+        <td>${a.placa}</td>
+        <td>${a.tipo_auto}</td>
+        <td>${a.marca}</td>
+        <td>${a.modelo}</td>
+      `;
+      tr.addEventListener("click", () => seleccionarAuto(a));  // <- clic abre edición
+      tbody.appendChild(tr);
+    });
+  }
+    // =======================
+  // Turnos Activos
+  // =======================
+
+  ///Finalizar turnos
+
+  async function finalizarTurno(id_turno) {
+    try {
+      const res = await apiFetch(`/turnos/${id_turno}/finalizar`, { method: "PUT" });
+      const data = await res.json();
+
+      if (res.ok) {
+        console.log("✅ Turno finalizado:", data);
+        alert("Turno finalizado correctamente");
+        // 🔎 Ver estados después de finalizar
+        console.log("Estado turno:", data.estado_turno);
+        console.log("Estado conductor:", data.conductor_estado);
+        console.log("Estado auto:", data.auto_estado);
+        // Refrescar todo el dashboard
+        cargarTurnos();
+        //cargarConductores();
+        cargarAutosTabla();
+        cargarConductoresEnTurnoDespacho();
+        cargarAutosActivosSelect();
+        cargarAutosDisponiblesSelect();
+        //cargarConductoresActivosSelect();
+      } else {
+        console.warn("⚠️ Falló el backend:", data);
+        alert(data.msg || "Error al finalizar turno");
+      }
+    } catch (err) {
+      console.error("❌ Error de red o inesperado:", err);
+      alert("Error de conexión o inesperado al finalizar turno.");
+    }
+  }
+
+
+  // =======================
+  // Iniciar turno
+  // =======================
+
+ //document.getElementById("btnIniciarTurno").addEventListener("click", async e => {
+ //   e.preventDefault();
+//
+//    const turno = {
+//      conductor_id: document.getElementById("nuevoConductor").value,
+//      auto_id: document.getElementById("nuevoAuto").value
+//    };
+
+//    const res = await apiFetch("/turnos", {
+//      method: "POST",
+//      body: JSON.stringify(turno)
+//    });
+//    const data = await res.json();
+
+//    if (res.ok) {
+//      alert("Turno iniciado correctamente");
+//      cargarTurnos();
+//      //cargarConductoresActivosSelect();
+//      cargarAutosActivosSelect();
+//    } else {
+//      alert(data.error || "Error al iniciar turno");
+//    }
+//  });
+
+
+
+  // Reportes  
+  async function cargarReporte() {
+    try {
+      const res = await apiFetch('/reportes/conductor');
+      if (!res.ok) throw new Error("Error al obtener el reporte");
+      const data = await res.json();
+      const contenedor = document.getElementById("reporteResultado");
+
+      if (!Array.isArray(data) || data.length === 0) {
+        contenedor.innerHTML = "<p class='text-gray-600'>No hay datos disponibles.</p>";
+        return;
+      }
+
+      let tabla = `
+        <table class="min-w-full border-collapse border border-gray-300 mt-4">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="border border-gray-300 px-4 py-2 text-left">Conductor</th>
+              <th class="border border-gray-300 px-4 py-2 text-center">Total Servicios</th>
+              <th class="border border-gray-300 px-4 py-2 text-center">Total Tarifas</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      data.forEach(item => {
+        tabla += `
+          <tr class="hover:bg-gray-100">
+            <td class="border border-gray-300 px-4 py-2">${item.conductor}</td>
+            <td class="border border-gray-300 px-4 py-2 text-center">${item.total_servicios}</td>
+            <td class="border border-gray-300 px-4 py-2 text-center">${item.total_tarifas}</td>
+          </tr>
+        `;
+      });
+      tabla += `</tbody></table>`;
+      contenedor.innerHTML = tabla;
+    } catch (error) {
+      document.getElementById("reporteResultado").innerHTML =
+        "<p class='text-red-600'>Error cargando el reporte: " + error.message + "</p>";
+    }
+  }
+  // Inicialización
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarDespachosActivos();
+    //cargarConductoresActivosSelect();
+    //cargarConductoresEnTurno();
+    //cargarConductoresAsignacion();
+    cargarConductoresEnTurnoCrear();
+    cargarConductoresEnTurnoDespacho();
+    mostrarSeccion('despachos')
+
+    
+  });
+// --- funciones de acción ---
+ async function finalizarDespacho(id) {
+    try {
+      const res = await apiFetch(`/despachos/${id}/finalizar`, { method: 'PUT' });
+      const data = await res.json();
+      const select = document.getElementById("desConductor");
+
+      if (res.ok) {
+        alert("✅ Despacho finalizado correctamente");
+
+        // 🔑 refrescar ambas tablas
+        cargarDespachosActivos(); // tabla de activos
+        cargarDespachos();        // tabla general
+        cargarConductoresEnTurnoDespacho();
+        console.log("Conductor seleccionado:", select.value);
+      } else {
+        alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
+      }
+    } catch (err) {
+      console.error("Error finalizando despacho:", err);
+      alert("❌ Error inesperado al finalizar despacho");
+    }
+  }
+
+
+   function abrirModalEditarCliente() {
+      // Copiar valores actuales al modal
+      document.getElementById('modalNombre').value = document.getElementById('cliNombreEdit').value;
+      document.getElementById('modalDireccion').value = document.getElementById('cliDireccionEdit').value;
+      document.getElementById('modalEditarCliente').classList.remove('hidden');
+    }
+// Cerrar modal de edición
+  function cerrarModal() {
+    document.getElementById('modalEditarCliente').classList.add('hidden');
+  }
+
+  async function guardarCambiosCliente() {
+    const telefono = document.getElementById('cliTelefonoEdit').value.trim();
+    const nombre = document.getElementById('modalNombre').value.trim();
+    const direccion = document.getElementById('modalDireccion').value.trim();
+
+    if (!telefono) {
+      alert("No hay teléfono cargado para este cliente.");
+      return;
+    }
+
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify({ nombre, direccion })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("Cliente actualizado correctamente");
+      cerrarModal();
+      cargarClientes();
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+  // Cancelar cliente de la lista de espera
+    async function cancelarCliente(idCliente) {
+    try {
+      const res = await fetch(`/lista_espera/${idCliente}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      console.log("Cliente eliminado:", data);
+      // 🚦 refrescar la tabla después de eliminar
+      cargarListaEspera();
+      cargarConductoresEnTurnoDespacho();
+    } catch (err) {
+      console.error("Error eliminando cliente:", err);
+    }
+  }
+  // Cancelar despacho 
+  async function cancelarDespacho(id) {
+    try {
+      const res = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
+      const data = await res.json();
+      if (res.ok) {
+        alert("⚠️ Despacho cancelado");
+        cargarDespachosActivos(); // refresca la tabla
+        cargarConductoresEnTurnoDespacho();
+      } else {
+        alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
+      }
+    } catch (err) {
+      console.error("Error cancelando despacho:", err);
+      alert("❌ Error inesperado al cancelar despacho");
+    }
+  }
+  // Login y manejo de roles
+   async function login(username, password) {
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      // Guardar token y rol
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("rol", data.rol_nombre);
+
+      console.log("Guardado rol:", data.rol_nombre);
+
+      // Redirigir al dashboard
+      window.location.href = "/dashboard.html";
+    }
+
+
+    // Vincular al formulario
+   const loginForm = document.getElementById("formLogin");
+    if (loginForm) {
+      loginForm.addEventListener("submit", e => {
+        e.preventDefault();
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        login(username, password);
+      });
+    }
+  document.addEventListener("DOMContentLoaded", () => {
+    cargarTurnos(); 
+    //cargarConductoresActivosSelect();
+    cargarAutosActivosSelect();
+    cargarListaEspera();
+    //cargarConductoresDisponiblesDespacho();
+  }); 
+  document.addEventListener("DOMContentLoaded", () => {
+    const selConductor = document.getElementById("desConductor");
+    if (selConductor) {
+      selConductor.addEventListener("change", verificarDespachoListo);
+      console.log("✅ Listener enganchado a #desConductor");
+    } else {
+      console.error("❌ #desConductor no existe en el DOM todavía");
+    }
+  });
+
+  async function testConductoresActivos() {
+    try {
+      const res = await apiFetch('/conductores/activos');
+      const data = await res.json();
+      console.log("[TEST] Data recibida:", data);
+
+      const sel = document.getElementById("desConductor");
+      console.log("[TEST] Select encontrado:", !!sel);
+
+      if (!sel) return;
+      sel.innerHTML = "";
+
+      data.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id_conductor;
+        opt.textContent = c.nombre;
+        sel.appendChild(opt);
+      });
+
+      console.log("[TEST] Opciones creadas:", sel.options.length);
+    } catch (err) {
+      console.error("[TEST] Error:", err);
+    }
+  }
+
+  //document.addEventListener("DOMContentLoaded", testConductoresActivos);
+ ////////Lógica para despachos con lista de espera////////////////////////
+  // Array para manejar clientes en espera
+  let clientesEspera = [];
+
+  // Renderizar tabla de clientes en espera
+  function renderClientesEspera() {
+    const tbody = document.querySelector("#tablaClientesEspera tbody");
+    tbody.innerHTML = clientesEspera.map((c, idx) => `
+      <tr>
+        <td class="border px-2 py-1">${idx + 1}</td>
+        <td class="border px-2 py-1">${c.cliente}</td>
+        <td class="border px-2 py-1">${c.origen}</td>
+        <td class="border px-2 py-1">${c.destino}</td>
+        <td class="border px-2 py-1">${c.hora}</td>
+        <td class="border px-2 py-1">${c.tarifa}</td>
+        <td class="border px-2 py-1">${c.estado}</td>
+        <td class="border px-2 py-1">
+          <button onclick="cancelarCliente(${c.id})"
+                  class="bg-red-500 text-white px-2 py-1 rounded">
+            Cancelar
+          </button>
+          <button class="bg-green-500 text-white px-2 py-1 rounded"
+                  onclick="crearDespachoDesdeEspera(${c.id})">
+            Crear despacho
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  // Habilitación de botones en creación de despacho
+  async function actualizarBotones() {
+    const btnCrear = document.getElementById("btnCrearDespacho");
+    const btnListaEspera = document.getElementById("btnListaEspera");
+
+    const hayCliente = document.getElementById("desCliente").value !== "";
+    const hayConductoresDisponibles = Array.from(document.getElementById("desConductor").options).length > 0;
+
+    if (hayCliente && hayConductoresDisponibles) {
+      btnCrear.disabled = false;
+      btnListaEspera.disabled = true;
+    } else if (hayCliente && !hayConductoresDisponibles) {
+      btnCrear.disabled = true;
+      btnListaEspera.disabled = false;
+    } else {
+      btnCrear.disabled = true;
+      btnListaEspera.disabled = true;
+    }
+  }
+
+ 
+ // Acción: crear despacho desde la lista de espera
+  async function crearDespachoDesdeEspera(clienteId) {
+    try {
+      // 0) Validar conductores disponibles desde backend y select
+      const conductores = await cargarConductoresEnTurnoDespacho(); // 🔑 ahora devuelve data
+      const selConductor = document.getElementById("desConductor");
+
+      if (!Array.isArray(conductores) || conductores.length === 0 || !selConductor || selConductor.options.length === 0) {
+        mostrarToast("🚫 No hay conductores libres → no se puede cargar cliente al formulario de despacho", "error");
+        document.getElementById("btnCrearDespacho").disabled = true;
+        return; // 🔑 bloquear el llenado del formulario
+      }
+
+      // 1. Obtener datos completos del cliente en espera desde el backend
+      const res = await apiFetch(`/lista_espera/${clienteId}`);
+      const cliente = await res.json();
+
+      // 2. Prellenar el formulario de creación de despacho
+      document.getElementById("desCliente").innerHTML =
+        `<option selected value="${cliente.cliente_id}">${cliente.cliente_nombre}</option>`;
+      document.getElementById("desTelefono").value = cliente.nro_telefono || cliente.cliente_telefono || "";
+      document.getElementById("desOrigen").value = cliente.origen || "";
+      document.getElementById("desDestino").value = cliente.destino || "";
+      document.getElementById("desTarifa").value = cliente.tarifa ?? "";
+
+      // 3. Guardar referencia del cliente en espera
+      window.clienteEnEsperaSeleccionado = clienteId;
+
+      // 4. Feedback visual
+      mostrarToast(
+        `Cliente ${cliente.cliente_nombre} cargado en el formulario. Selecciona conductor y auto para confirmar el despacho.`,
+        "info"
+      );
+      // 5. Refrescar tabla de lista de espera para que ya no muestre al cliente
+      await cargarListaEspera();
+      // ✅ Activar el botón principal de creación de despacho SOLO si hay conductor
+      document.getElementById("btnCrearDespacho").disabled = false;
+
+      // 6. Mostrar sección de despachos
+      mostrarSeccion("despachos");
+    } catch (err) {
+      console.error("Error cargando cliente desde lista de espera:", err);
+      mostrarToast("❌ Error cargando cliente desde lista de espera", "error");
+    }
+  }
+
+
+
+  ///////////////// Listeners //////////////////
+
+// Enviar a lista de espera
+  document.getElementById("btnListaEspera").addEventListener("click", async () => {
+    const btn = document.getElementById("btnListaEspera");
+    btn.disabled = true; // 🚦 evitar doble clic
+
+    try {
+      await enviarAListaEspera();
+      cargarListaEspera(); // refresca la tabla
+    } catch (err) {
+      console.error("Error enviando a lista de espera:", err);
+      alert("No se pudo enviar a lista de espera");
+    } finally {
+      btn.disabled = false; // volver a habilitar
+    }
+  });
+
+    // Listener para activar lista de espera / crear despacho
+    document.getElementById("desTelefono").addEventListener("keydown", async e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+
+        const btnCrear = document.getElementById("btnCrearDespacho");
+        const btnListaEspera = document.getElementById("btnListaEspera");
+        const selConductor = document.getElementById("desConductor");
+
+        // 1) Validar cliente por teléfono
+        const cliente = await validarClientePorTelefono();
+        if (!cliente) {
+          mostrarToast("❌ Cliente no válido → no se puede crear despacho", "error");
+          btnCrear.disabled = true;
+          btnListaEspera.disabled = true;
+          return;
+        }
+
+        // 2) Validar si cliente ya tiene despacho en curso
+        const despachos = await cargarDespachosActivos();
+        const enCurso = despachos.find(d =>
+          d.cliente_telefono === cliente.telefono &&
+          d.estado_despacho === "en curso"
+        );
+
+        if (enCurso) {
+          mostrarToast("🚫 Cliente ya tiene un despacho en curso → no se puede crear otro", "error");
+          btnCrear.disabled = true;
+          btnListaEspera.disabled = true;
+          return;
+        }
+
+        // 3) Validar turnos activos
+        const turnos = await cargarTurnos();
+        if (!Array.isArray(turnos) || turnos.length === 0) {
+          mostrarToast("❌ No hay turnos activos → no se puede crear despacho", "error");
+          btnCrear.disabled = true;
+          btnListaEspera.disabled = true;
+          return;
+        }
+
+        // 4) Poblar conductores disponibles
+        const conductores = await cargarConductoresEnTurnoDespacho();
+        if (!Array.isArray(conductores) || conductores.length === 0 || selConductor.options.length === 0) {
+          mostrarToast("🚦 Hay turnos activos pero ningún conductor disponible → enviar a lista de espera", "error");
+          btnCrear.disabled = true;
+          btnListaEspera.disabled = false;
+          return;
+        }
+
+        // 5) Todo correcto → habilitar despacho
+        btnCrear.disabled = false;
+        btnListaEspera.disabled = true;
+        mostrarToast("✔ Cliente validado y hay conductores disponibles → Crear despacho habilitado", "info");
+      }
+    });
+
+
+/////// Habilitar/deshabilitar botones según selección
+  document.getElementById("desCliente").addEventListener("change", actualizarBotones);
+  document.getElementById("desConductor").addEventListener("change", actualizarBotones);
+ ///// Iniciar turno
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("btnIniciarTurno");
+    if (btn) {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        const conductor_id = document.getElementById("nuevoConductor").value;
+        const auto_id = document.getElementById("nuevoAuto").value;
+
+        if (!conductor_id || !auto_id) {
+          alert("Selecciona conductor y auto para iniciar turno.");
+          return;
+        }
+
+        const res = await apiFetch("/turnos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conductor_id, auto_id })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          alert("✅ Turno iniciado correctamente: " + data.id_turno);
+          cargarTurnos();
+          cargarConductores();
+          cargarAutosTabla();
+          cargarConductoresEnTurnoDespacho();
+          cargarAutosActivosSelect();
+          cargarAutosDisponiblesSelect();
+        } else {
+          alert("❌ Error al iniciar turno: " + (data.error || "verifica datos"));
+        }
+      });
+    } else {
+      console.error("❌ No existe #btnIniciarTurno en el DOM");
+    }
+  });
+  
+   
+</script>
+  <div id="modalEditarCliente" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+      <h2 class="text-xl font-bold mb-4">Editar Cliente</h2>
+      <label class="block mb-2">Nombre:</label>
+      <input type="text" id="modalNombre" class="border p-2 w-full mb-4">
+
+      <label class="block mb-2">Dirección:</label>
+      <input type="text" id="modalDireccion" class="border p-2 w-full mb-4">
+
+      <div class="flex justify-end gap-2">
+        <button onclick="cerrarModal()" class="bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+        <button onclick="guardarCambiosCliente()" class="bg-blue-500 text-white px-3 py-1 rounded">Guardar</button>
+      </div>
+    </div>
+  </div>
+  
+</body>
+</html>
