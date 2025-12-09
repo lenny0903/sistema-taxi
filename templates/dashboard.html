@@ -9,7 +9,26 @@
     .hidden { display: none; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #ddd; padding: 8px; }
+   .tabla-dinamica {
+      max-height: 300px;       /* altura máxima visible */
+      overflow-y: auto;        /* scroll vertical interno */
+      border: 1px solid #ccc;
+    }
+
+    .tabla-dinamica table {
+      width: 100%;
+      border-collapse: separate; /* importante para sticky */
+    }
+
+    .tabla-dinamica thead th {
+      position: sticky;
+      top: 0;                  /* fija arriba */
+      background: #f9fafb;     /* color sólido */
+      z-index: 2;              /* asegura que quede encima */
+    }
   </style>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
 </head>
 <body class="bg-gray-100">
   <!-- Barra superior -->
@@ -29,6 +48,7 @@
         <li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos</button></li>
+        <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos</button></li>
         <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho</button></li>
         <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
@@ -245,12 +265,26 @@
 
         </form>
 
-        <table id="tablaDespachos" class="mt-4">
+        <!-- <table id="tablaDespachos" class="mt-4">
           <thead><tr><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th></tr></thead>
           <tbody></tbody>
-        </table>
+        </table> -->
 
-        <div id="turnosActivos" class="mt-6"></div>
+        <!--<div id="turnosActivos" class="mt-6"></div>
+
+        <div class="mt-4 flex gap-4">
+          <label class="block">Conductor:</label>
+          <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+          <label class="block">Auto:</label>
+          <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+          <button id="btnIniciarTurno" type="button"
+                  class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
+            Iniciar turno
+          </button>
+        </div>-->
+      </section>
+      <section id="turnosActivos" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
 
         <div class="mt-4 flex gap-4">
           <label class="block">Conductor:</label>
@@ -262,55 +296,60 @@
             Iniciar turno
           </button>
         </div>
+
+        <div id="turnosActivosLista" class="mt-6"></div>
       </section>
       <!-- Sección: Despachos Activos -->
       <section id="despachosActivos" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Despachos Activos</h2>
-        
-        <table id="tablaDespachosActivos" class="mt-4 w-full border-collapse border border-gray-300">
-          <thead class="bg-gray-100">
-             <tr data-id="${d.id_despacho}"> <!-- 🚦 id oculto -->
-              <th class="border px-2 py-1">Teléfono Cliente</th>
-              <th class="border px-2 py-1">Cliente</th>
-              <th class="border px-2 py-1">Conductor</th>
-              <th class="border px-2 py-1">Auto</th>
-              <th class="border px-2 py-1">Origen</th>
-              <th class="border px-2 py-1">Destino</th>
-              <th class="border px-2 py-1">Estado</th>
-              <th class="border px-2 py-1">Acciones</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+          <div class="tabla-dinamica">        
+            <table id="tablaDespachosActivos" class="mt-4 w-full border-collapse border border-gray-300">
+              <thead class="bg-gray-100">
+                <tr data-id="${d.id_despacho}"> <!-- 🚦 id oculto -->
+                  <th class="border px-2 py-1">Teléfono Cliente</th>
+                  <th class="border px-2 py-1">Cliente</th>
+                  <th class="border px-2 py-1">Conductor</th>
+                  <th class="border px-2 py-1">Auto</th>
+                  <th class="border px-2 py-1">Origen</th>
+                  <th class="border px-2 py-1">Destino</th>
+                  <th class="border px-2 py-1">Estado</th>
+                  <th class="border px-2 py-1">Acciones</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>  
 
-        <div class="mt-4">
-          <label class="block">Asignar conductor:</label>
-          <select id="conductorAsignacion" class="border p-2 w-full"></select>
-          <button id="btnAsignarDespacho" class="bg-blue-500 text-white px-4 py-2 rounded mt-2">
-            Asignar al despacho seleccionado
-          </button>
-        </div>
-         <!-- Cola de clientes en espera -->
-        <div class="mt-8">
-          <h2 class="text-xl font-bold mb-2">Clientes en Espera</h2>
-          <table id="tablaClientesEspera" class="w-full border-collapse border border-gray-300">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="border px-2 py-1">#</th>
-                <th class="border px-2 py-1">Teléfono Cliente</th>
-                <th class="border px-2 py-1">Nombre</th>
-                <th class="border px-2 py-1">Origen</th>
-                <th class="border px-2 py-1">Destino</th>
-                <th class="border px-2 py-1">Hora Solicitud</th>
-                <th class="border px-2 py-1">Tarifa</th>
-                <th class="border px-2 py-1">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Aquí se llenan los clientes en espera con JS -->
-            </tbody>
-          </table>
-        </div>
+            <div class="mt-4">
+              <label class="block">Asignar conductor:</label>
+              <select id="conductorAsignacion" class="border p-2 w-full"></select>
+              <button id="btnAsignarDespacho" class="bg-blue-500 text-white px-4 py-2 rounded mt-2">
+                Asignar al despacho seleccionado
+              </button>
+            </div>
+            <!-- Cola de clientes en espera -->
+            <div class="mt-8">
+              <h2 class="text-xl font-bold mb-2">Clientes en Espera</h2>
+              <div class="tabla-dinamica mb-4">
+                <table id="tablaClientesEspera" class="w-full border-collapse border border-gray-300">
+                  <thead class="bg-gray-100">
+                    <tr>
+                      <th class="border px-2 py-1">#</th>
+                      <th class="border px-2 py-1">Teléfono Cliente</th>
+                      <th class="border px-2 py-1">Nombre</th>
+                      <th class="border px-2 py-1">Origen</th>
+                      <th class="border px-2 py-1">Destino</th>
+                      <th class="border px-2 py-1">Hora Solicitud</th>
+                      <th class="border px-2 py-1">Tarifa</th>
+                      <th class="border px-2 py-1">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Aquí se llenan los clientes en espera con JS -->
+                  </tbody>
+                </table>
+              </div>  
+            </div>
       </section>
 
       <!-- Sección: Reportes -->
@@ -412,10 +451,16 @@
 
 
     // Mostrar secciones
-    function mostrarSeccion(id) {
+   function mostrarSeccion(id) {
       document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-      document.getElementById(id).classList.remove('hidden');
+      const target = document.getElementById(id.trim());
+      if (target) {
+        target.classList.remove('hidden');
+      } else {
+        console.error(`⚠️ Sección ${id} no encontrada`);
+      }
     }
+
 
   document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('token');
@@ -474,7 +519,7 @@
     //cargarAutosActivosSelect();
     //cargarConductoresEnTurno()
     cargarAutosDisponiblesSelect();
-    cargarDespachos();
+    //cargarDespachos();
     cargarTurnos();
     //cargarConductoresDisponibles();
     cargarConductoresEnTurnoCrear();
@@ -527,7 +572,7 @@
             <td class="border px-2 py-1">${c.cliente_nombre}</td>
             <td class="border px-2 py-1">${c.origen}</td>
             <td class="border px-2 py-1">${c.destino}</td>
-            <td class="border px-2 py-1">${c.hora}</td>
+            <td class="border px-2 py-1">${formatearHoraLocal(c.hora)}</td>
             <td class="border px-2 py-1">${c.tarifa}</td>
             <td class="border px-2 py-1">${c.estado}</td>
             <td class="border px-2 py-1">
@@ -760,34 +805,34 @@
   }
   //Cargar conductores en turno activos para el select de crear turno
     async function cargarConductoresEnTurnoCrear() {
-    try {
-      const res = await apiFetch('/conductores/disponibles_conductores');
-      const data = await res.json();
+      try {
+        const res = await apiFetch('/conductores/disponibles_conductores');
+        const data = await res.json();
 
-      console.log("Conductores disponibles recibidos:", data);
+        console.log("Conductores disponibles recibidos:", data);
 
-      const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = "";
+        const sel = document.getElementById('nuevoConductor');
+        sel.innerHTML = "";
 
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach(c => {
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(c => {
+            const opt = document.createElement("option");
+            opt.value = c.id_conductor;
+            opt.textContent = `${c.nombre}`;
+            sel.appendChild(opt);
+          });
+        } else {
           const opt = document.createElement("option");
-          opt.value = c.id_conductor;
-          opt.textContent = `${c.nombre}`;
+          opt.disabled = true;
+          opt.textContent = "No hay conductores disponibles";
           sel.appendChild(opt);
-        });
-      } else {
-        const opt = document.createElement("option");
-        opt.disabled = true;
-        opt.textContent = "No hay conductores disponibles";
-        sel.appendChild(opt);
+        }
+      } catch (err) {
+        console.error("Error cargando conductores disponibles:", err);
+        const sel = document.getElementById('nuevoConductor');
+        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
       }
-    } catch (err) {
-      console.error("Error cargando conductores disponibles:", err);
-      const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
     }
-  }
 
 //cargar autos disponibles para el select de crear turno
  
@@ -829,24 +874,26 @@
  
  
     // Despachos
-    async function cargarDespachos() {
-      const res = await apiFetch('/despachos/activos');
-      const data = await res.json();
-      const tbody = document.querySelector('#tablaDespachos tbody');
-      tbody.innerHTML = Array.isArray(data)
-        ? data.map(d => `<tr><td>${d.origen || ''}</td><td>${d.destino || ''}</td><td>${d.tarifa || ''}</td><td>${d.estado_despacho || d.estado || ''}</td></tr>`).join('')
-        : '';
-    }
+    //async function cargarDespachos() {
+    //  const res = await apiFetch('/despachos/activos');
+    //  const data = await res.json();
+    //  const tbody = document.querySelector('#tablaDespachos tbody');
+    //  tbody.innerHTML = Array.isArray(data)
+    //    ? data.map(d => `<tr><td>${d.origen || ''}</td><td>${d.destino || ''}</td><td>${d.tarifa || ''}</td><td>${d.estado_despacho || d.estado || ''}</td></tr>`).join('')
+    //    : '';
+    //}
     //Para enviar a tabla de la bd lista de espera
     async function enviarAListaEspera() {
-      const cliente_id = document.getElementById("desCliente").value;
-      const origen = document.getElementById("desOrigen").value;
-      const destino = document.getElementById("desDestino").value;
-      const hora = new Date().toISOString();
-      const nro_telefono = document.getElementById("desTelefono").value;
-      const tarifa = document.getElementById("desTarifa").value;
-      if (!cliente_id) {
-        alert("Debe seleccionar un cliente antes de enviar a lista de espera.");
+      const cliente_id = parseInt(document.getElementById("desCliente").value);
+      const origen = document.getElementById("cliDireccionEdit").value.trim();
+      const destino = document.getElementById("desDestino").value.trim();
+      const hora = new Date().toLocaleString('sv-SE'); // 🔹 hora local en formato ISO-like
+      const nro_telefono = document.getElementById("desTelefono").value.trim();
+      const tarifa = parseFloat(document.getElementById("desTarifa").value);
+
+      // 🔹 Validación defensiva
+      if (!cliente_id || !origen || !destino || !nro_telefono || isNaN(tarifa)) {
+        alert("⚠️ Debes ingresar cliente, origen, destino, teléfono y tarifa antes de enviar a lista de espera.");
         return;
       }
 
@@ -865,17 +912,18 @@
         });
 
         if (res.ok) {
-          alert("Cliente enviado a lista de espera.");
+          alert("✅ Cliente enviado a lista de espera.");
           console.log("🚦 Enviando a lista_espera:", {
             cliente_id, origen, destino, hora, nro_telefono, tarifa
           });
-
           cargarListaEspera(); // refresca la tabla desde el backend
         } else {
-          alert("Error al enviar cliente a lista de espera.");
+          const data = await res.json();
+          alert("❌ Error al enviar cliente: " + (data.error || "verifica datos"));
         }
       } catch (err) {
         console.error("Error en lista de espera:", err);
+        alert("❌ Error inesperado al enviar cliente a lista de espera.");
       }
     }
 
@@ -884,55 +932,68 @@
     try {
       const res = await apiFetch('/turnos/activos'); // solo activos
       const data = await res.json();
-      const contenedor = document.getElementById('turnosActivos');
+      const contenedor = document.getElementById('turnosActivosLista');
       console.log("▶️ Ejecutando cargarTurnos()", data);
 
       contenedor.innerHTML = `
         <h3 class="text-xl font-bold mt-6">Turnos activos</h3>
-        <table class="mt-2 border-collapse border border-gray-300 w-full">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border px-2 py-1">ID Turno</th>
-              <th class="border px-2 py-1">Conductor</th>
-              <th class="border px-2 py-1">Auto</th>
-              <th class="border px-2 py-1">Inicio</th>
-              <th class="border px-2 py-1">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              Array.isArray(data) && data.length > 0
-                ? data.map(t => `
-                  <tr class="hover:bg-gray-50 transition">
-                    <td class="border px-2 py-1">${t.id_turno}</td>
-                    <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
-                    <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
-                    <td class="border px-2 py-1">${t.inicio}</td>
-                    <td class="border px-2 py-1 text-center">
-                      <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                              onclick="finalizarTurno(${t.id_turno})">
-                        Finalizar
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')
-                : `<tr><td colspan="5" class="text-center py-2">No hay turnos activos</td></tr>`
-            }
-          </tbody>
-        </table>
+        <div class="tabla-dinamica">
+          <table class="mt-2 border-collapse border border-gray-300 w-full">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border px-2 py-1">ID Turno</th>
+                <th class="border px-2 py-1">Conductor</th>
+                <th class="border px-2 py-1">Auto</th>
+                <th class="border px-2 py-1">Inicio</th>
+                <th class="border px-2 py-1">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                Array.isArray(data) && data.length > 0
+                  ? data.map(t => `
+                    <tr class="hover:bg-gray-50 transition">
+                      <td class="border px-2 py-1">${t.id_turno}</td>
+                      <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
+                      <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
+                      <td class="border px-2 py-1">${t.inicio}</td>
+                      <td class="border px-2 py-1 text-center">
+                        <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                                onclick="finalizarTurno(${t.id_turno})">
+                          Finalizar
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')
+                  : `<tr><td colspan="5" class="text-center py-2">No hay turnos activos</td></tr>`
+              }
+            </tbody>
+          </table>
+        </div>  
       `;
       return data; // 🔑 devolver el array al listener
     } catch (err) {
       console.error("❌ Error cargando turnos:", err);
-      const contenedor = document.getElementById('turnosActivos');
+      const contenedor = document.getElementById('turnosActivosLista');
       contenedor.innerHTML = "<p class='text-red-600'>Error al cargar turnos activos</p>";
       return []; // 🔑 devolver array vacío en caso de error
     }
   }
 
-  
+  function mostrarSeccion(id) {
+    document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
+    const target = document.getElementById(id);
+    if (target) {
+      target.classList.remove('hidden');
+      if (id === 'turnosActivos') {
+        cargarConductoresDisponibles();
+        cargarAutosDisponiblesSelect();
+      }
+    }
+  }
+
    
-   
+    // Cargar conductores disponibles para el select de crear turno
     async function cargarConductoresDisponibles() {
       const res = await apiFetch('/conductores');
       const data = await res.json();
@@ -941,7 +1002,7 @@
         ? data.map(c => `<option value="${c.id_conductor}">${c.nombre}</option>`).join('')
         : '';
     }
-
+    //Actualizar autos disponibles para el select de crear turno
     async function cargarAutosDisponiblesSelect() {
       const res = await apiFetch('/autos/disponibles');
       const data = await res.json();
@@ -1130,16 +1191,18 @@
 
         // 🔹 Si el cliente venía de la lista de espera, eliminarlo ahora
         if (window.clienteEnEsperaSeleccionado) {
-          await apiFetch(`/lista-espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
+          await apiFetch(`/lista_espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
+
           window.clienteEnEsperaSeleccionado = null;
           cargarListaEspera();
         }
 
         // 🔹 Refrescar tablas y selects
-        cargarDespachos();
+        //cargarDespachos();
         cargarDespachosActivos();
         //cargarConductoresDisponiblesDespacho();
-        cargarConductoresEnTurnoDespacho()
+        cargarConductoresEnTurnoDespacho();
+        cargarConductoresActivosSelect();
 
         // 🔹 Limpieza de formulario
         e.target.reset();
@@ -1600,6 +1663,7 @@
         cargarAutosTabla();
         cargarConductoresEnTurnoDespacho();
         cargarAutosActivosSelect();
+        cargarConductoresEnTurnoCrear();  //Actualiza conductores disponibles para crear tunos
         cargarAutosDisponiblesSelect();
         //cargarConductoresActivosSelect();
       } else {
@@ -1707,8 +1771,10 @@
 
         // 🔑 refrescar ambas tablas
         cargarDespachosActivos(); // tabla de activos
-        cargarDespachos();        // tabla general
-        cargarConductoresEnTurnoDespacho();
+        //cargarDespachos();        // tabla general
+        cargarConductoresEnTurnoDespacho(); // Actulaliza conductes disponibles para despachos
+        cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
+        //cargarAutosDisponiblesSelect();
         console.log("Conductor seleccionado:", select.value);
       } else {
         alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
@@ -1779,6 +1845,7 @@
         alert("⚠️ Despacho cancelado");
         cargarDespachosActivos(); // refresca la tabla
         cargarConductoresEnTurnoDespacho();
+        cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
       } else {
         alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
       }
@@ -1909,6 +1976,14 @@
       btnCrear.disabled = true;
       btnListaEspera.disabled = true;
     }
+  }
+  function formatearHoraLocal(fechaHoraISO) {
+    const fecha = new Date(fechaHoraISO);
+    return fecha.toLocaleTimeString('es-VE', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   }
 
  
@@ -2068,7 +2143,8 @@
           cargarAutosTabla();
           cargarConductoresEnTurnoDespacho();
           cargarAutosActivosSelect();
-          cargarAutosDisponiblesSelect();
+          cargarConductoresEnTurnoCrear();
+          cargarAutosDisponiblesSelect()
         } else {
           alert("❌ Error al iniciar turno: " + (data.error || "verifica datos"));
         }

@@ -30,15 +30,30 @@ def lista_espera():
         data = request.get_json()
         print("🚦 Payload recibido:", data)
 
+        hora_str = data.get("hora")
+        try:
+            hora = datetime.strptime(hora_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            try:
+                hora = datetime.strptime(hora_str, "%Y-%m-%d %H:%M:%S.%f")
+            except ValueError:
+                # último recurso: interpretar como ISO estándar
+                hora = datetime.fromisoformat(hora_str.replace("Z", "+00:00"))
+
+        # Ajustar a zona local Venezuela (UTC-4)
+        from datetime import timezone, timedelta
+        hora = hora.astimezone(timezone(timedelta(hours=-4)))
+
         nuevo = ListaEspera(
             cliente_id=data.get("cliente_id"),
             origen=data.get("origen"),
             destino=data.get("destino"),
-            hora=datetime.fromisoformat(data.get("hora")),
+            hora=hora,
             nro_telefono=data.get("nro_telefono"),
             estado=data.get("estado", "en espera"),
             tarifa=data.get("tarifa"),
         )
+        
         db.session.add(nuevo)
         db.session.commit()
         return jsonify(nuevo.to_dict()), 201

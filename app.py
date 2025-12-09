@@ -1,5 +1,5 @@
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
-from flask import Flask
+from flask import Flask, render_template
 from flask_migrate import Migrate
 from extensions import db
 from routes.views import views_bp
@@ -58,15 +58,14 @@ def create_app():
            
     @app.route("/")
     def home():
-        return send_from_directory("templates", "index.html")
+        return render_template("index.html")
 
     @app.route("/index.html")
     def index_html():
-       return send_from_directory("templates", "index.html")
-
+       return render_template("index.html")
     @app.route("/panel.html")
     def panel_html():
-        return send_from_directory("templates", "dashboard.html")
+        return render_template("dashboard.html")
     return app
 
     

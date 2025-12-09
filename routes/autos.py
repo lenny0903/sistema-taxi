@@ -12,7 +12,8 @@ def crear_auto():
         nro_placa=data.get("placa"),
         tipo_auto=data.get("tipo_auto"),
         marca=data.get("marca"),
-        modelo=data.get("modelo")
+        modelo=data.get("modelo"),
+        estado="disponible"   # 👈 nuevo campo inicializado
     )
     db.session.add(nuevo)
     db.session.commit()
