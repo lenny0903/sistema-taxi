@@ -6,6 +6,7 @@ class Cliente(db.Model):
     telefono = db.Column(db.String(20), unique=True, nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
     direccion = db.Column(db.String(200))
+    punto_referencia = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return (
@@ -18,5 +19,6 @@ class Cliente(db.Model):
             "id_cliente": self.id_cliente,
             "telefono": self.telefono,
             "nombre": self.nombre,
-            "direccion": self.direccion
+            "direccion": self.direccion,
+            "punto_referencia": self.punto_referencia
         }

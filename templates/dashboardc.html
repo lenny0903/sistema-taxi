@@ -312,6 +312,23 @@ async function cargarAutosDisponibles() {
     `<option value="${a.id_auto}">${a.nro_placa}</option>`
   ).join("");
 }
+ // Registrar embarque
+  async function registrarEmbarque(idDespacho) {
+    try {
+      const res = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Embarque registrado correctamente");
+        cargarDespachos(); // refresca la tabla
+      } else {
+        alert("Error al registrar embarque: " + (data.error || "verifica datos"));
+      }
+    } catch (err) {
+      console.error("Error en registrarEmbarque:", err);
+      alert("No se pudo registrar el embarque");
+    }
+  }
 
 // Cargar turnos activos
 async function cargarTurnos() {

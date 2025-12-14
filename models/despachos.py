@@ -9,6 +9,7 @@ class Despacho(db.Model):
     # Datos básicos del despacho
     origen_despacho = db.Column(db.String(100), nullable=False)
     destino_despacho = db.Column(db.String(100), nullable=False)
+    fecha_hora_embarque = db.Column(db.DateTime, nullable=True)
 
     # Relaciones con otras entidades
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id_cliente"), nullable=False)
@@ -35,6 +36,7 @@ class Despacho(db.Model):
             "id_despacho": self.id_despacho,
             "origen_despacho": self.origen_despacho,
             "destino_despacho": self.destino_despacho,
+            "fecha_hora_embarque": self.fecha_hora_embarque.isoformat() if self.fecha_hora_embarque else None,
             "cliente_id": self.cliente_id,
             "conductor_id": self.conductor_id,
             "auto_id": self.auto_id,

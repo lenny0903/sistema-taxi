@@ -7,7 +7,7 @@ class Auto(db.Model):
     tipo_auto = db.Column(db.String(50), nullable=False)
     marca = db.Column(db.String(50), nullable=False)
     modelo = db.Column(db.String(50), nullable=False)
-    estado = db.Column(db.String(20), nullable=False, default="Disponible")
+    estado = db.Column(db.String(20), nullable=False, default="disponible")
 
     def __repr__(self):
         return (

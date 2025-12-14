@@ -1,0 +1,14 @@
+@media print {
+  body {
+    font-family: Arial, sans-serif;
+    margin: 1cm;
+  }
+  /* Ocultar elementos que no deben salir */
+  #btnGenerarReporte,
+  #btnReporteConductores,
+  #btnPrint,
+  nav,
+  footer {
+    display: none !important;
+  }
+}

@@ -55,8 +55,11 @@ def crear_conductor():
         return jsonify({"error": "La cédula ya está registrada"}), 400
     if Conductor.query.filter_by(nro_telefono=data.get("nro_telefono")).first():
         return jsonify({"error": "El teléfono ya está registrado"}), 400
+    if Conductor.query.filter_by(codigo=data.get("codigo")).first():
+        return jsonify({"error": "El código ya está registrado"}), 400
 
     nuevo = Conductor(
+        codigo=data.get("codigo"),          # 👈 asignado por el operador
         nro_cedula=data.get("nro_cedula"),
         nombre=data.get("nombre"),
         nro_telefono=data.get("nro_telefono"),
@@ -64,7 +67,13 @@ def crear_conductor():
     )
     db.session.add(nuevo)
     db.session.commit()
-    return jsonify({"msg": "Conductor creado", "id_conductor": nuevo.id_conductor}), 201
+
+    return jsonify({
+        "msg": "Conductor creado",
+        "id_conductor": nuevo.id_conductor,
+        "codigo": nuevo.codigo
+    }), 201
+
 
 @conductores_bp.route("/<int:id>", methods=["PUT"])
 def modificar_conductor(id):
@@ -89,7 +98,7 @@ def modificar_conductor(id):
 def listar_conductores_en_turno_disponibles():
     # Buscar turnos activos
     turnos_activos = Turno.query.filter_by(estado="activo").all()
-    resultado = []
+    resultado_unicos = {}
 
     for t in turnos_activos:
         if not t.conductor or not t.auto:
@@ -107,23 +116,29 @@ def listar_conductores_en_turno_disponibles():
 
         # 👉 Solo incluir si el conductor está activo y NO tiene despacho en curso
         if despacho_en_curso is None and t.conductor.estado == "activo":
-            resultado.append({
-                "id_turno": t.id_turno,
-                "inicio": t.inicio.isoformat() if t.inicio else None,
-                "estado_turno": t.estado,
-                "conductor": {
-                    "id_conductor": t.conductor.id_conductor,
-                    "nombre": t.conductor.nombre,
-                    "estado": t.conductor.estado
-                },
-                "auto": {
-                    "id_auto": t.auto.id_auto,
-                    "nro_placa": t.auto.nro_placa
+            # DEBUG para confirmar que llega el código
+            print("DEBUG conductor:", t.conductor.id_conductor, t.conductor.codigo, t.conductor.nombre)
+
+            # Usamos el id_conductor como clave para evitar duplicados
+            if t.conductor.id_conductor not in resultado_unicos:
+                resultado_unicos[t.conductor.id_conductor] = {
+                    "id_turno": t.id_turno,
+                    "inicio": t.inicio.isoformat() if t.inicio else None,
+                    "estado_turno": t.estado,
+                    "conductor": {
+                        "id_conductor": t.conductor.id_conductor,
+                        "codigo": t.conductor.codigo,
+                        "nombre": t.conductor.nombre,
+                        "estado": t.conductor.estado
+                    },
+                    "auto": {
+                        "id_auto": t.auto.id_auto,
+                        "nro_placa": t.auto.nro_placa
+                    }
                 }
-            })
 
-    return jsonify(resultado), 200
-
+    # Convertimos el diccionario en lista
+    return jsonify(list(resultado_unicos.values())), 200
 
 
 @conductores_bp.route("/disponibles_conductores", methods=["GET"])
@@ -133,6 +148,7 @@ def listar_conductores_disponibles():
     for c in conductores:
         resultado.append({
             "id_conductor": c.id_conductor,
+            "codigo": c.codigo,
             "nombre": c.nombre,
             "estado": c.estado
         })

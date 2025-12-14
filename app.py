@@ -38,6 +38,7 @@ def create_app():
     from routes.turnos import turnos_bp
     from routes.reportes import reporte_bp
     from routes.lista_espera import lista_espera_bp
+    from utils.respaldo import respaldo_bp
     app.register_blueprint(init_bp)
 
     #print("Registrando blueprints...")
@@ -52,7 +53,7 @@ def create_app():
     app.register_blueprint(turnos_bp, url_prefix="/turnos")
     app.register_blueprint(lista_espera_bp, url_prefix="/lista_espera")
     app.register_blueprint(reporte_bp, url_prefix="/reportes")
-
+    app.register_blueprint(respaldo_bp, url_prefix="/respaldo")
     print(app.url_map)
 
            

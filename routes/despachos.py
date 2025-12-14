@@ -226,7 +226,8 @@ def listar_despachos_activos():
             "origen": d.origen_despacho,
             "destino": d.destino_despacho,
             "tarifa": d.tarifa,
-            "estado_despacho": d.estado_despacho
+            "estado_despacho": d.estado_despacho,
+            "punto_referencia": d.cliente.punto_referencia if d.cliente else ""
         })
     return jsonify(resultado), 200
 
@@ -235,19 +236,25 @@ def listar_despachos_activos():
 def finalizar_despacho(id):
     try:
         despacho = Despacho.query.get_or_404(id)
+
+        # 🚨 Validar que tenga hora de embarque
+        if not despacho.fecha_hora_embarque:
+            return jsonify({"error": "No se puede finalizar un despacho sin hora de embarque"}), 400
+
+        # 🚨 Validar que tenga auto asignado
+        if not despacho.auto_id:
+            return jsonify({"error": "No se puede finalizar un despacho sin auto asignado"}), 400
+
         despacho.estado_despacho = "finalizado"
         despacho.fecha_hora_fin = datetime.now(timezone.utc)
-
-        # 🔹 No cerramos el turno aquí
-       # conductor = Conductor.query.get(despacho.conductor_id)
-       # if conductor:
-       #     conductor.estado = "activo"
 
         db.session.commit()
 
         return jsonify({
             "msg": "Despacho finalizado correctamente",
             "id_despacho": despacho.id_despacho,
+            "auto_id": despacho.auto_id,   # 👈 confirmación
+            "fecha_hora_embarque": despacho.fecha_hora_embarque.isoformat(),
             "fecha_hora_fin": despacho.fecha_hora_fin.isoformat()
         }), 200
 
@@ -264,3 +271,17 @@ def cancelar_despacho(id):
     db.session.commit()
     return jsonify(despacho.to_dict())
 
+@despachos_bp.route("/<int:id>/embarque", methods=["PUT"])
+def registrar_embarque(id):
+    despacho = Despacho.query.get(id)
+    if not despacho:
+        return jsonify({"error": "Despacho no encontrado"}), 404
+
+    despacho.fecha_hora_embarque = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        "id_despacho": despacho.id_despacho,
+        "estado_despacho": despacho.estado_despacho,
+        "fecha_hora_embarque": despacho.fecha_hora_embarque.isoformat()
+    }), 200

@@ -8,13 +8,16 @@ autos_bp = Blueprint("autos", __name__, url_prefix="/autos")
 @autos_bp.route("/", methods=["POST"])
 def crear_auto():
     data = request.get_json()
+    #print("Datos recibidos:", data)
     nuevo = Auto(
-        nro_placa=data.get("placa"),
+        nro_placa=data.get("nro_placa"),
         tipo_auto=data.get("tipo_auto"),
         marca=data.get("marca"),
         modelo=data.get("modelo"),
         estado="disponible"   # 👈 nuevo campo inicializado
     )
+    #print("Placa asignada:", nuevo.nro_placa)
+
     db.session.add(nuevo)
     db.session.commit()
     return jsonify({"msg": "Auto creado", "id_auto": nuevo.id_auto}), 201

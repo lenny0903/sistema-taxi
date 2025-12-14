@@ -26,5 +26,6 @@ class ListaEspera(db.Model):
             "hora": self.hora.isoformat() if self.hora else None,
             "estado": self.estado,
             "nro_telefono": self.nro_telefono,
-            "tarifa": self.tarifa
+            "tarifa": self.tarifa,
+            "punto_referencia": self.cliente.punto_referencia if self.cliente else ""
         }

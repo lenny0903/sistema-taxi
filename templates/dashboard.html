@@ -26,8 +26,26 @@
       background: #f9fafb;     /* color sólido */
       z-index: 2;              /* asegura que quede encima */
     }
+   #btnCancelarDespacho {
+      background-color: #dc3545 !important; /* rojo Bootstrap danger */
+      color: #fff !important;
+      border: none !important;
+      padding: 8px 16px !important;
+      border-radius: 4px !important;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    #btnCancelarDespacho:hover {
+      background-color: #c82333 !important;
+    }
+
+
+
   </style>
-  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  
+   <!-- Llamada al archivo CSS -->
+  <link rel="stylesheet" href="/static/css/estilos.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 </head>
 <body class="bg-gray-100">
@@ -46,12 +64,28 @@
    <nav class="w-64 bg-white shadow-md h-screen p-4">
       <ul class="space-y-2">
         <li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>
-        <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores</button></li>
-        <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos</button></li>
-        <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos</button></li>
-        <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho</button></li>
-        <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos</button></li>
+        <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button></li>
+        <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button></li>
+        <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button></li>
+        <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho(F1)</button></li>
+        <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos(F2)</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
+        <li>
+            <button onclick="generarRespaldo()" class="w-full text-left">
+              Respaldo
+            </button>
+        </li>
+        <li class="menu-admin">
+          <button onclick="mostrarSeccion('usuarios')" class="w-full text-left">
+            Usuarios
+          </button>
+        </li>
+        <li class="menu-admin">
+          <button class="w-full text-left" onclick="abrirModalCambio()">
+            Cambiar contraseña
+          </button>
+        </li>
+
       </ul>
    </nav>
 
@@ -82,9 +116,14 @@
           <label class="block">Dirección:</label>
           <div class="flex gap-2">
             <input type="text" id="cliDireccionEdit" class="border p-2 w-full">
-            <button type="button" 
-                    class="bg-blue-500 text-white px-3 py-1 rounded"
-                    onclick="modificarCampoCliente('direccion')">Modificar</button>
+            <label class="block">Punto de referencia:</label>
+            <div class="flex gap-2">
+              <input type="text" id="cliReferenciaEdit" class="border p-2 w-full">
+              <button type="button"
+                      class="bg-blue-500 text-white px-3 py-1 rounded"
+                      onclick="modificarCampoCliente('punto_referencia')">Modificar</button>
+            </div>
+
           </div>
         </form>
 
@@ -103,6 +142,8 @@
 
           <label class="block">Dirección:</label>
           <input type="text" id="cliDireccionNuevo" class="border p-2 w-full">
+           <label class="block">Punto de referencia:</label>
+          <input type="text" id="cliReferenciaNuevo" class="border p-2 w-full">
 
           <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
         </form>
@@ -116,112 +157,160 @@
         </table>
       </section>
 
-  <section id="conductores" class="seccion hidden">
-    <h2 class="text-2xl font-bold mb-4">Gestión de Conductores</h2>
+    <section id="conductores" class="seccion hidden">
+      <h2 class="text-2xl font-bold mb-4">Gestión de Conductores</h2>
 
-    <!-- Formulario de creación -->
-    <form id="formConductor" class="space-y-2 flex gap-2">
-      <div class="flex-1">
-        <label class="block">Nro de Cédula:</label>
-        <input type="text" id="conCedula" name="nro_cedula" class="border p-2 w-full" required>
+      <!-- Formulario de creación -->
+      <form id="formConductor" class="space-y-2 flex gap-2">
+        <div class="flex-1">
+          <label class="block">Nro de Cédula:</label>
+          <input type="text" id="conCedula" name="nro_cedula" class="border p-2 w-full" required>
 
-        <label class="block">Nombre:</label>
-        <input type="text" id="conNombre" name="nombre" class="border p-2 w-full" required>
+          <label class="block">Nombre:</label>
+          <input type="text" id="conNombre" name="nombre" class="border p-2 w-full" required>
+          <label class="block">Código:</label>
+          <input type="text" id="conCodigo" name="codigo"
+                pattern="^B[0-9]{2,}$"
+                title="Debe comenzar con B seguido de números (ej. B01, B02...)"
+                class="border p-2 w-full" required>
+          <label class="block">Teléfono:</label>
+          <input type="text" id="conTelefono" name="nro_telefono"
+                maxlength="11"
+                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                class="border p-2 w-full" required>
+        </div>
 
-        <label class="block">Teléfono:</label>
-        <input type="text" id="conTelefono" name="nro_telefono"
-              maxlength="11"
-              pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
-              title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
-              class="border p-2 w-full" required>
-      </div>
-
-      <div class="flex gap-2 items-end">
-        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
-        
-      </div>
-    </form>
-
-    <!-- Tabla de conductores -->
-    <table id="tablaConductores" class="mt-4">
-      <thead>
-        <tr>
-          <th>Nro de Cédula</th>
-          <th>Nombre</th>
-          <th>Teléfono</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <!-- Formulario de edición oculto -->
-    <div id="formConductorEditContainer" class="hidden mt-6">
-      <h3 class="text-xl font-bold">Editar Conductor</h3>
-      <form id="formConductorEdit" class="space-y-2">
-        <label class="block">Nombre:</label>
-        <input type="text" id="conNombreEdit" class="border p-2 w-full">
-
-        <label class="block">Teléfono:</label>
-        <input type="text" id="conTelefonoEdit" class="border p-2 w-full">
-
-        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+        <div class="flex gap-2 items-end">
+          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+          
+        </div>
       </form>
-    </div>
-  </section>
+
+      <!-- Tabla de conductores -->
+      <table id="tablaConductores" class="mt-4">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nro de Cédula</th>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <!-- Formulario de edición oculto -->
+      <div id="formConductorEditContainer" class="hidden mt-6">
+        <h3 class="text-xl font-bold">Editar Conductor</h3>
+        <form id="formConductorEdit" class="space-y-2">
+          <label class="block">Nombre:</label>
+          <input type="text" id="conNombreEdit" class="border p-2 w-full">
+
+          <label class="block">Teléfono:</label>
+          <input type="text" id="conTelefonoEdit" class="border p-2 w-full">
+
+          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+        </form>
+      </div>
+    </section>
+    <!--Gestión de Usuarios-->
+    <section id="usuarios" class="seccion hidden">
+      <h2>Gestión de Usuarios</h2>
+
+      <!-- Formulario de creación -->
+      <form id="formCrearUsuario" class="p-3 border rounded mb-4">
+        <div class="mb-3">
+          <label for="usuario" class="form-label">Usuario</label>
+          <input type="text" id="usuario" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="nombreCompleto" class="form-label">Nombre completo</label>
+          <input type="text" id="nombreCompleto" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="rol" class="form-label">Rol</label>
+          <select id="rol" class="form-select" required>
+            <option value="1">Admin</option>
+            <option value="2">Operador</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="clave" class="form-label">Contraseña inicial</label>
+          <input type="password" id="clave" class="form-control" required>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="crearUsuario()">Crear Usuario</button>
+      </form>
+
+      <!-- Tabla de usuarios -->
+      <table class="table table-striped" id="tablaUsuarios">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Nombre</th>
+            <th>Rol</th>
+            <th>Activo</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
 
      <!-- Sección: Autos -->
-  <section id="autos" class="seccion hidden">
-    <h2 class="text-2xl font-bold mb-4">Gestión de Autos</h2>
+    <section id="autos" class="seccion hidden">
+      <h2 class="text-2xl font-bold mb-4">Gestión de Autos</h2>
 
-    <!-- Formulario de creación -->
-    <form id="formAuto" class="space-y-2">
-      <label class="block">Placa:</label>
-      <input type="text" id="autoPlaca" class="border p-2 w-full" required>
-
-      <label class="block">Tipo:</label>
-      <input type="text" id="autoTipo" class="border p-2 w-full" required>
-
-      <label class="block">Marca:</label>
-      <input type="text" id="autoMarca" class="border p-2 w-full" required>
-
-      <label class="block">Modelo:</label>
-      <input type="text" id="autoModelo" class="border p-2 w-full" required>
-
-      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
-    </form>
-
-    <!-- Tabla de autos -->
-    <table id="tablaAutos" class="mt-4 w-full border">
-      <thead>
-        <tr class="bg-gray-200">
-          <th>Placa</th>
-          <th>Tipo</th>
-          <th>Marca</th>
-          <th>Modelo</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <!-- Formulario de edición oculto -->
-    <div id="formAutoEditContainer" class="hidden mt-6">
-      <h3 class="text-xl font-bold">Editar Auto</h3>
-      <form id="formAutoEdit" class="space-y-2">
+      <!-- Formulario de creación -->
+      <form id="formAuto" class="space-y-2">
         <label class="block">Placa:</label>
-        <input type="text" id="autoPlacaEdit" class="border p-2 w-full" readonly>
+        <input type="text" id="autoPlaca" class="border p-2 w-full" required>
 
         <label class="block">Tipo:</label>
-        <input type="text" id="autoTipoEdit" class="border p-2 w-full">
-         
+        <input type="text" id="autoTipo" class="border p-2 w-full" required>
+
         <label class="block">Marca:</label>
-        <input type="text" id="autoMarcaEdit" class="border p-2 w-full">
+        <input type="text" id="autoMarca" class="border p-2 w-full" required>
 
         <label class="block">Modelo:</label>
-        <input type="text" id="autoModeloEdit" class="border p-2 w-full">
+        <input type="text" id="autoModelo" class="border p-2 w-full" required>
 
-        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
       </form>
-    </div>
-  </section>
+
+      <!-- Tabla de autos -->
+      <table id="tablaAutos" class="mt-4 w-full border">
+        <thead>
+          <tr class="bg-gray-200">
+            <th>Placa</th>
+            <th>Tipo</th>
+            <th>Marca</th>
+            <th>Modelo</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Formulario de edición oculto -->
+      <div id="formAutoEditContainer" class="hidden mt-6">
+        <h3 class="text-xl font-bold">Editar Auto</h3>
+        <form id="formAutoEdit" class="space-y-2">
+          <label class="block">Placa:</label>
+          <input type="text" id="autoPlacaEdit" class="border p-2 w-full" readonly>
+
+          <label class="block">Tipo:</label>
+          <input type="text" id="autoTipoEdit" class="border p-2 w-full">
+          
+          <label class="block">Marca:</label>
+          <input type="text" id="autoMarcaEdit" class="border p-2 w-full">
+
+          <label class="block">Modelo:</label>
+          <input type="text" id="autoModeloEdit" class="border p-2 w-full">
+
+          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
+        </form>
+      </div>
+    </section>
 
       <!-- Sección: Despachos -->
       <section id="despachos" class="seccion hidden">
@@ -239,7 +328,8 @@
 
           <label class="block">Destino:</label>
           <input type="text" id="desDestino" class="border p-2 w-full" disabled>
-
+           <label class="block">Punto de referencia:</label>
+          <input type="text" id="desReferencia" class="border p-2 w-full">
           <label class="block">Tarifa:</label>
           <input type="number" id="desTarifa" class="border p-2 w-full" disabled>
 
@@ -262,6 +352,11 @@
                   class="bg-yellow-500 text-white px-4 py-2 rounded ml-2" disabled>
                   Enviar a lista de espera
           </button>
+          <button id="btnCancelarDespacho" type="button" class="btn btn-danger">
+            Cancelar
+          </button>
+
+
 
         </form>
 
@@ -297,7 +392,7 @@
           </button>
         </div>
 
-        <div id="turnosActivosLista" class="mt-6"></div>
+      <div id="turnosActivosLista" class="mt-6"></div>
       </section>
       <!-- Sección: Despachos Activos -->
       <section id="despachosActivos" class="seccion hidden">
@@ -373,6 +468,48 @@
           Reporte por Conductor
         </button>
         <div id="reporteConductoresResultado" class="mt-4"></div>
+         <!-- Botón para reporte embarque/desembarque -->
+        <button id="btnReporteEmbarque" class="bg-purple-500 text-white px-4 py-2 rounded mt-4">
+          Reporte Embarque/Desembarque
+        </button>
+        <!-- Contenedor del reporte embarque/desembarque -->
+        <div id="reporte-container" class="mt-4">
+          <h3 id="fecha-reporte"></h3>
+          <h4 id="rango-reporte"></h4>
+          <div class="tabla-dinamica mb-4">
+            <table border="1" cellspacing="0" cellpadding="5" class="mt-2 w-full">
+              <thead>
+                <tr>
+                  <th>Nro</th>
+                  <th>Nombre Cliente</th>
+                  <th>Teléfono Cliente</th>
+                  <th>Conductor</th>
+                  <th>Origen</th>
+                  <th>Embarque (hora)</th>
+                  <th>Destino</th>
+                  <th>Desembarque (hora)</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-reporte">
+                <!-- filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+         <!-- Botón de impresión -->
+        <button id="btnPrint" class="bg-gray-700 text-white px-4 py-2 rounded mt-4">
+          🖨️ Imprimir Reporte
+        </button>
+      </section>
+      <!-- Sección: Respaldo -->
+      <section id="respaldo" class="seccion hidden">
+        <h2 class="text-2xl font-bold mb-4">Respaldo del Sistema</h2>
+        <p>Genera un respaldo manual de clientes, autos, conductores y despachos.</p>
+        <button onclick="generarRespaldo()" 
+                class="bg-green-500 text-white px-4 py-2 rounded">
+          Generar respaldo
+        </button>
+        <div id="resultadoRespaldo" class="mt-4"></div>
       </section>
 
     </main>
@@ -417,6 +554,130 @@
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
+    function abrirModalCambio() {
+      var modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));
+      modal.show();
+    }
+    ////////Admimisitración de usuarios y contraseñas//////////
+    //////crear usuario
+    async function crearUsuario() {
+      const usuario = document.getElementById("usuario").value.trim();
+      const nombre = document.getElementById("nombreCompleto").value.trim();
+      const rol_id = document.getElementById("rol").value;
+      const clave = document.getElementById("clave").value.trim();
+
+      if (!usuario || !nombre || !rol_id || !clave) {
+        alert("Todos los campos son obligatorios.");
+        return;
+      }
+
+      const res = await fetch("/usuarios/usuarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, nombre_completo: nombre, rol_id, clave })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert("Usuario creado correctamente");
+        cargarUsuarios();
+      } else {
+        alert("Error: " + (data.error || "No se pudo crear el usuario"));
+      }
+    }
+    //////cargar usuarios
+    async function cargarUsuarios() {
+      console.log("Entrando a cargarUsuarios()");
+      try {
+        const res = await fetch("/usuarios/usuarios"); // ruta correcta
+        if (!res.ok) throw new Error("Error HTTP " + res.status);
+
+        const usuarios = await res.json();
+        const tbody = document.querySelector("#tablaUsuarios tbody");
+        tbody.innerHTML = "";
+        console.log("Usuarios recibidos:", usuarios);
+
+        usuarios.forEach(u => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${u.id_usuario}</td>
+            <td>${u.usuario}</td>
+            <td>${u.nombre_completo}</td>
+            <td>${u.nombre_rol}</td>
+            <td>${u.activo ? "Sí" : "No"}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="toggleUsuario(${u.id_usuario}, ${u.activo})">
+                ${u.activo ? "Desactivar" : "Activar"}
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Error cargando usuarios:", err);
+        alert("No se pudo cargar la lista de usuarios");
+      }
+    }
+
+    //////activar/desactivar usuario
+    async function toggleUsuario(id, activo) {
+      const res = await fetch(`/usuarios/${id}/estado`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: !activo })
+      });
+
+      if (res.ok) {
+        alert("Estado actualizado");
+        cargarUsuarios();
+      } else {
+        alert("Error al actualizar estado");
+      }
+    }
+
+    //// Función para cambiar la contraseña
+    async function cambiarPassword() {
+      const usuario = document.getElementById("usuarioCambio").value.trim();
+      const password_actual = document.getElementById("passwordActual").value.trim();
+      const password_nueva = document.getElementById("passwordNueva").value.trim();
+
+      if (!usuario || !password_actual || !password_nueva) {
+        alert("Todos los campos son obligatorios.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/usuarios/cambiar_password", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            usuario,
+            password_actual,
+            password_nueva
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+           mostrarToast("Contraseña actualizada correctamente", "info");
+          // Cerrar modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById("modalCambiarPassword"));
+          modal.hide();
+          // Limpiar campos
+          document.getElementById("usuarioCambio").value = "";
+          document.getElementById("passwordActual").value = "";
+          document.getElementById("passwordNueva").value = "";
+        } else {
+          mostrarToast(data.error || "Error al cambiar contraseña", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error de conexión con el servidor");
+      }
+    }
+    
+
     // Validación centralizada de teléfonos
     function validarTelefono(campoId) {
       const campo = document.getElementById(campoId);
@@ -439,7 +700,12 @@
         }
       });
     }
-
+    // Validación centralizada de nombres
+    function validarNombre(nombre) {
+      if (!nombre) return false;                // 🔹 No vacío
+      if (nombre.trim().length < 2) return false; // 🔹 Al menos 2 caracteres útiles
+      return true;
+    }
 
     // Activar validación en todos los campos de teléfono
     document.addEventListener("DOMContentLoaded", () => {
@@ -570,7 +836,10 @@
             <td class="border px-2 py-1">${idx + 1}</td>
             <td>${c.nro_telefono || c.cliente_telefono || ""}</td>
             <td class="border px-2 py-1">${c.cliente_nombre}</td>
-            <td class="border px-2 py-1">${c.origen}</td>
+            <td class="border px-2 py-1">
+              ${(c.origen || '')}${c.punto_referencia ? '- Pto ref: ' + c.punto_referencia : ''}
+            </td>
+
             <td class="border px-2 py-1">${c.destino}</td>
             <td class="border px-2 py-1">${formatearHoraLocal(c.hora)}</td>
             <td class="border px-2 py-1">${c.tarifa}</td>
@@ -591,24 +860,69 @@
         console.error("Error cargando lista de espera:", err);
       }
     }
-
-    document.getElementById('formCliente').addEventListener('submit', async e => {
+    // Listener unificado para creación/edición de clientes
+  function registrarCliente(formId, ids) {
+    document.getElementById(formId).addEventListener('submit', async e => {
       e.preventDefault();
+
       const cliente = {
-        nombre: document.getElementById('cliNombre').value,
-        nro_telefono: document.getElementById('cliTelefono').value,
-        direccion: document.getElementById('cliDireccion').value
+        nombre: document.getElementById(ids.nombre).value.trim(),
+        nro_telefono: document.getElementById(ids.telefono).value.trim(),
+        direccion: document.getElementById(ids.direccion).value.trim(),
+        punto_referencia: document.getElementById(ids.referencia).value.trim()
       };
-      await apiFetch('/clientes', { method: 'POST', body: JSON.stringify(cliente) });
-      e.target.reset();
-      cargarClientes();
+
+      try {
+        const res = await apiFetch('/clientes/', {
+          method: 'POST',
+          body: JSON.stringify(cliente)
+        });
+
+        if (res.ok) {
+          alert("✅ Cliente creado correctamente");
+          e.target.reset();
+          cargarClientes();
+        } else {
+          const data = await res.json();
+          alert("❌ Error al crear cliente: " + (data.error || "verifica datos"));
+        }
+      } catch (err) {
+        console.error("❌ Error creando cliente:", err);
+        alert("❌ Error inesperado al crear cliente.");
+      }
     });
+  }
+
+  // 🔹 Enganchar ambos formularios con sus respectivos IDs
+  registrarCliente('formClienteNuevo', {
+    nombre: 'cliNombreNuevo',
+    telefono: 'cliTelefonoNuevo',
+    direccion: 'cliDireccionNuevo',
+    referencia: 'cliReferenciaNuevo'
+  });
+
+  registrarCliente('formCliente', {
+    nombre: 'cliNombre',
+    telefono: 'cliTelefono',
+    direccion: 'cliDireccion',
+    referencia: 'cliReferencia'
+  });
+
     //Función para seleccionar cliente y rellenar formulario de edición
     function seleccionarCliente(c) {
       document.getElementById('cliNombreEdit').value = c.nombre || '';
       document.getElementById('cliTelefonoEdit').value = c.nro_telefono || c.telefono || '';
+      document.getElementById('cliTelefonoEdit').dataset.id_cliente = c.id_cliente || '';
       document.getElementById('cliDireccionEdit').value = c.direccion || '';
+      document.getElementById('cliReferenciaEdit').value = c.punto_referencia || '';
+
+      const desOrigen = document.getElementById('desOrigen');
+      if (desOrigen) desOrigen.value = c.direccion || '';
+
+      const desRef = document.getElementById('desReferencia');
+      if (desRef) desRef.value = c.punto_referencia || '';
     }
+
  
     // Conductores
     async function cargarConductores() {
@@ -624,6 +938,7 @@
           tr.classList.add("cursor-pointer", "hover:bg-gray-100");
 
           tr.innerHTML = `
+            <td>${c.codigo}</td>
             <td>${c.nro_cedula}</td>
             <td>${c.nombre}</td>
             <td>${c.nro_telefono}</td>
@@ -652,10 +967,13 @@
 
       if (Array.isArray(data) && data.length > 0) {
         data.forEach(t => {
-          const option = document.createElement("option");
-          option.value = t.conductor.id_conductor;
-          option.textContent = `${t.conductor.nombre} (${t.auto.nro_placa})`;
-          select.appendChild(option);
+          const exists = [...select.options].some(opt => opt.value == t.conductor.id_conductor);
+          if (!exists) {
+            const option = document.createElement("option");
+            option.value = t.conductor.id_conductor;
+            option.textContent = `${t.conductor.codigo} - ${t.conductor.nombre} (${t.auto.nro_placa})`;
+            select.appendChild(option);
+          }
         });
         btnListaEspera.disabled = true;   // 🚦 hay conductores → botón deshabilitado
       } else {
@@ -675,6 +993,7 @@
     e.preventDefault();
 
     const conductor = {
+      codigo: document.getElementById('conCodigo').value.trim(), 
       nro_cedula: document.getElementById('conCedula').value.trim(),
       nombre: document.getElementById('conNombre').value.trim(),
       nro_telefono: document.getElementById('conTelefono').value.trim()
@@ -736,22 +1055,123 @@
       }
   }
 
-
-    document.getElementById('formAuto').addEventListener('submit', async e => {
-      e.preventDefault();
-      const auto = {
-        nro_placa: document.getElementById('autoPlaca').value,
-        tipo_auto: document.getElementById('autoTipo').value,
-        marca: document.getElementById('autoMarca').value,
-        modelo: document.getElementById('autoModelo').value
-      };
-      await apiFetch('/autos', { method: 'POST', body: JSON.stringify(auto) });
-      e.target.reset();
-      cargarAutosTabla();             // refresca la tabla
-      cargarAutosActivosSelect();     // refresca el select de despachos
-      cargarAutosDisponiblesSelect(); // refresca el select de turnos
-    });
+   
 // Modificar campo específico de cliente con token
+  async function modificarCampoCliente(campo) {
+    const telefono = document.getElementById("cliTelefonoEdit").value.trim();
+    let valor;
+
+     if (campo === "nombre") {
+        valor = document.getElementById("cliNombreEdit").value.trim();
+      } else if (campo === "direccion") {
+        valor = document.getElementById("cliDireccionEdit").value.trim();
+      } else if (campo === "punto_referencia") {
+         valor = document.getElementById("cliReferenciaEdit").value.trim();
+      }
+
+
+    if (!telefono || !valor) {
+      alert("Debes ingresar teléfono y el nuevo valor.");
+      return;
+    }
+
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify({ [campo]: valor })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(`Cliente actualizado: ${campo} cambiado a ${valor}`);
+      cargarClientes(); // refresca tabla
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+  //Funcionalidades para modificar cliente desde el panel de despacho
+  async function guardarCambiosCliente() {
+    const telefono = document.getElementById('cliTelefonoEdit').value.trim();
+    const nombre = document.getElementById('modalNombre').value.trim();
+    const direccion = document.getElementById('modalDireccion').value.trim();
+    const punto_referencia = document.getElementById('modalReferencia').value.trim();
+
+    if (!telefono) {
+      alert("No hay teléfono cargado para este cliente.");
+      return;
+    }
+
+    // 🔹 Ahora usamos la nueva ruta /clientes/telefono/<telefono>
+    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+      method: "PUT",
+      body: JSON.stringify({ nombre, direccion, punto_referencia })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("Cliente actualizado correctamente");
+      cerrarModal();
+      cargarClientes();
+
+      // 🔹 Sincronizar inputs locales
+      document.getElementById('cliDireccionEdit').value = direccion || "";
+      document.getElementById('cliReferenciaEdit').value = punto_referencia || "";
+      document.getElementById('desOrigen').value = direccion || "";
+      document.getElementById('desReferencia').value = punto_referencia || "";
+    } else {
+      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+    }
+  }
+
+    async function actualizarClientePorTelefono(telefono, payload) {
+      const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      return res.json();
+    }
+    // Desde el modal
+    async function guardarCambiosCliente() {
+      const telefono = document.getElementById('cliTelefonoEdit').value.trim();
+      const nombre = document.getElementById('modalNombre').value.trim();
+      const direccion = document.getElementById('modalDireccion').value.trim();
+      const punto_referencia = document.getElementById('modalReferencia').value.trim();
+
+      if (!telefono) {
+        alert("No hay teléfono cargado para este cliente.");
+        return;
+      }
+
+      const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+        method: "PUT",
+        body: JSON.stringify({ nombre, direccion, punto_referencia })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert("Cliente actualizado correctamente");
+        cerrarModal();
+        cargarClientes();
+
+        // Sin romper nada: reflejar cambios locales en edición y despacho
+        if (direccion) {
+          const desOrigen = document.getElementById('desOrigen');
+          if (desOrigen) desOrigen.value = direccion;
+          const cliDireccionEdit = document.getElementById('cliDireccionEdit');
+          if (cliDireccionEdit) cliDireccionEdit.value = direccion;
+        }
+
+        const cliRefEdit = document.getElementById('cliReferenciaEdit');
+        if (cliRefEdit) cliRefEdit.value = punto_referencia || "";
+
+        const desRef = document.getElementById('desReferencia');
+        if (desRef) desRef.value = punto_referencia || "";
+
+      } else {
+        alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+      }
+    }
+
+  // Modificar cliente desde el panel de despacho
   async function modificarCampoCliente(campo) {
     const telefono = document.getElementById("cliTelefonoEdit").value.trim();
     let valor;
@@ -760,6 +1180,8 @@
       valor = document.getElementById("cliNombreEdit").value.trim();
     } else if (campo === "direccion") {
       valor = document.getElementById("cliDireccionEdit").value.trim();
+    } else if (campo === "punto_referencia") {
+      valor = document.getElementById("cliReferenciaEdit").value.trim();
     }
 
     if (!telefono || !valor) {
@@ -780,59 +1202,38 @@
       alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
     }
   }
-  // Modificar cliente desde el panel de despacho
-  async function modificarClienteDesdeDespacho() {
-    const telefono = document.getElementById("desTelefono").value.trim();
-    const direccion = document.getElementById("desOrigen").value.trim();
+  //////////////////////////////////////////////////////
+  async function cargarConductoresEnTurnoCrear() {
+    try {
+      const res = await apiFetch('/conductores/disponibles_conductores');
+      const data = await res.json();
 
-    if (!telefono || !direccion) {
-      alert("Debes ingresar teléfono y dirección para modificar.");
-      return;
-    }
+      console.log("Conductores disponibles recibidos:", data);
 
-    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
-      method: "PUT",
-      body: JSON.stringify({ direccion })
-    });
+      const sel = document.getElementById('nuevoConductor');
+      sel.innerHTML = "";
 
-    const data = await res.json();
-    if (res.ok) {
-      alert(`Cliente actualizado: dirección cambiada a ${direccion}`);
-      cargarClientes();
-    } else {
-      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id_conductor;
+           opt.textContent = `${c.codigo} - ${c.nombre}`; // 👈 aquí concatenas código + nombre
+          console.log("Conductor:", c);   // 👈 correcto para depurar
+          sel.appendChild(opt);           // 👈 usa 'sel', no 'selec'
+        });
+      } else {
+        const opt = document.createElement("option");
+        opt.disabled = true;
+        opt.textContent = "No hay conductores disponibles";
+        sel.appendChild(opt);
+      }
+    } catch (err) {
+      console.error("Error cargando conductores disponibles:", err);
+      const sel = document.getElementById('nuevoConductor');
+      sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
     }
   }
-  //Cargar conductores en turno activos para el select de crear turno
-    async function cargarConductoresEnTurnoCrear() {
-      try {
-        const res = await apiFetch('/conductores/disponibles_conductores');
-        const data = await res.json();
 
-        console.log("Conductores disponibles recibidos:", data);
-
-        const sel = document.getElementById('nuevoConductor');
-        sel.innerHTML = "";
-
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(c => {
-            const opt = document.createElement("option");
-            opt.value = c.id_conductor;
-            opt.textContent = `${c.nombre}`;
-            sel.appendChild(opt);
-          });
-        } else {
-          const opt = document.createElement("option");
-          opt.disabled = true;
-          opt.textContent = "No hay conductores disponibles";
-          sel.appendChild(opt);
-        }
-      } catch (err) {
-        console.error("Error cargando conductores disponibles:", err);
-        const sel = document.getElementById('nuevoConductor');
-        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
-      }
-    }
 
 //cargar autos disponibles para el select de crear turno
  
@@ -861,6 +1262,7 @@
         //cargarConductoresDisponiblesDespacho();
         cargarConductoresEnTurnoCrear();
         cargarConductoresEnTurnoDespacho();
+        cargarConductoresDisponibles();
         cargarAutosDisponiblesSelect();
       } else {
         // ❌ Error de validación desde backend
@@ -890,6 +1292,7 @@
       const hora = new Date().toLocaleString('sv-SE'); // 🔹 hora local en formato ISO-like
       const nro_telefono = document.getElementById("desTelefono").value.trim();
       const tarifa = parseFloat(document.getElementById("desTarifa").value);
+      const punto_referencia = document.getElementById("cliReferenciaEdit")?.value.trim() || null;
 
       // 🔹 Validación defensiva
       if (!cliente_id || !origen || !destino || !nro_telefono || isNaN(tarifa)) {
@@ -907,14 +1310,15 @@
             hora,
             nro_telefono,
             tarifa,
-            estado: "en espera"
+            estado: "en espera",
+            punto_referencia
           })
         });
 
         if (res.ok) {
           alert("✅ Cliente enviado a lista de espera.");
           console.log("🚦 Enviando a lista_espera:", {
-            cliente_id, origen, destino, hora, nro_telefono, tarifa
+            cliente_id, origen, destino, hora, nro_telefono, tarifa, punto_referencia
           });
           cargarListaEspera(); // refresca la tabla desde el backend
         } else {
@@ -999,7 +1403,7 @@
       const data = await res.json();
       const sel = document.getElementById('nuevoConductor');
       sel.innerHTML = Array.isArray(data)
-        ? data.map(c => `<option value="${c.id_conductor}">${c.nombre}</option>`).join('')
+         ? data.map(c => `<option value="${c.id_conductor}">${c.codigo} - ${c.nombre}</option>`).join('')
         : '';
     }
     //Actualizar autos disponibles para el select de crear turno
@@ -1011,76 +1415,81 @@
         ? data.map(a => `<option value="${a.id_auto}">${a.nro_placa || a.placa || '—'}</option>`).join('')
         : '<option disabled>No hay autos disponibles</option>';
     }
+   // Validar cliente por teléfono con opción de crear nuevo (incluye referencia)
+  async function validarClientePorTelefono() {
+    const telefono = document.getElementById('desTelefono').value.trim();
+    if (!telefono) return null; // 🔑 devolver null si no hay teléfono
 
-    // Validar cliente por teléfono con opción de crear nuevo
-    async function validarClientePorTelefono() {
-      const telefono = document.getElementById('desTelefono').value.trim();
-      if (!telefono) return null; // 🔑 devolver null si no hay teléfono
+    try {
+      const res = await apiFetch(`/clientes/buscar?telefono=${telefono}`);
+      const data = await res.json();
+      const selCliente = document.getElementById('desCliente');
 
-      try {
-        const res = await apiFetch(`/clientes/buscar?telefono=${telefono}`);
-        const data = await res.json();
-        const selCliente = document.getElementById('desCliente');
+      if (Array.isArray(data) && data.length > 0) {
+        // Cliente encontrado
+        const cliente = data[0];
+        selCliente.innerHTML = `<option value="${cliente.id_cliente}">${cliente.nombre}</option>`;
+        document.getElementById('desOrigen').value = cliente.direccion;
 
-        if (Array.isArray(data) && data.length > 0) {
-          // Cliente encontrado
-          selCliente.innerHTML = `<option value="${data[0].id_cliente || data[0].id_clientes}">${data[0].nombre}</option>`;
-          document.getElementById('desOrigen').value = data[0].direccion;
+        // Rellenar también el formulario de edición de clientes
+        document.getElementById('cliNombreEdit').value = cliente.nombre || '';
+        document.getElementById('cliTelefonoEdit').value = cliente.nro_telefono || cliente.telefono || '';
+        document.getElementById('cliTelefonoEdit').dataset.id_cliente = cliente.id_cliente; // 👈 guardar id
+        document.getElementById('cliDireccionEdit').value = cliente.direccion || '';
+        document.getElementById('cliReferenciaEdit').value = cliente.punto_referencia || '';
 
-          // 🔹 Rellenar también el formulario de edición de clientes
-          document.getElementById('cliNombreEdit').value = data[0].nombre || '';
-          document.getElementById('cliTelefonoEdit').value = data[0].nro_telefono || data[0].telefono || '';
-          document.getElementById('cliDireccionEdit').value = data[0].direccion || '';
+        activarCamposDespacho(true);
+        return cliente; // ✅ devolver el cliente encontrado
+      } else {
+        // Cliente no encontrado
+        selCliente.innerHTML = '';
+        document.getElementById('desOrigen').value = '';
+        activarCamposDespacho(false);
 
-          activarCamposDespacho(true);
+        if (confirm("Cliente no registrado. ¿Desea crear uno nuevo?")) {
+          const nombre = prompt("Ingrese el nombre del cliente:");
+          const direccion = prompt("Ingrese la dirección del cliente:");
+          const referencia = prompt("Ingrese el punto de referencia del cliente:");
+          // 🔑 Validar nombre antes de crear
+          if (!validarNombre(nombre)) {
+            alert("❌ Nombre inválido. Debe contener solo letras, tildes, espacios o apóstrofos.");
+            return null;
+          }
+          if (nombre && direccion && referencia) {
+            const nuevoCliente = { telefono, nombre, direccion, punto_referencia: referencia };
+            const resPost = await apiFetch("/clientes/", {
+              method: "POST",
+              body: JSON.stringify(nuevoCliente)
+            });
+            const result = await resPost.json();
 
-          return data[0]; // ✅ devolver el cliente encontrado
-        } else {
-          // Cliente no encontrado
-          selCliente.innerHTML = '';
-          document.getElementById('desOrigen').value = '';
-          activarCamposDespacho(false);
+            if (resPost.ok) {
+              alert("✅ Cliente creado correctamente");
+              selCliente.innerHTML = `<option value="${result.id_cliente}">${nombre}</option>`;
+              document.getElementById('desOrigen').value = direccion;
 
-          if (confirm("Cliente no registrado. ¿Desea crear uno nuevo?")) {
-            const nombre = prompt("Ingrese el nombre del cliente:");
-            const direccion = prompt("Ingrese la dirección del cliente:");
+              // Rellenar también el formulario de edición con el nuevo cliente
+              document.getElementById('cliNombreEdit').value = nombre;
+              document.getElementById('cliTelefonoEdit').value = telefono;
+              document.getElementById('cliDireccionEdit').value = direccion;
+              document.getElementById('cliReferenciaEdit').value = referencia;
 
-            if (nombre && direccion) {
-              const nuevoCliente = { telefono, nombre, direccion };
-              const resPost = await apiFetch("/clientes", {
-                method: "POST",
-                body: JSON.stringify(nuevoCliente)
-              });
-              const result = await resPost.json();
-
-              if (resPost.ok) {
-                alert("✅ Cliente creado correctamente");
-                selCliente.innerHTML = `<option value="${result.id_cliente || result.id_clientes}">${nombre}</option>`;
-                document.getElementById('desOrigen').value = direccion;
-
-                // 🔹 Rellenar también el formulario de edición con el nuevo cliente
-                document.getElementById('cliNombreEdit').value = nombre;
-                document.getElementById('cliTelefonoEdit').value = telefono;
-                document.getElementById('cliDireccionEdit').value = direccion;
-
-                activarCamposDespacho(true);
-
-                return result; // ✅ devolver el nuevo cliente creado
-              } else {
-                alert("❌ Error al crear cliente: " + (result.error || "verifica datos"));
-                return null;
-              }
+              activarCamposDespacho(true);
+              return result; // ✅ devolver el nuevo cliente creado
+            } else {
+              alert("❌ Error al crear cliente: " + (result.error || "verifica datos"));
+              return null;
             }
           }
-
-          return null; // 🔑 devolver null si no se crea cliente
         }
-      } catch (err) {
-        console.error("❌ Error validando cliente:", err);
-        return null; // 🔑 blindaje en caso de error
-      }
-    }
 
+        return null; // 🔑 devolver null si no se crea cliente
+      }
+    } catch (err) {
+      console.error("❌ Error validando cliente:", err);
+      return null; // 🔑 blindaje en caso de error
+    }
+  }
 
     // Habilitación automática del botón al completar selects
     function verificarDespachoListo() {
@@ -1216,99 +1625,30 @@
       alert("❌ Error inesperado al crear despacho");
     }
   });
+  //Boton para limpiar formulario de despacho
+  document.getElementById("btnCancelarDespacho").addEventListener("click", function() {
+    // Limpiar campos del formulario despacho
+    document.getElementById('desCliente').innerHTML = '';
+    document.getElementById('desTelefono').value = '';
+    document.getElementById('desOrigen').value = '';
+    document.getElementById('cliNombreEdit').value = '';
+    document.getElementById('cliTelefonoEdit').value = '';
+    document.getElementById('cliTelefonoEdit').dataset.id_cliente = '';
+    document.getElementById('cliDireccionEdit').value = '';
+    document.getElementById('cliReferenciaEdit').value = '';
 
-   // Generar reporte entre fechas
-    document.getElementById("btnGenerarReporte").addEventListener("click", async () => {
-      const inicio = document.getElementById("fechaInicio").value;
-      const fin = document.getElementById("fechaFin").value;
+    // Desactivar campos hasta que se seleccione un nuevo cliente
+    activarCamposDespacho(false);
 
-      if (!inicio || !fin) {
-        alert("Debes seleccionar fecha de inicio y fecha de fin");
-        return;
-      }
-
-      try {
-        const res = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
-        const data = await res.json();
-
-        const contenedor = document.getElementById("reporteResultado");
-        contenedor.innerHTML = Array.isArray(data) && data.length > 0
-          ? `<table class="border-collapse border w-full">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="border px-2 py-1">ID</th>
-                  <th class="border px-2 py-1">Cliente</th>
-                  <th class="border px-2 py-1">Conductor</th>
-                  <th class="border px-2 py-1">Auto</th>
-                  <th class="border px-2 py-1">Origen</th>
-                  <th class="border px-2 py-1">Destino</th>
-                  <th class="border px-2 py-1">Fecha</th>
-                  <th class="border px-2 py-1">Tarifa</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.map(r => `
-                  <tr>
-                    <td class="border px-2 py-1">${r.id_despacho}</td>
-                    <td class="border px-2 py-1">${r.cliente_nombre}</td>
-                    <td class="border px-2 py-1">${r.conductor_nombre}</td>
-                    <td class="border px-2 py-1">${r.auto_placa}</td>
-                    <td class="border px-2 py-1">${r.origen}</td>
-                    <td class="border px-2 py-1">${r.destino}</td>
-                    <td class="border px-2 py-1">${r.fecha}</td>
-                    <td class="border px-2 py-1">${r.tarifa}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>`
-          : "<p>No hay resultados en el rango seleccionado</p>";
-      } catch (err) {
-        console.error("❌ Error generando reporte:", err);
-        alert("Error al generar reporte");
-      }
-   });
-
-  // Generar reporte agregado por conductor entre fechas(total despachos y tarifa)
-  document.getElementById("btnReporteConductores").addEventListener("click", async () => {
-    const inicio = document.getElementById("fechaInicio").value;
-    const fin = document.getElementById("fechaFin").value;
-
-    if (!inicio || !fin) {
-      alert("Debes seleccionar fecha de inicio y fecha de fin");
-      return;
-    }
-
-    try {
-      const res = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
-      const data = await res.json();
-
-      const contenedor = document.getElementById("reporteConductoresResultado");
-      contenedor.innerHTML = Array.isArray(data) && data.length > 0
-        ? `<table class="border-collapse border w-full">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="border px-2 py-1">Conductor</th>
-                <th class="border px-2 py-1">Total Servicios</th>
-                <th class="border px-2 py-1">Total Tarifa</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.map(r => `
-                <tr>
-                  <td class="border px-2 py-1">${r.conductor}</td>
-                  <td class="border px-2 py-1">${r.total_servicios}</td>
-                  <td class="border px-2 py-1">${r.total_tarifa.toFixed(2)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>`
-        : "<p>No hay resultados en el rango seleccionado</p>";
-    } catch (err) {
-      console.error("❌ Error generando reporte por conductor:", err);
-      alert("Error al generar reporte por conductor");
-    }
+    mostrarToast("Formulario de despacho cancelado ✔️", "info");
   });
-  
+
+  // Formatear dirección con referencia
+   function formatearDireccion(origen, referencia) {
+      if (!origen && !referencia) return "-";
+      return `${origen || ""}${referencia ? " Pto ref: " + referencia : ""}`;
+    }
+ 
  
   let despachoSeleccionado = null;
 
@@ -1326,10 +1666,17 @@
             <td class="border px-2 py-1">${d.cliente_nombre}</td>
             <td class="border px-2 py-1">${d.conductor_nombre || '—'}</td>
             <td class="border px-2 py-1">${d.auto_placa}</td>
-            <td class="border px-2 py-1">${d.origen}</td>
+            <td class="border px-2 py-1">
+              ${formatearDireccion(d.origen, d.punto_referencia)}
+            </td>
+
             <td class="border px-2 py-1">${d.destino}</td>
             <td class="border px-2 py-1">${d.estado_despacho}</td>
             <td class="border px-2 py-1 text-center">
+              <button id="btnEmbarque" onclick="registrarEmbarque(${d.id_despacho})">
+                🚖 Reportar embarque
+              </button>
+
               <button class="bg-green-500 text-white px-3 py-1 rounded mr-2"
                       onclick="finalizarDespacho(${d.id_despacho})">
                 Finalizar
@@ -1388,8 +1735,56 @@
     }
   });
   
-      
+   // Conectar el botón con la función
+  document.getElementById("btnReporteEmbarque").addEventListener("click", () => {
+    const inicio = document.getElementById("fechaInicio").value;
+    const fin = document.getElementById("fechaFin").value;
+    if (!inicio || !fin) {
+      alert("Debes seleccionar fecha inicio y fin");
+      return;
+    }
+    cargarReporteEmbarqueDesembarque(inicio, fin);
+  });    
+  async function cargarReporteEmbarqueDesembarque(inicio, fin) {
+    try {
+      // Llamada al backend con las fechas seleccionadas
+      const res = await fetch(`/reportes/embarque_desembarque?inicio=${inicio}&fin=${fin}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert(errorData.error || "Error al generar el reporte");
+        return;
+      }
 
+      const data = await res.json();
+
+      // Encabezado: fecha del reporte y rango
+      document.getElementById("fecha-reporte").textContent =
+        "📅 Fecha del reporte: " + data.fecha_reporte;
+      document.getElementById("rango-reporte").textContent =
+        "📊 Rango del reporte: " + data.rango;
+
+      // Tabla dinámica
+      const tbody = document.getElementById("tabla-reporte");
+      tbody.innerHTML = ""; // limpiar antes de insertar
+      data.data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.nro}</td>
+          <td>${row.cliente}</td>
+          <td>${row.telefono_cliente}</td>
+          <td>${row.conductor_codigo} - ${row.conductor_nombre} - ${row.auto_placa}</td>
+          <td>${row.origen}</td>
+          <td>${row.embarque || "-"}</td>
+          <td>${row.destino}</td>
+          <td>${row.desembarque}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error("❌ Error cargando reporte:", err);
+      alert("No se pudo cargar el reporte");
+    }
+  }
     // Validar placa con Enter
   document.addEventListener("DOMContentLoaded", () => {  
     document.getElementById("autoPlaca").addEventListener("keydown", async (event) => {
@@ -1433,7 +1828,10 @@
         marca: document.getElementById("autoMarca").value.trim(),
         modelo: document.getElementById("autoModelo").value.trim()
       };
-
+      if (!auto.nro_placa || !auto.tipo_auto || !auto.marca || !auto.modelo) {
+        alert("Todos los campos son obligatorios");
+        return;
+      }
       const res = await apiFetch("/autos", {
         method: "POST",
         body: JSON.stringify(auto)
@@ -1478,32 +1876,7 @@
       document.getElementById("autoPlacaEdit").value = a.nro_placa || a.placa;
     }
     window.seleccionarAuto = seleccionarAuto;
-    // Editar auto
-    document.getElementById("formAutoEdit").addEventListener("submit", async e => {
-      e.preventDefault();
-      const auto = {
-        nro_placa: document.getElementById("autoPlacaEdit").value.trim(),
-        tipo_auto: document.getElementById("autoTipoEdit").value.trim(),
-        marca: document.getElementById("autoMarcaEdit").value.trim(),
-        modelo: document.getElementById("autoModeloEdit").value.trim()
-      };
-
-      const res = await apiFetch(`/autos/${autoSeleccionado.id_auto}`, {
-        method: "PUT",
-        body: JSON.stringify(auto)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("Auto actualizado correctamente");
-        cargarAutosTabla();
-        cargarAutosActivosSelect();
-        cargarAutosDisponiblesSelect();
-        document.getElementById("formAutoEditContainer").classList.add("hidden");
-      } else {
-        alert(data.error || "Error al actualizar auto");
-      }
-    });
+ 
 
   });
   // Abrir modal para editar cliente desde despacho
@@ -1540,26 +1913,40 @@
       alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
     }
   }
+  // Registrar embarque de despacho
+  async function registrarEmbarque(despachoId) {
+    const res = await apiFetch(`/despachos/${despachoId}/embarque`, { method: "PUT" });
+    const data = await res.json();
+    if (res.ok) {
+      alert("Embarque registrado: " + data.embarque_timestamp);
+      cargarDespachosActivos(); // refresca la tabla dinámica
+    } else {
+      alert("Error: " + (data.error || "No se pudo registrar el embarque"));
+    }
+  }
  // Cargar conductores activos en el select de crear despacho
   async function cargarConductoresActivosSelect() {
     try {
       const res = await apiFetch('/conductores/activos');
       const data = await res.json();
+      console.log("Respuesta completa de /conductores/activos:", data);
 
       const sel = document.getElementById('desConductor');
       sel.innerHTML = "";
 
       if (Array.isArray(data) && data.length > 0) {
-       data.forEach(t => {
-          if (t.conductor.estado === "Disponible") {   // 🔑 solo disponibles
-            console.log("Conductor recibido:", t.conductor);
+        data.forEach(c => {
+          // ahora c es directamente el conductor
+          if (c.estado && c.estado.toLowerCase() === "disponible") {
+            console.log("Conductor recibido:", c);
             const opt = document.createElement("option");
-            opt.value = t.conductor.id_conductor || t.conductor.id || t.conductor_id;
-            opt.textContent = `${t.conductor.nombre || t.conductor.conductor_nombre || "??"} - ${t.auto?.nro_placa || "-"}`;
+            opt.value = c.id_conductor || c.id || c.conductor_id;
+            opt.textContent = `${c.codigo} - ${c.nombre} (${c.auto?.nro_placa || "-"})`;
             sel.appendChild(opt);
-          }  
+          } else {
+            console.warn("Conductor no disponible:", c);
+          }
         });
-
       } else {
         const opt = document.createElement("option");
         opt.disabled = true;
@@ -1576,6 +1963,23 @@
   }
 
 
+ // Registrar embarque
+  async function registrarEmbarque(idDespacho) {
+    try {
+      const res = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Embarque registrado correctamente");
+        cargarDespachosActivos(); // refresca la tabla
+      } else {
+        alert("Error al registrar embarque: " + (data.error || "verifica datos"));
+      }
+    } catch (err) {
+      console.error("Error en registrarEmbarque:", err);
+      alert("No se pudo registrar el embarque");
+    }
+  }
 
   // Seleccionar un despacho
   function seleccionarDespacho(id) {
@@ -1588,10 +1992,22 @@
     const res = await apiFetch('/conductores/en_turno_disponibles');
     const data = await res.json();
     const sel = document.getElementById('conductorAsignacion');
-    sel.innerHTML = Array.isArray(data)
-      ? data.map(c => `<option value="${c.id_conductor}">${c.nombre}</option>`).join('')
-      : '<option disabled>No hay conductores activos</option>';
+    sel.innerHTML = "";
+
+    if (Array.isArray(data) && data.length > 0) {
+      data.forEach(t => {
+        if (t.conductor && t.conductor.estado.toLowerCase() === "disponible") {
+          const opt = document.createElement("option");
+          opt.value = t.conductor.id_conductor;
+          opt.textContent = `${t.conductor.codigo} - ${t.conductor.nombre}`;
+          sel.appendChild(opt);
+        }
+      });
+    } else {
+      sel.innerHTML = '<option disabled>No hay conductores activos</option>';
+    }
   }
+
 
   // Asignar despacho al conductor seleccionado
   document.getElementById('btnAsignarDespacho').addEventListener('click', async () => {
@@ -1747,6 +2163,30 @@
         "<p class='text-red-600'>Error cargando el reporte: " + error.message + "</p>";
     }
   }
+  // Generar respaldo de la base de datos
+  async function generarRespaldo() {
+      try {
+        const res = await fetch("/respaldo/respaldar", {
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+        });
+        if (!res.ok) throw new Error("Error al generar respaldo");
+
+        // Descargar el archivo
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `respaldo_${new Date().toISOString().replace(/[:.]/g,"-")}.sqlite`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        mostrarToast("Respaldo generado correctamente ✔️");
+      } catch (err) {
+        console.error("Error:", err);
+        mostrarToast("Error al generar respaldo ❌", "error");
+      }
+    }
+
   // Inicialización
   document.addEventListener('DOMContentLoaded', () => {
     cargarDespachosActivos();
@@ -1785,94 +2225,111 @@
     }
   }
 
-
+  // Abrir modal de edición de cliente para modificar datos
    function abrirModalEditarCliente() {
-      // Copiar valores actuales al modal
-      document.getElementById('modalNombre').value = document.getElementById('cliNombreEdit').value;
-      document.getElementById('modalDireccion').value = document.getElementById('cliDireccionEdit').value;
+      document.getElementById('modalNombre').value =
+        document.getElementById('cliNombreEdit').value || "";
+
+      document.getElementById('modalDireccion').value =
+        document.getElementById('cliDireccionEdit').value || "";
+
+      document.getElementById('modalReferencia').value =
+        document.getElementById('cliReferenciaEdit').value || "";
+
       document.getElementById('modalEditarCliente').classList.remove('hidden');
     }
-// Cerrar modal de edición
-  function cerrarModal() {
-    document.getElementById('modalEditarCliente').classList.add('hidden');
-  }
 
-  async function guardarCambiosCliente() {
-    const telefono = document.getElementById('cliTelefonoEdit').value.trim();
-    const nombre = document.getElementById('modalNombre').value.trim();
-    const direccion = document.getElementById('modalDireccion').value.trim();
 
-    if (!telefono) {
-      alert("No hay teléfono cargado para este cliente.");
-      return;
+  // Cerrar modal de edición
+    function cerrarModal() {
+      document.getElementById('modalEditarCliente').classList.add('hidden');
     }
 
-    const res = await apiFetch(`/clientes/telefono/${telefono}`, {
-      method: "PUT",
-      body: JSON.stringify({ nombre, direccion })
-    });
+    async function guardarCambiosCliente() {
+        const telefono = document.getElementById('cliTelefonoEdit').value.trim();
+        const nombre = document.getElementById('modalNombre').value.trim();
+        const direccion = document.getElementById('modalDireccion').value.trim();
+        const punto_referencia = document.getElementById('modalReferencia').value.trim();
 
-    const data = await res.json();
-    if (res.ok) {
-      alert("Cliente actualizado correctamente");
-      cerrarModal();
-      cargarClientes();
-    } else {
-      alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
-    }
-  }
+        if (!telefono) {
+          alert("No hay teléfono cargado para este cliente.");
+          return;
+        }
+
+        const res = await apiFetch(`/clientes/telefono/${telefono}`, {
+          method: "PUT",
+          body: JSON.stringify({ nombre, direccion, punto_referencia })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          alert("Cliente actualizado correctamente");
+          cerrarModal();
+          cargarClientes();
+
+          // 🔑 sincronizar inputs locales
+          document.getElementById('cliDireccionEdit').value = direccion || "";
+          document.getElementById('cliReferenciaEdit').value = punto_referencia || "";
+          document.getElementById('desOrigen').value = direccion || "";
+          document.getElementById('desReferencia').value = punto_referencia || "";
+        } else {
+          alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
+        }
+      }
+
+
   // Cancelar cliente de la lista de espera
     async function cancelarCliente(idCliente) {
-    try {
-      const res = await fetch(`/lista_espera/${idCliente}`, {
-        method: "DELETE"
-      });
-      const data = await res.json();
-      console.log("Cliente eliminado:", data);
-      // 🚦 refrescar la tabla después de eliminar
-      cargarListaEspera();
-      cargarConductoresEnTurnoDespacho();
-    } catch (err) {
-      console.error("Error eliminando cliente:", err);
-    }
-  }
-  // Cancelar despacho 
-  async function cancelarDespacho(id) {
-    try {
-      const res = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
-      const data = await res.json();
-      if (res.ok) {
-        alert("⚠️ Despacho cancelado");
-        cargarDespachosActivos(); // refresca la tabla
+      try {
+        const res = await fetch(`/lista_espera/${idCliente}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+        console.log("Cliente eliminado:", data);
+        // 🚦 refrescar la tabla después de eliminar
+        cargarListaEspera();
         cargarConductoresEnTurnoDespacho();
-        cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
-      } else {
-        alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
+      } catch (err) {
+        console.error("Error eliminando cliente:", err);
       }
-    } catch (err) {
-      console.error("Error cancelando despacho:", err);
-      alert("❌ Error inesperado al cancelar despacho");
     }
-  }
-  // Login y manejo de roles
-   async function login(username, password) {
-      const res = await fetch("/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await res.json();
-
-      // Guardar token y rol
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("rol", data.rol_nombre);
-
-      console.log("Guardado rol:", data.rol_nombre);
-
-      // Redirigir al dashboard
-      window.location.href = "/dashboard.html";
+    // Cancelar despacho 
+    async function cancelarDespacho(id) {
+      try {
+        const res = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
+        const data = await res.json();
+        if (res.ok) {
+          alert("⚠️ Despacho cancelado");
+          cargarDespachosActivos(); // refresca la tabla
+          cargarConductoresEnTurnoDespacho();
+          cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
+        } else {
+          alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
+        }
+      } catch (err) {
+        console.error("Error cancelando despacho:", err);
+        alert("❌ Error inesperado al cancelar despacho");
+      }
     }
+    // Login y manejo de roles
+    async function login(username, password) {
+        const res = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        // Guardar token y rol
+        localStorage.setItem("token", data.access_token);
+        localStorage.setItem("rol", data.rol_nombre);
+
+        console.log("Guardado rol:", data.rol_nombre);
+
+        // Redirigir al dashboard
+        window.location.href = "/dashboard.html";
+      }
 
 
     // Vincular al formulario
@@ -1885,50 +2342,50 @@
         login(username, password);
       });
     }
-  document.addEventListener("DOMContentLoaded", () => {
-    cargarTurnos(); 
-    //cargarConductoresActivosSelect();
-    cargarAutosActivosSelect();
-    cargarListaEspera();
-    //cargarConductoresDisponiblesDespacho();
-  }); 
-  document.addEventListener("DOMContentLoaded", () => {
-    const selConductor = document.getElementById("desConductor");
-    if (selConductor) {
-      selConductor.addEventListener("change", verificarDespachoListo);
-      console.log("✅ Listener enganchado a #desConductor");
-    } else {
-      console.error("❌ #desConductor no existe en el DOM todavía");
+    document.addEventListener("DOMContentLoaded", () => {
+      cargarTurnos(); 
+      //cargarConductoresActivosSelect();
+      cargarAutosActivosSelect();
+      cargarListaEspera();
+      //cargarConductoresDisponiblesDespacho();
+    }); 
+    document.addEventListener("DOMContentLoaded", () => {
+      const selConductor = document.getElementById("desConductor");
+      if (selConductor) {
+        selConductor.addEventListener("change", verificarDespachoListo);
+        console.log("✅ Listener enganchado a #desConductor");
+      } else {
+        console.error("❌ #desConductor no existe en el DOM todavía");
+      }
+    });
+
+    async function testConductoresActivos() {
+        try {
+          const res = await apiFetch('/conductores/activos');
+          const data = await res.json();
+          console.log("[TEST] Data recibida:", data);
+
+          const sel = document.getElementById("desConductor");
+          console.log("[TEST] Select encontrado:", !!sel);
+
+        if (!sel) return;
+        sel.innerHTML = "";
+
+        data.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id_conductor;
+          opt.textContent = c.nombre;
+          sel.appendChild(opt);
+        });
+
+        console.log("[TEST] Opciones creadas:", sel.options.length);
+      } catch (err) {
+        console.error("[TEST] Error:", err);
+      }
     }
-  });
-
-  async function testConductoresActivos() {
-    try {
-      const res = await apiFetch('/conductores/activos');
-      const data = await res.json();
-      console.log("[TEST] Data recibida:", data);
-
-      const sel = document.getElementById("desConductor");
-      console.log("[TEST] Select encontrado:", !!sel);
-
-      if (!sel) return;
-      sel.innerHTML = "";
-
-      data.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.id_conductor;
-        opt.textContent = c.nombre;
-        sel.appendChild(opt);
-      });
-
-      console.log("[TEST] Opciones creadas:", sel.options.length);
-    } catch (err) {
-      console.error("[TEST] Error:", err);
-    }
-  }
 
   //document.addEventListener("DOMContentLoaded", testConductoresActivos);
- ////////Lógica para despachos con lista de espera////////////////////////
+  ////////Lógica para despachos con lista de espera////////////////////////
   // Array para manejar clientes en espera
   let clientesEspera = [];
 
@@ -1939,7 +2396,10 @@
       <tr>
         <td class="border px-2 py-1">${idx + 1}</td>
         <td class="border px-2 py-1">${c.cliente}</td>
-        <td class="border px-2 py-1">${c.origen}</td>
+        <td class="border px-2 py-1">
+          ${(c.origen || '')}${c.punto_referencia ? ' - ' + c.punto_referencia : ''}
+        </td>
+
         <td class="border px-2 py-1">${c.destino}</td>
         <td class="border px-2 py-1">${c.hora}</td>
         <td class="border px-2 py-1">${c.tarifa}</td>
@@ -1988,6 +2448,7 @@
 
  
  // Acción: crear despacho desde la lista de espera
+  
   async function crearDespachoDesdeEspera(clienteId) {
     try {
       // 0) Validar conductores disponibles desde backend y select
@@ -2003,14 +2464,28 @@
       // 1. Obtener datos completos del cliente en espera desde el backend
       const res = await apiFetch(`/lista_espera/${clienteId}`);
       const cliente = await res.json();
+      console.log("Cliente recibido:", cliente);
 
-      // 2. Prellenar el formulario de creación de despacho
-      document.getElementById("desCliente").innerHTML =
-        `<option selected value="${cliente.cliente_id}">${cliente.cliente_nombre}</option>`;
-      document.getElementById("desTelefono").value = cliente.nro_telefono || cliente.cliente_telefono || "";
-      document.getElementById("desOrigen").value = cliente.origen || "";
-      document.getElementById("desDestino").value = cliente.destino || "";
-      document.getElementById("desTarifa").value = cliente.tarifa ?? "";
+      // 2. Prellenar el formulario de creación de despacho (con defensas)
+      const desCliente = document.getElementById("desCliente");
+      if (desCliente) {
+        desCliente.innerHTML = `<option selected value="${cliente.cliente_id}">${cliente.cliente_nombre}</option>`;
+      }
+
+      const desTelefono = document.getElementById("desTelefono");
+      if (desTelefono) desTelefono.value = cliente.nro_telefono || "";
+
+      const desOrigen = document.getElementById("desOrigen");
+      if (desOrigen) desOrigen.value = cliente.origen || "";
+
+      const desReferencia = document.getElementById("desReferencia");
+      if (desReferencia) desReferencia.value = cliente.punto_referencia || "";
+
+      const desDestino = document.getElementById("desDestino");
+      if (desDestino) desDestino.value = cliente.destino || "";
+
+      const desTarifa = document.getElementById("desTarifa");
+      if (desTarifa) desTarifa.value = cliente.tarifa ?? "";
 
       // 3. Guardar referencia del cliente en espera
       window.clienteEnEsperaSeleccionado = clienteId;
@@ -2020,8 +2495,10 @@
         `Cliente ${cliente.cliente_nombre} cargado en el formulario. Selecciona conductor y auto para confirmar el despacho.`,
         "info"
       );
+
       // 5. Refrescar tabla de lista de espera para que ya no muestre al cliente
       await cargarListaEspera();
+
       // ✅ Activar el botón principal de creación de despacho SOLO si hay conductor
       document.getElementById("btnCrearDespacho").disabled = false;
 
@@ -2032,6 +2509,7 @@
       mostrarToast("❌ Error cargando cliente desde lista de espera", "error");
     }
   }
+
 
 
 
@@ -2111,7 +2589,7 @@
     });
 
 
-/////// Habilitar/deshabilitar botones según selección
+  /////// Habilitar/deshabilitar botones según selección
   document.getElementById("desCliente").addEventListener("change", actualizarBotones);
   document.getElementById("desConductor").addEventListener("change", actualizarBotones);
  ///// Iniciar turno
@@ -2156,21 +2634,59 @@
   
    
 </script>
-  <div id="modalEditarCliente" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white p-6 rounded shadow-lg w-96">
-      <h2 class="text-xl font-bold mb-4">Editar Cliente</h2>
-      <label class="block mb-2">Nombre:</label>
-      <input type="text" id="modalNombre" class="border p-2 w-full mb-4">
+    <!-- Modal Editar Cliente -->
+    <div id="modalEditarCliente" class="hidden fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-xl font-bold mb-4">Editar Cliente</h2>
 
-      <label class="block mb-2">Dirección:</label>
-      <input type="text" id="modalDireccion" class="border p-2 w-full mb-4">
+        <label class="block mb-2">Nombre:</label>
+        <input type="text" id="modalNombre" class="border p-2 w-full mb-4">
 
-      <div class="flex justify-end gap-2">
-        <button onclick="cerrarModal()" class="bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-        <button onclick="guardarCambiosCliente()" class="bg-blue-500 text-white px-3 py-1 rounded">Guardar</button>
+        <label class="block mb-2">Dirección:</label>
+        <input type="text" id="modalDireccion" class="border p-2 w-full mb-4">
+
+        <label class="block mb-2">Punto de referencia:</label>
+        <input type="text" id="modalReferencia" class="border p-2 w-full mb-4">
+
+        <div class="flex justify-end gap-2">
+          <button onclick="cerrarModal()" class="bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+          <button onclick="guardarCambiosCliente()" class="bg-blue-500 text-white px-3 py-1 rounded">Guardar</button>
+        </div>
       </div>
     </div>
-  </div>
-  
+      <!-- Modal Cambiar Contraseña -->
+    <div class="modal fade" id="modalCambiarPassword" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Cambiar contraseña</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="usuarioCambio" class="form-label">Usuario</label>
+              <input type="text" id="usuarioCambio" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="passwordActual" class="form-label">Contraseña actual</label>
+              <input type="password" id="passwordActual" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="passwordNueva" class="form-label">Nueva contraseña</label>
+              <input type="password" id="passwordNueva" class="form-control">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="cambiarPassword()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
+
 </body>
 </html>
