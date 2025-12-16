@@ -63,7 +63,8 @@
     <!-- Menú lateral -->
    <nav class="w-64 bg-white shadow-md h-screen p-4">
       <ul class="space-y-2">
-        <li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>
+        <li><button onclick="mostrarSeccion('clientesSection')" class="w-full text-left">Clientes</button></li>
+        <!--<li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>-->
         <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button></li>
         <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button></li>
@@ -92,6 +93,7 @@
     
     <!-- Contenido principal -->
     <main class="flex-1 p-6 space-y-8">
+           
       <!-- Sección: Clientes -->
      <section id="clientesEditar" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Gestión de Clientes</h2>
@@ -118,7 +120,7 @@
             <input type="text" id="cliDireccionEdit" class="border p-2 w-full">
             <label class="block">Punto de referencia:</label>
             <div class="flex gap-2">
-              <input type="text" id="cliReferenciaEdit" class="border p-2 w-full">
+              <input type="text" id="cliReferenciaEdit" name="punto_referencia" class="border p-2 w-full">
               <button type="button"
                       class="bg-blue-500 text-white px-3 py-1 rounded"
                       onclick="modificarCampoCliente('punto_referencia')">Modificar</button>
@@ -799,7 +801,115 @@
       localStorage.clear();
       window.location.href = '/index.html';
     });
+    //////////////CRUD CLIENTES////////////////////////////////
+    // Listar clientes en la tabla dinámica
+    async function listarClientes() {
+      try {
+        const res = await apiFetch("/clientes"); // tu endpoint Flask
+        const data = await res.json();
 
+        const tbody = document.getElementById("clientesTabla");
+        tbody.innerHTML = Array.isArray(data) && data.length > 0
+          ? data.map(c => `
+            <tr>
+              <td class="border p-2">${c.nombre}</td>
+              <td class="border p-2">${c.telefono}</td>
+              <td class="border p-2">${c.direccion || '-'}</td>
+              <td class="border p-2">${c.punto_referencia || '-'}</td>
+              <td class="border p-2 flex gap-2">
+                <button onclick="editarCliente(${c.id_cliente})" 
+                        class="bg-yellow-500 text-white px-2 py-1 rounded">✏ Editar</button>
+                <button onclick="eliminarCliente(${c.id_cliente})" 
+                        class="bg-red-500 text-white px-2 py-1 rounded">🗑 Eliminar</button>
+              </td>
+            </tr>
+          `).join("")
+          : "<tr><td colspan='5' class='text-center p-2'>No hay clientes registrados</td></tr>";
+      } catch (err) {
+        console.error("❌ Error listando clientes:", err);
+      }
+    }
+
+    // Crear cliente nuevo desde el formulario
+    document.getElementById("formClienteNuevo").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nuevo = {
+        nombre: document.getElementById("cliNombreNuevo").value,
+        telefono: document.getElementById("cliTelefonoNuevo").value,
+        direccion: document.getElementById("cliDireccionNuevo").value,
+        punto_referencia: document.getElementById("cliReferenciaNuevo").value
+      };
+      try {
+        const res = await apiFetch("/clientes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nuevo)
+        });
+        if (res.ok) {
+          alert("✅ Cliente creado correctamente");
+          listarClientes(); // refrescar tabla
+          e.target.reset();
+        } else {
+          alert("❌ Error al crear cliente");
+        }
+      } catch (err) {
+        console.error("Error creando cliente:", err);
+      }
+    });
+
+    // Editar cliente (abrir modal o formulario)
+    async function editarCliente(id) {
+      try {
+        const res = await apiFetch(`/clientes/${id}`);
+        const cliente = await res.json();
+        // Aquí puedes abrir un modal y rellenar inputs con los datos
+        document.getElementById("cliNombreEdit").value = cliente.nombre;
+        document.getElementById("cliTelefonoEdit").value = cliente.telefono;
+        document.getElementById("cliDireccionEdit").value = cliente.direccion;
+        document.getElementById("cliReferenciaEdit").value = cliente.punto_referencia;
+        // Guardar cambios con PUT
+        document.getElementById("formCliente").onsubmit = async (e) => {
+          e.preventDefault();
+          const actualizado = {
+            nombre: document.getElementById("cliNombreEdit").value,
+            direccion: document.getElementById("cliDireccionEdit").value,
+            punto_referencia: document.getElementById("cliReferenciaEdit").value
+          };
+          const res = await apiFetch(`/clientes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(actualizado)
+          });
+          if (res.ok) {
+            alert("✅ Cliente actualizado");
+            listarClientes();
+          } else {
+            alert("❌ Error al actualizar cliente");
+          }
+        };
+      } catch (err) {
+        console.error("Error editando cliente:", err);
+      }
+    }
+
+    // Eliminar cliente
+    async function eliminarCliente(id) {
+      if (confirm("¿Seguro que deseas eliminar este cliente?")) {
+        try {
+          const res = await apiFetch(`/clientes/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            alert("✅ Cliente eliminado");
+            listarClientes();
+          } else {
+            alert("❌ Error al eliminar cliente");
+          }
+        } catch (err) {
+          console.error("Error eliminando cliente:", err);
+        }
+      }
+    }
+
+   /////////////////////////FIN CRUD CLIENTES//////////////////
     // Clientes
     async function cargarClientes() {
       try {
@@ -1430,7 +1540,7 @@
         const cliente = data[0];
         selCliente.innerHTML = `<option value="${cliente.id_cliente}">${cliente.nombre}</option>`;
         document.getElementById('desOrigen').value = cliente.direccion;
-
+        document.getElementById('desReferencia').value = cliente.punto_referencia || '';
         // Rellenar también el formulario de edición de clientes
         document.getElementById('cliNombreEdit').value = cliente.nombre || '';
         document.getElementById('cliTelefonoEdit').value = cliente.nro_telefono || cliente.telefono || '';
@@ -1444,6 +1554,7 @@
         // Cliente no encontrado
         selCliente.innerHTML = '';
         document.getElementById('desOrigen').value = '';
+        document.getElementById('desReferencia').value = '';
         activarCamposDespacho(false);
 
         if (confirm("Cliente no registrado. ¿Desea crear uno nuevo?")) {
@@ -1467,6 +1578,7 @@
               alert("✅ Cliente creado correctamente");
               selCliente.innerHTML = `<option value="${result.id_cliente}">${nombre}</option>`;
               document.getElementById('desOrigen').value = direccion;
+              document.getElementById('desReferencia').value = referencia;
 
               // Rellenar también el formulario de edición con el nuevo cliente
               document.getElementById('cliNombreEdit').value = nombre;
@@ -1884,7 +1996,7 @@
     const telefono = document.getElementById('cliTelefonoEdit').value.trim();
     const nombre = document.getElementById('modalNombre').value.trim();
     const direccion = document.getElementById('modalDireccion').value.trim();
-
+    const punto_referencia = document.getElementById('cliReferenciaEdit').value.trim(); // <-- faltaba
     if (!telefono) {
       alert("No hay teléfono cargado para este cliente.");
       return;
@@ -2687,6 +2799,6 @@
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
-
+    
 </body>
 </html>

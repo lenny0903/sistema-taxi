@@ -75,7 +75,13 @@ def actualizar_cliente_por_telefono(telefono):
 def listar_clientes():
     clientes = Cliente.query.all()
     resultado = [
-        {"id_cliente": c.id_cliente, "telefono": c.telefono, "nombre": c.nombre, "direccion": c.direccion}
+        {
+            "id_cliente": c.id_cliente,
+            "telefono": c.telefono,
+            "nombre": c.nombre,
+            "direccion": c.direccion,
+            "punto_referencia": c.punto_referencia  # 🔹 faltaba este campo
+        }
         for c in clientes
     ]
     return jsonify(resultado), 200

@@ -312,7 +312,8 @@ async function cargarAutosDisponibles() {
     `<option value="${a.id_auto}">${a.nro_placa}</option>`
   ).join("");
 }
- // Registrar embarque
+ 
+// Registrar embarque
   async function registrarEmbarque(idDespacho) {
     try {
       const res = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });

@@ -133,17 +133,19 @@ def listar_turnos_activos():
             "id_turno": t.id_turno,
             "conductor": {
                 "id_conductor": t.conductor.id_conductor,
+                "codigo": t.conductor.codigo,   # 👈 aquí incluyes el código
                 "nombre": t.conductor.nombre,
                 "estado": t.conductor.estado
             } if t.conductor else None,
             "auto": {
                 "id_auto": t.auto.id_auto,
-                "placa": t.auto.nro_placa   # 🔑 nombre alineado con el frontend
+                "placa": t.auto.nro_placa
             } if t.auto else None,
             "inicio": t.inicio.isoformat() if t.inicio else None,
             "fin": t.fin.isoformat() if t.fin else None
         })
     return jsonify(resultado), 200
+
 
 
 @turnos_bp.route("/", methods=["GET"])
