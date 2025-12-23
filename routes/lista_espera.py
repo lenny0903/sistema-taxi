@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models.lista_espera import ListaEspera
 from datetime import datetime
+from utils.time import hora_local
 
 lista_espera_bp = Blueprint("lista_espera", __name__, url_prefix="/lista_espera")
 
@@ -32,10 +33,10 @@ def lista_espera():
 
         hora_str = data.get("hora")
         try:
-            hora = datetime.strptime(hora_str, "%Y-%m-%d %H:%M:%S")
+            hora = hora_local()
         except ValueError:
             try:
-                hora = datetime.strptime(hora_str, "%Y-%m-%d %H:%M:%S.%f")
+                hora = hora_local()
             except ValueError:
                 # último recurso: interpretar como ISO estándar
                 hora = datetime.fromisoformat(hora_str.replace("Z", "+00:00"))

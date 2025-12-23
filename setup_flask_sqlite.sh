@@ -1,33 +1,55 @@
 #!/bin/bash
-# Script de migración rápida para sistema Flask con SQLite
-# Instrucciones para ejecutar: bash setup_flask_sqlite.sh
-#  1) chmod +x setup_flask_sqlite.sh
-#  2) ./setup_flask_sqlite.sh
-# 1. Crear entorno virtual
-echo "📦 Creando entorno virtual..."
-python3 -m venv venv
+# Script de instalación rápida para sistema Flask con SQLite
+# Uso:
+#   chmod +x setup_flask_sqlite.sh
+#   ./setup_flask_sqlite.sh
 
-# 2. Activar entorno virtual
+set -e  # Detener ejecución si ocurre un error
+
+echo "🔍 Verificando dependencias del sistema..."
+
+# Asegurar que python3-venv esté instalado
+if ! dpkg -s python3-venv >/dev/null 2>&1; then
+    echo "📦 Instalando python3-venv..."
+    sudo apt update && sudo apt install -y python3-venv
+fi
+
+# Crear entorno virtual si no existe
+if [ ! -d "venv" ]; then
+    echo "📦 Creando entorno virtual..."
+    python3 -m venv venv
+fi
+
+# Activar entorno virtual
 echo "🔑 Activando entorno virtual..."
 source venv/bin/activate
 
-# 3. Instalar dependencias
-if [ -f requirements.txt ]; then
-    echo "📚 Instalando dependencias desde requirements.txt..."
-    pip install --upgrade pip
-    pip install -r requirements.txt
+# Actualizar pip
+echo "⬆️ Actualizando pip..."
+pip install --upgrade pip
+
+# Instalar dependencias
+echo "📚 Instalando dependencias..."
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt || echo "⚠️ Algunas dependencias fallaron, revisa requirements.txt"
 else
-    echo "⚠️ No se encontró requirements.txt. Instala dependencias manualmente."
+    echo "⚠️ No se encontró requirements.txt, instalando paquetes básicos..."
+    pip install flask python-dotenv sqlalchemy
 fi
 
-# 4. Verificar SQLite
+# Verificar SQLite
 echo "🗄️ Verificando SQLite..."
-python3 - <<EOF
-import sqlite3
-print("✅ SQLite disponible:", sqlite3.sqlite_version)
-EOF
+sqlite3 --version || { echo "❌ SQLite no está disponible"; exit 1; }
 
-# 5. Lanzar servidor Flask
+# Verificar Flask
+if ! command -v flask >/dev/null 2>&1; then
+    echo "❌ Flask no está instalado en el entorno virtual"
+    exit 1
+fi
+
+# Iniciar servidor Flask
 echo "🚀 Iniciando servidor Flask..."
-export FLASK_APP=app.py   # Ajusta si tu archivo principal tiene otro nombre
+export FLASK_APP=app.py   # Ajusta si tu archivo principal se llama distinto
+export FLASK_ENV=development
 flask run --host=0.0.0.0 --port=5000
+

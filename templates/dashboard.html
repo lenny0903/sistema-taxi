@@ -314,72 +314,82 @@
       </div>
     </section>
 
-      <!-- Sección: Despachos -->
-      <section id="despachos" class="seccion hidden">
-        <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
+     <!-- Sección: Despachos -->
+    <section id="despachos" class="seccion hidden">
+      <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
 
-        <form id="formDespacho" class="space-y-2">
-          <label class="block">Teléfono del cliente:</label>
+      <form id="formDespacho" class="space-y-2">
+        <!-- Teléfono + Tipo de despacho en la misma fila -->
+        <div class="flex items-center gap-2">
+          <!-- Etiqueta y Select tipoDespacho -->
+          <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
+          <select id="tipoDespacho" class="border p-2 w-40">
+            <option value="">Seleccione...</option>
+
+            <!-- Opción simple -->
+            <option value="reserva">Reserva</option>
+
+            <!-- Grupo de opciones -->
+            <optgroup label="Despacho múltiple">
+              <option value="2">2 vehículos</option>
+              <option value="3">3 vehículos</option>
+              <option value="4">4 vehículos</option>
+            </optgroup>
+          </select>
+
+          <!-- Input teléfono -->
+          <label class="block">Número de teléfono:</label>
           <input type="text" id="desTelefono"
                 maxlength="11"
                 pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
                 title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
-                class="border p-2 w-full">
-          <label class="block">Origen:</label>
-          <input type="text" id="desOrigen" class="border p-2 w-full" disabled>
+                class="border p-2 flex-1"
+                placeholder="Teléfono del cliente">
+        </div>
 
-          <label class="block">Destino:</label>
-          <input type="text" id="desDestino" class="border p-2 w-full" disabled>
-           <label class="block">Punto de referencia:</label>
-          <input type="text" id="desReferencia" class="border p-2 w-full">
-          <label class="block">Tarifa:</label>
-          <input type="number" id="desTarifa" class="border p-2 w-full" disabled>
+        <label class="block">Origen:</label>
+        <input type="text" id="desOrigen" class="border p-2 w-full" disabled>
 
-          <label class="block">Cliente:</label>
-          <select id="desCliente" class="border p-2 w-full"></select>
+        <label class="block">Destino:</label>
+        <input type="text" id="desDestino" class="border p-2 w-full" disabled>
 
-          <label class="block">Conductor:</label>
-          <select id="desConductor" class="border p-2 w-full"></select>
+        <label class="block">Punto de referencia:</label>
+        <input type="text" id="desReferencia" class="border p-2 w-full">
 
-          <label class="block">Auto:</label>
-          <select id="desAuto" class="border p-2 w-full"></select>
-          <button type="button"
-            class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
-            onclick="abrirModalEditarCliente()">Modificar cliente
-          </button>
-          <button id="btnCrearDespacho" type="busubmit" class="bg-green-500 text-white px-4 py-2 rounded" disabled>
-            Crear despacho
-          </button>
-          <button id="btnListaEspera" type="button" 
-                  class="bg-yellow-500 text-white px-4 py-2 rounded ml-2" disabled>
-                  Enviar a lista de espera
-          </button>
-          <button id="btnCancelarDespacho" type="button" class="btn btn-danger">
-            Cancelar
-          </button>
+        <label class="block">Tarifa:</label>
+        <input type="number" id="desTarifa" class="border p-2 w-full" disabled>
+
+        <label class="block">Cliente:</label>
+        <select id="desCliente" class="border p-2 w-full"></select>
+
+        <label class="block">Conductor:</label>
+        <select id="desConductor" class="border p-2 w-full"></select>
+
+        <label class="block">Auto:</label>
+        <select id="desAuto" class="border p-2 w-full"></select>
+
+        <button type="button"
+          class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
+          onclick="abrirModalEditarCliente()">Modificar cliente
+        </button>
+
+        <button id="btnCrearDespacho" type="submit" 
+                class="bg-green-500 text-white px-4 py-2 rounded" disabled>
+          Crear despacho
+        </button>
+
+        <button id="btnListaEspera" type="button" 
+                class="bg-yellow-500 text-white px-4 py-2 rounded ml-2" disabled>
+          Enviar a lista de espera
+        </button>
+
+        <button id="btnCancelarDespacho" type="button" class="btn btn-danger">
+          Cancelar
+        </button>
+      </form>
+    </section>
 
 
-
-        </form>
-
-        <!-- <table id="tablaDespachos" class="mt-4">
-          <thead><tr><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th></tr></thead>
-          <tbody></tbody>
-        </table> -->
-
-        <!--<div id="turnosActivos" class="mt-6"></div>
-
-        <div class="mt-4 flex gap-4">
-          <label class="block">Conductor:</label>
-          <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
-          <label class="block">Auto:</label>
-          <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
-          <button id="btnIniciarTurno" type="button"
-                  class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
-            Iniciar turno
-          </button>
-        </div>-->
-      </section>
       <section id="turnosActivos" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
 
@@ -2795,10 +2805,168 @@
         </div>
       </div>
     </div>
+    <!-- ✅ Modal Despacho Múltiple -->
+      <div class="modal fade" id="modalDespachoMultiple" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+              <h5 class="modal-title">Creación despacho múltiple</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
 
-  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+            <!-- Body -->
+            <div class="modal-body">
+              <form id="formModalDespacho" class="space-y-3">
+                
+                <!-- Teléfono -->
+                <div>
+                  <label for="modalTelefono" class="form-label">Teléfono del cliente</label>
+                  <input type="text" id="modalTelefono" 
+                        maxlength="11"
+                        pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                        class="form-control"
+                        placeholder="Ej: 04121234567">
+                </div>
+
+                <!-- Nombre del cliente -->
+                <div>
+                  <label for="modalCliente" class="form-label">Nombre del cliente</label>
+                  <input type="text" id="modalCliente" class="form-control" placeholder="Nombre completo">
+                </div>
+
+                <!-- Origen -->
+                <div>
+                  <label for="modalOrigen" class="form-label">Origen</label>
+                  <input type="text" id="modalOrigen" class="form-control" placeholder="Dirección de origen">
+                </div>
+
+                <!-- Destino -->
+                <div>
+                  <label for="modalDestino" class="form-label">Destino</label>
+                  <input type="text" id="modalDestino" class="form-control" placeholder="Dirección de destino">
+                </div>
+
+                <!-- Tarifa -->
+                <div>
+                  <label for="modalTarifa" class="form-label">Tarifa</label>
+                  <input type="number" id="modalTarifa" class="form-control" placeholder="Monto en Bs.">
+                </div>
+
+                <!-- Conductor -->
+                <div>
+                  <label for="modalConductor" class="form-label">Conductor</label>
+                  <select id="modalConductor" class="form-select">
+                    <option value="">Seleccione...</option>
+                    <!-- Se llenará dinámicamente con conductores activos -->
+                  </select>
+                </div>
+              </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button id="btnGuardarDespacho" type="button" class="btn btn-success">Guardar despacho</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    <!-- Fin modal múltiple -->  
+    <!-- Modal para hacer reserva-->
+     <div class="modal fade" id="modalDespachoReserva" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            
+            <!-- Header -->
+            <div class="modal-header bg-info text-white">
+              <h5 class="modal-title">Reserva de Despacho</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+              <form id="formReserva" class="space-y-3">
+                
+                <!-- Teléfono -->
+                <div>
+                  <label for="resTelefono" class="form-label">Teléfono del cliente</label>
+                  <input type="text" id="resTelefono"
+                        maxlength="11"
+                        pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                        class="form-control"
+                        placeholder="Ej: 04121234567">
+                </div>
+
+                <!-- Nombre del cliente -->
+                <div>
+                  <label for="resCliente" class="form-label">Nombre del cliente</label>
+                  <input type="text" id="resCliente" class="form-control" placeholder="Nombre completo">
+                </div>
+
+                <!-- Origen -->
+                <div>
+                  <label for="resOrigen" class="form-label">Origen</label>
+                  <input type="text" id="resOrigen" class="form-control" placeholder="Dirección de origen">
+                </div>
+
+                <!-- Destino -->
+                <div>
+                  <label for="resDestino" class="form-label">Destino</label>
+                  <input type="text" id="resDestino" class="form-control" placeholder="Dirección de destino">
+                </div>
+
+                <!-- Fecha y hora -->
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label for="resFecha" class="form-label">Fecha</label>
+                    <input type="date" id="resFecha" class="form-control">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="resHora" class="form-label">Hora</label>
+                    <input type="time" id="resHora" class="form-control">
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button id="btnCrearReserva" type="button" class="btn btn-success">Guardar reserva</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    <!-- Fin modal reserva -->
+    <!-- Toasts para alarma de reserva -->
+     <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div id="toastReserva" class="toast align-items-center text-bg-info border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body" id="toastReservaBody"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" ></script>
+ 
   <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
-    
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- Tu archivo de modales --> 
+   <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
+  <script>
+    const socket = io("http://localhost:5000");
+
+    socket.on("alerta_reserva", (data) => {
+      mostrarToast(
+        `🚗 Reserva #${data.id_reserva} de ${data.cliente} está próxima a despacho (${data.origen} → ${data.destino} a las ${data.hora})`,
+        "info"
+      );
+    });
+  </script>
+
 </body>
 </html>

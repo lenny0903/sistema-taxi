@@ -1,14 +1,57 @@
 @media print {
-  body {
-    font-family: Arial, sans-serif;
-    margin: 1cm;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1cm;
+    }
+    /* Ocultar elementos que no deben salir */
+    #btnGenerarReporte,
+    #btnReporteConductores,
+    #btnPrint,
+    nav,
+    footer {
+      display: none !important;
+    }
   }
-  /* Ocultar elementos que no deben salir */
-  #btnGenerarReporte,
-  #btnReporteConductores,
-  #btnPrint,
-  nav,
-  footer {
-    display: none !important;
+  
+.botonera-fija {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-top: 2px solid #ccc;
+    display: flex;
+    justify-content: space-around;
+    z-index: 999;
   }
+
+.botonera-fija button {
+    font-size: 16px;
+    padding: 10px 20px;
+  }
+
+#btnCancelarFijo {
+  background-color: #dc3545; /* rojo Bootstrap danger */
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
 }
+#btnCancelarFijo:hover {
+  background-color: #c82333;
+}
+.btn-cancelar {
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-cancelar:hover {
+  background-color: #c82333;
+}
+#tipoDespacho { max-width: 150px; /* ajusta según tu diseño */ }

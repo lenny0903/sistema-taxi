@@ -1,3 +1,4 @@
+import uuid
 from flask import Blueprint, app, request, jsonify
 from extensions import db
 from models.despachos import Despacho
@@ -9,8 +10,16 @@ from datetime import datetime
 from utils.auth import rol_requerido
 from flask import render_template
 from datetime import datetime, timezone
+import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+def hora_local():
+    return datetime.now(ZoneInfo("America/Caracas"))
+from models.lista_espera import ListaEspera
 despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
+
+
 @despachos_bp.route("/", methods=["POST"])
 def crear_despacho():
     data = request.get_json()
@@ -23,6 +32,7 @@ def crear_despacho():
     auto_id = data.get("auto_id")
     tarifa = data.get("tarifa")
     estado = data.get("estado_despacho", "en curso")
+    grupo_id = data.get("grupo_id")
 
     # 🔹 Validación rápida
     if not origen or not destino:
@@ -37,7 +47,8 @@ def crear_despacho():
         auto_id=auto_id,
         tarifa=tarifa,
         estado_despacho=estado,
-        fecha_hora_inicio=datetime.now()
+        fecha_hora_inicio=hora_local(),
+        grupo_id=grupo_id
     )
 
     db.session.add(nuevo_despacho)
@@ -69,7 +80,8 @@ def crear_despacho():
             "tarifa": nuevo_despacho.tarifa,
             "estado_despacho": nuevo_despacho.estado_despacho,
             "fecha_hora_inicio": nuevo_despacho.fecha_hora_inicio,
-            "fecha_hora_fin": nuevo_despacho.fecha_hora_fin
+            "fecha_hora_fin": nuevo_despacho.fecha_hora_fin,
+            "grupo_id": nuevo_despacho.grupo_id
         }
     }), 201
 
@@ -246,7 +258,7 @@ def finalizar_despacho(id):
             return jsonify({"error": "No se puede finalizar un despacho sin auto asignado"}), 400
 
         despacho.estado_despacho = "finalizado"
-        despacho.fecha_hora_fin = datetime.now(timezone.utc)
+        despacho.fecha_hora_fin = hora_local()
 
         db.session.commit()
 
@@ -277,7 +289,7 @@ def registrar_embarque(id):
     if not despacho:
         return jsonify({"error": "Despacho no encontrado"}), 404
 
-    despacho.fecha_hora_embarque = datetime.utcnow()
+    despacho.fecha_hora_embarque = hora_local()
     db.session.commit()
 
     return jsonify({
@@ -285,3 +297,57 @@ def registrar_embarque(id):
         "estado_despacho": despacho.estado_despacho,
         "fecha_hora_embarque": despacho.fecha_hora_embarque.isoformat()
     }), 200
+
+@despachos_bp.route("/despachos/multiple", methods=["POST"])
+def crear_despacho_multiple():
+    data = request.get_json()
+
+    try:
+        origen = data.get("origen")
+        destino = data.get("destino")
+        fecha = datetime.strptime(data.get("fecha"), "%Y-%m-%d").date()
+        hora = datetime.strptime(data.get("hora"), "%H:%M").time()
+        nro_vehiculos = int(data.get("nro_vehiculos", 0))
+        conductores_ids = data.get("conductores", [])
+
+        if not origen or not destino or not fecha or not hora or nro_vehiculos <= 0:
+            return jsonify({"error": "Datos incompletos o inválidos"}), 400
+
+        if len(conductores_ids) < nro_vehiculos:
+            return jsonify({"error": "No hay suficientes conductores"}), 400
+
+        despachos_creados = []
+        for conductor_id in conductores_ids[:nro_vehiculos]:
+            conductor = Conductor.query.get(conductor_id)
+            if not conductor:
+                continue
+
+            # Buscar auto asignado al conductor
+            auto = Auto.query.filter_by(conductor_id=conductor_id).first()
+
+            nuevo_despacho = Despacho(
+                cliente_id=data.get("cliente_id"),  # opcional si reservas están ligadas
+                conductor_id=conductor_id,
+                auto_id=auto.id_auto if auto else None,
+                origen=origen,
+                destino=destino,
+                fecha=fecha,
+                hora=hora,
+                tarifa=data.get("tarifa", 0),
+                estado="activo"
+            )
+            db.session.add(nuevo_despacho)
+            despachos_creados.append(nuevo_despacho)
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Despachos múltiples creados exitosamente",
+            "despachos": [d.to_dict() for d in despachos_creados]
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+

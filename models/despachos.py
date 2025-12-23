@@ -1,5 +1,9 @@
+from zoneinfo import ZoneInfo
+from models.grupo import Grupo
 from extensions import db
 from datetime import datetime
+import pytz
+
 
 class Despacho(db.Model):
     __tablename__ = "despachos"
@@ -24,6 +28,10 @@ class Despacho(db.Model):
     fecha_hora_inicio = db.Column(db.DateTime, nullable=False, default=datetime.now)
     fecha_hora_fin = db.Column(db.DateTime, nullable=True)
 
+    # 🔹 Relación con Grupo (única definición de grupo_id)
+    grupo_id = db.Column(db.String(50), db.ForeignKey("grupos.grupo_id"), index=True, nullable=True)
+    grupo = db.relationship("Grupo", back_populates="despachos")
+
     # Relaciones ORM
     cliente = db.relationship("Cliente", backref="despachos")
     conductor = db.relationship("Conductor", backref="despachos")
@@ -31,18 +39,21 @@ class Despacho(db.Model):
 
     def __repr__(self):
         return f"<Despacho {self.id_despacho} - {self.origen_despacho} → {self.destino_despacho}>"
+    
+    TZ_CARACAS = pytz.timezone("America/Caracas")
     def to_dict(self):
         return {
             "id_despacho": self.id_despacho,
-            "origen_despacho": self.origen_despacho,
-            "destino_despacho": self.destino_despacho,
-            "fecha_hora_embarque": self.fecha_hora_embarque.isoformat() if self.fecha_hora_embarque else None,
             "cliente_id": self.cliente_id,
             "conductor_id": self.conductor_id,
             "auto_id": self.auto_id,
-            "tarifa": self.tarifa,
+            "origen_despacho": self.origen_despacho,
+            "destino_despacho": self.destino_despacho,
+            "fecha_hora_inicio": self.fecha_hora_inicio.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_inicio else None,
+            "fecha_hora_fin": self.fecha_hora_fin.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_fin else None,
+            "tarifa": float(self.tarifa) if self.tarifa is not None else None,
             "estado_despacho": self.estado_despacho,
-            "fecha_hora_inicio": self.fecha_hora_inicio.isoformat(),
-            "fecha_hora_fin": self.fecha_hora_fin.isoformat() if self.fecha_hora_fin else None,
-            "telefono": self.cliente.telefono if self.cliente else None
+            "cliente": self.cliente.to_dict() if self.cliente else None,
+            "conductor": self.conductor.to_dict() if self.conductor else None,
+            "auto": self.auto.to_dict() if self.auto else None
         }
