@@ -1,5 +1,5 @@
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for, redirect
 from flask_migrate import Migrate
 from extensions import db
 from routes.views import views_bp
@@ -11,7 +11,9 @@ from sqlalchemy.engine import Engine
 from tasks.scheduler import iniciar_scheduler
 import config
 import sqlite3
+
 from flask_socketio import SocketIO
+
 socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app():
@@ -67,17 +69,28 @@ def create_app():
     app.register_blueprint(grupos_bp, url_prefix="/grupos")
     app.register_blueprint(views_bp)
     app.register_blueprint(reservas_bp)
+   
     @app.route("/")
     def home():
+        # Entrada oficial: siempre carga index.html
         return render_template("index.html")
 
     @app.route("/index.html")
     def index_html():
+        # Alias opcional, también carga index.html
         return render_template("index.html")
+
+    @app.route("/login")
+    def login_redirect():
+        # Si alguien entra a /login, lo mandamos al login oficial
+        return redirect(url_for("home"))
 
     @app.route("/panel.html")
     def panel_html():
+        # Dashboard SPA
         return render_template("dashboard.html")
+    
+    #app.register_blueprint(views_bp)
 
     return app
 

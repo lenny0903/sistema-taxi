@@ -2940,6 +2940,44 @@
         </div>
       </div>
     <!-- Fin modal reserva -->
+    <!-- Modal para mostrar reserva -->
+      <div class="modal fade" id="modalListaReservas" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+
+            <!-- Header -->
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title">Listado de Reservas</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+              <table class="table table-striped" id="tablaReservas">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Origen</th>
+                    <th>Destino</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Aquí se llenan las reservas vía JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     <!-- Toasts para alarma de reserva -->
      <div class="toast-container position-fixed bottom-0 end-0 p-3">
       <div id="toastReserva" class="toast align-items-center text-bg-info border-0" role="alert">

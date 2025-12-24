@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash
 from utils.hashing import verificar_clave
 from functools import wraps
 from app import db
+from flask import Blueprint, request, jsonify
 
 #bp = Blueprint('auth', __name__, url_prefix='/auth')
 from flask import Blueprint
@@ -103,3 +104,17 @@ def register_user():
     }), 201
 
 
+from flask import render_template, redirect, url_for
+
+@auth_bp.route("/login_html", methods=["POST"])
+def login_html():
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    user = Usuario.query.filter_by(username=username).first()
+
+    if user and check_password_hash(user.password_hash, password):
+        # 🔑 Redirige al dashboard SPA
+        return redirect(url_for("panel_html"))
+    else:
+        return render_template("index.html", error="Credenciales inválidas")

@@ -74,10 +74,113 @@ document.addEventListener("DOMContentLoaded", () => {
     window.nroVehiculos = nroVehiculos;
     console.log("✅ Datos comunes habilitados y nroVehiculos =", window.nroVehiculos);
   }
+  // Validar teléfono al presionar Enter en el input
+    const telefonoInput = document.getElementById("resTelefono");
+    if (telefonoInput) {
+      telefonoInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const telefono = telefonoInput.value.trim();
+          const regexTelefono = /^(0276|0412|0414|0416|0424|0426)[0-9]{7}$/;
+
+          if (!regexTelefono.test(telefono)) {
+            mostrarToast("⚠️ Número de teléfono inválido. Debe tener 11 dígitos y prefijo válido.", "error");
+            return;
+          }
+
+          try {
+            const resCliente = await apiFetch(`/clientes/telefono/${telefono}`);
+            const dataCliente = await resCliente.json();
+
+            if (resCliente.ok && dataCliente.existe !== false) {
+              // Cliente encontrado → rellenar nombre y origen
+              document.getElementById("resCliente").value = dataCliente.nombre || "";
+              document.getElementById("resOrigen").value = dataCliente.direccion || "";
+
+              // Bloquear edición de nombre y origen
+              document.getElementById("resCliente").setAttribute("readonly", true);
+              document.getElementById("resOrigen").setAttribute("readonly", true);
+
+              mostrarToast("✅ Cliente encontrado. Completa destino, fecha y hora.", "success");
+            } else {
+              // Cliente nuevo → habilitar todos los campos
+              document.getElementById("resCliente").removeAttribute("readonly");
+              document.getElementById("resOrigen").removeAttribute("readonly");
+              document.getElementById("resCliente").value = "";
+              document.getElementById("resOrigen").value = "";
+
+              mostrarToast("ℹ️ Cliente nuevo. Ingresa todos los datos.", "info");
+            }
+          } catch (err) {
+            console.error("Error buscando cliente:", err);
+            mostrarToast("❌ No se pudo conectar al servidor", "error");
+          }
+        }
+      });
+    }
+
+    // Programar alerta 15 minutos antes de la reserva
+  function programarAlerta(reserva) {
+    const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
+    const ahora = new Date();
+    const msHastaReserva = fechaHoraReserva - ahora;
+    const msHastaAlerta = msHastaReserva - (15 * 60 * 1000); // 15 min antes
+
+    if (msHastaAlerta > 0) {
+      setTimeout(() => {
+        mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en 15 minutos`, "info");
+      }, msHastaAlerta);
+    }
+  }
+    // Convertir hora "HH:MM" a formato 12h con AM/PM
+  function formatoHora12(hora24) {
+    if (!hora24) return "";
+    const [h, m] = hora24.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12; // convierte 0 → 12
+    return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+  }
 
   // -------------------------------
-  // 📌 Función crearReserva
+  // 📌 Atajo de teclado Ctrl+R → abrir listado de reservas
   // -------------------------------
+  document.addEventListener("keydown", async (event) => {
+    if (event.ctrlKey && event.key.toLowerCase() === "r") {
+      event.preventDefault(); // evita recarga del navegador
+
+      try {
+        const res = await apiFetch("/reservas");
+        const data = await res.json();
+
+        const tbody = document.querySelector("#tablaReservas tbody");
+        tbody.innerHTML = ""; // limpiar tabla
+
+        data.reservas.forEach(r => {
+          const fila = `
+            <tr>
+              <td>${r.id_reserva}</td>
+              <td>${r.cliente?.nombre || ""}</td>
+              <td>${r.origen}</td>
+              <td>${r.destino}</td>
+              <td>${r.fecha}</td>
+              <td>${formatoHora12(r.hora)}</td>
+            </tr>`;
+          tbody.insertAdjacentHTML("beforeend", fila);
+        });
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById("modalListaReservas"));
+        modal.show();
+      } catch (err) {
+        console.error("Error cargando reservas:", err);
+        mostrarToast("❌ No se pudo cargar el listado de reservas", "error");
+      }
+    }
+  });
+
+ // -------------------------------
+// 📌 Función crearReserva
+// -------------------------------
   async function crearReserva() {
     const telefono = document.getElementById("resTelefono").value.trim();
     const clienteNombre = document.getElementById("resCliente").value.trim();
@@ -86,32 +189,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const fecha = document.getElementById("resFecha").value;
     const hora = document.getElementById("resHora").value;
 
+    // Validación de campos obligatorios
     if (!telefono || !clienteNombre || !origen || !destino || !fecha || !hora) {
       mostrarToast("⚠️ Debes completar todos los campos de la reserva", "error");
+      return;
+    }
+
+    // Validación de teléfono (11 dígitos con prefijo válido)
+    const regexTelefono = /^(0276|0412|0414|0416|0424|0426)[0-9]{7}$/;
+    if (!regexTelefono.test(telefono)) {
+      mostrarToast("⚠️ Número de teléfono inválido. Debe tener 11 dígitos y prefijo válido.", "error");
       return;
     }
 
     let clienteId;
 
     try {
-      // Buscar cliente por teléfono
-      let resCliente = await apiFetch(`/clientes/telefono/${telefono}`);
-      let dataCliente = await resCliente.json();
+      // Paso 1: buscar cliente por teléfono
+      const resCliente = await apiFetch(`/clientes/telefono/${telefono}`);
+      const dataCliente = await resCliente.json();
 
       if (resCliente.ok && dataCliente.existe !== false) {
         clienteId = dataCliente.id_cliente;
       } else {
-        // Registrar cliente si no existe
+        // Paso 2: registrar cliente si no existe
         const nuevoClienteRes = await apiFetch("/clientes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ telefono, nombre: clienteNombre, direccion: origen })
         });
         const nuevoClienteData = await nuevoClienteRes.json();
-        clienteId = nuevoClienteData.id_cliente;
+
+        if (nuevoClienteRes.ok) {
+          clienteId = nuevoClienteData.id_cliente;
+        } else {
+          mostrarToast(nuevoClienteData.error || "❌ Error al registrar cliente", "error");
+          return;
+        }
       }
 
-      // Crear la reserva
+      // Paso 3: crear la reserva
       const resReserva = await apiFetch("/reservas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,14 +239,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (resReserva.ok) {
         mostrarToast(`✅ Reserva creada con ID: ${dataReserva.reserva.id_reserva}`, "success");
         bootstrap.Modal.getInstance(document.getElementById("modalDespachoReserva")).hide();
+        programarAlerta(dataReserva.reserva);
       } else {
-        mostrarToast("❌ Error al crear la reserva", "error");
+        mostrarToast(dataReserva.error || "❌ Error al crear la reserva", "error");
       }
     } catch (err) {
       console.error("Error:", err);
       mostrarToast("❌ No se pudo conectar al servidor", "error");
     }
   }
+
+
 
   // -------------------------------
   // 📌 Función crearDespachoMultiple

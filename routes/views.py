@@ -5,12 +5,13 @@ from werkzeug.security import check_password_hash
 
 views_bp = Blueprint("views", __name__)
 
-@views_bp.route("/")
-def home():
-    return redirect("/login")
+# 🔒 Elimina esta ruta para no pisar index.html
+# @views_bp.route("/")
+# def home():
+#     return redirect("/login")
 
-@views_bp.route("/login")
-def login_page():
+@views_bp.route("/login_alt")
+def login_page_alt():
     return render_template("login.html", title="Login")
 
 @views_bp.route("/auth/login_html", methods=["POST"])
@@ -21,7 +22,7 @@ def login_html():
 
     if usuario and check_password_hash(usuario.password_hash, password):
         session["rol_id"] = usuario.rol_id
-        if usuario.rol_id == 1:  # admin
+        if usuario.rol_id == 1:
             return redirect("/panel_admin")
         else:
             return redirect("/panel_operador")

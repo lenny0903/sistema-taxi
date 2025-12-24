@@ -188,3 +188,29 @@ document.addEventListener("DOMContentLoaded", () => {
     </table>`;
   }
 });
+document.addEventListener("DOMContentLoaded", () => {
+  // ... todo tu código actual ...
+
+  // -------------------------------
+  // 📌 Inicialización por rol
+  // -------------------------------
+  const token = localStorage.getItem('token');
+  const rol = localStorage.getItem('rol');
+
+  if (!token) {
+    window.location.href = '/index.html';
+    return;
+  }
+
+  const roleSpan = document.getElementById('userRole');
+  if (roleSpan) {
+    roleSpan.textContent = `Rol: ${rol}`;
+  }
+
+  if (rol && rol.toLowerCase() === 'admin') {
+    abrirVista('usuarios'); // o 'reportes', tu panel admin
+  } else {
+    abrirVista('clientes'); // tu dashboard por defecto
+    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+  }
+});
