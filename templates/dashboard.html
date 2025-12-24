@@ -560,11 +560,11 @@
         toast.style.opacity = "1";
       });
 
-      // Desaparecer después de 3 segundos
+      // Desaparecer después de 6 segundos
       setTimeout(() => {
         toast.style.opacity = "0";
         setTimeout(() => toast.remove(), 300);
-      }, 3000);
+      }, 6000);
     }
     function abrirModalCambio() {
       var modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));

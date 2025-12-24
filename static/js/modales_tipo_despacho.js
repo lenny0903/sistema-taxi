@@ -120,18 +120,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Programar alerta 15 minutos antes de la reserva
-  function programarAlerta(reserva) {
-    const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
-    const ahora = new Date();
-    const msHastaReserva = fechaHoraReserva - ahora;
-    const msHastaAlerta = msHastaReserva - (15 * 60 * 1000); // 15 min antes
+   function programarAlerta(reserva) {
+      const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
+      const ahora = new Date();
+      const msHastaReserva = fechaHoraReserva - ahora;
+      const msHastaAlerta = msHastaReserva - (15 * 60 * 1000);
 
-    if (msHastaAlerta > 0) {
-      setTimeout(() => {
-        mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en 15 minutos`, "info");
-      }, msHastaAlerta);
+      if (msHastaReserva <= 0) {
+        // Caso: la reserva ya pasó → no mostrar nada
+        return;
+      }
+
+      if (msHastaAlerta > 0) {
+        // Caso normal: falta más de 15 min → programar alerta
+        setTimeout(() => {
+          mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en 15 minutos`, "info");
+        }, msHastaAlerta);
+      } else {
+        // Caso especial: ya estamos dentro de los 15 min → alerta inmediata
+        mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en menos de 15 minutos`, "warning");
+      }
     }
-  }
+
     // Convertir hora "HH:MM" a formato 12h con AM/PM
   function formatoHora12(hora24) {
     if (!hora24) return "";
@@ -155,18 +165,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbody = document.querySelector("#tablaReservas tbody");
         tbody.innerHTML = ""; // limpiar tabla
 
-        data.reservas.forEach(r => {
-          const fila = `
-            <tr>
-              <td>${r.id_reserva}</td>
-              <td>${r.cliente?.nombre || ""}</td>
-              <td>${r.origen}</td>
-              <td>${r.destino}</td>
-              <td>${r.fecha}</td>
-              <td>${formatoHora12(r.hora)}</td>
-            </tr>`;
-          tbody.insertAdjacentHTML("beforeend", fila);
-        });
+        // 🔒 Función para filtrar solo reservas futuras
+        function esReservaFutura(reserva) {
+          const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
+          const ahora = new Date();
+          return fechaHoraReserva >= ahora;
+        }
+
+        // Mostrar solo reservas futuras
+        data.reservas
+          .filter(esReservaFutura)
+          .forEach(r => {
+            const fila = `
+              <tr>
+                <td>${r.id_reserva}</td>
+                <td>${r.cliente?.nombre || ""}</td>
+                <td>${r.origen}</td>
+                <td>${r.destino}</td>
+                <td>${r.fecha}</td>
+                <td>${formatoHora12(r.hora)}</td>
+              </tr>`;
+            tbody.insertAdjacentHTML("beforeend", fila);
+          });
 
         // Mostrar modal
         const modal = new bootstrap.Modal(document.getElementById("modalListaReservas"));
@@ -177,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+
 
  // -------------------------------
 // 📌 Función crearReserva
