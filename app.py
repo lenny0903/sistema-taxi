@@ -2,6 +2,7 @@ from flask_jwt_extended import JWTManager   # <-- importa JWTManager
 from flask import Flask, render_template, url_for, redirect
 from flask_migrate import Migrate
 from extensions import db
+import routes
 from routes.views import views_bp
 from flask import send_from_directory
 from models.turnos import Turno
@@ -53,7 +54,9 @@ def create_app():
     from utils.respaldo import respaldo_bp
     from utils.grupos import grupos_bp
     from routes.reservas import reservas_bp
-
+    from routes.views import views_bp
+    from routes.puntos_espera import puntos_bp
+    
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(usuarios_bp, url_prefix="/usuarios")
@@ -69,7 +72,8 @@ def create_app():
     app.register_blueprint(grupos_bp, url_prefix="/grupos")
     app.register_blueprint(views_bp)
     app.register_blueprint(reservas_bp)
-   
+    app.register_blueprint(puntos_bp)
+    
     @app.route("/")
     def home():
         # Entrada oficial: siempre carga index.html
@@ -89,6 +93,7 @@ def create_app():
     def panel_html():
         # Dashboard SPA
         return render_template("dashboard.html")
+    
     
     #app.register_blueprint(views_bp)
 

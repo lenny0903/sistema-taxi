@@ -52,8 +52,22 @@ def listar_reservas_por_cliente(cliente_id):
 
 @reservas_bp.route("/reservas", methods=["GET"])
 def listar_reservas():
+    # Caducar antes de listar
+    caducar_reservas_internamente()
+
     reservas = Reserva.query.all()
     return jsonify({
         "total": len(reservas),
         "reservas": [reserva.to_dict() for reserva in reservas]
     }), 200
+
+def caducar_reservas_internamente():
+    ahora = datetime.now()
+    vencidas = Reserva.query.filter(
+        Reserva.estado == "activo",
+        (Reserva.fecha < ahora.date()) |
+        ((Reserva.fecha == ahora.date()) & (Reserva.hora < ahora.time()))
+    ).all()
+    for r in vencidas:
+        r.estado = "inactiva"
+    db.session.commit()

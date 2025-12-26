@@ -95,7 +95,8 @@
     <main class="flex-1 p-6 space-y-8">
            
       <!-- Sección: Clientes -->
-     <section id="clientesEditar" class="seccion hidden">
+     <section id="clientesSection" class="seccion hidden">
+
         <h2 class="text-2xl font-bold mb-4">Gestión de Clientes</h2>
 
         <!-- Formulario para editar cliente existente -->
@@ -396,16 +397,22 @@
         <div class="mt-4 flex gap-4">
           <label class="block">Conductor:</label>
           <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+
           <label class="block">Auto:</label>
           <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+
+          <label class="block">Punto de espera:</label>
+          <select id="nuevoPunto" class="border px-2 py-1 rounded"></select>
+
           <button id="btnIniciarTurno" type="button"
                   class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
             Iniciar turno
           </button>
         </div>
 
-      <div id="turnosActivosLista" class="mt-6"></div>
+        <div id="turnosActivosLista" class="mt-6"></div>
       </section>
+
       <!-- Sección: Despachos Activos -->
       <section id="despachosActivos" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Despachos Activos</h2>
@@ -790,6 +797,20 @@
         }
       });
     }
+    // Función para cargar puntos de espera en el select
+    async function cargarPuntos() {
+      const resp = await fetch("/api/puntos_espera");
+      const puntos = await resp.json();
+
+      const selectPunto = document.getElementById("nuevoPunto");
+      selectPunto.innerHTML = "";
+      puntos.forEach(p => {
+        const option = document.createElement("option");
+        option.value = p.id_punto;
+        option.textContent = `${p.codigo} - ${p.nombre}`;
+        selectPunto.appendChild(option);
+      });
+    }
     // Carga inicial
     cargarClientes();
     cargarConductores();
@@ -802,6 +823,7 @@
     //cargarConductoresDisponibles();
     cargarConductoresEnTurnoCrear();
     cargarConductoresEnTurnoDespacho();
+    cargarPuntos();
     mostrarSeccion('despachos');
   });
 
@@ -1451,7 +1473,7 @@
       }
     }
 
-   // Turnos activos
+   // Tabla turnos activos
   async function cargarTurnos() {
     try {
       const res = await apiFetch('/turnos/activos'); // solo activos
@@ -1468,6 +1490,7 @@
                 <th class="border px-2 py-1">ID Turno</th>
                 <th class="border px-2 py-1">Conductor</th>
                 <th class="border px-2 py-1">Auto</th>
+                <th class="border px-2 py-1">Punto de espera</th> <!-- 🔹 nueva columna -->
                 <th class="border px-2 py-1">Inicio</th>
                 <th class="border px-2 py-1">Acciones</th>
               </tr>
@@ -1480,6 +1503,7 @@
                       <td class="border px-2 py-1">${t.id_turno}</td>
                       <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
                       <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
+                      <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td> <!-- 🔹 solo código y nombre -->
                       <td class="border px-2 py-1">${t.inicio}</td>
                       <td class="border px-2 py-1 text-center">
                         <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
@@ -1489,12 +1513,13 @@
                       </td>
                     </tr>
                   `).join('')
-                  : `<tr><td colspan="5" class="text-center py-2">No hay turnos activos</td></tr>`
+                  : `<tr><td colspan="6" class="text-center py-2">No hay turnos activos</td></tr>`
               }
             </tbody>
           </table>
         </div>  
       `;
+
       return data; // 🔑 devolver el array al listener
     } catch (err) {
       console.error("❌ Error cargando turnos:", err);
@@ -2190,29 +2215,33 @@
 
       if (res.ok) {
         console.log("✅ Turno finalizado:", data);
-        alert("Turno finalizado correctamente");
-        // 🔎 Ver estados después de finalizar
-        console.log("Estado turno:", data.estado_turno);
-        console.log("Estado conductor:", data.conductor_estado);
-        console.log("Estado auto:", data.auto_estado);
-        // Refrescar todo el dashboard
-        cargarTurnos();
-        //cargarConductores();
-        cargarAutosTabla();
-        cargarConductoresEnTurnoDespacho();
-        cargarAutosActivosSelect();
-        cargarConductoresEnTurnoCrear();  //Actualiza conductores disponibles para crear tunos
-        cargarAutosDisponiblesSelect();
-        //cargarConductoresActivosSelect();
+
+        // Feedback claro al operador
+        alert(
+          `Turno #${data.id_turno} finalizado correctamente\n` +
+          `Estado turno: ${data.estado_turno}\n` +
+          `Conductor: ${data.conductor_estado}\n` +
+          `Auto: ${data.auto_estado}`
+        );
+
+        // Refrescar dashboard
+        cargarTurnos();                     // 🔹 lista de turnos activos
+        cargarConductores();                // 🔹 conductores disponibles
+        cargarAutosTabla();                 // 🔹 autos en tabla
+        cargarConductoresEnTurnoDespacho(); // 🔹 sincronizar despachos
+        cargarAutosActivosSelect();         // 🔹 autos activos
+        cargarConductoresEnTurnoCrear();    // 🔹 conductores disponibles para crear turno
+        cargarAutosDisponiblesSelect();     // 🔹 autos disponibles
       } else {
         console.warn("⚠️ Falló el backend:", data);
-        alert(data.msg || "Error al finalizar turno");
+        alert(data.error || data.msg || "Error al finalizar turno");
       }
     } catch (err) {
       console.error("❌ Error de red o inesperado:", err);
       alert("Error de conexión o inesperado al finalizar turno.");
     }
   }
+
 
 
   // =======================
@@ -2723,16 +2752,17 @@
 
         const conductor_id = document.getElementById("nuevoConductor").value;
         const auto_id = document.getElementById("nuevoAuto").value;
+        const punto_id = document.getElementById("nuevoPunto").value;  // 🔹 nuevo campo
 
-        if (!conductor_id || !auto_id) {
-          alert("Selecciona conductor y auto para iniciar turno.");
+        if (!conductor_id || !auto_id || !punto_id) {
+          alert("Selecciona conductor, auto y punto de espera para iniciar turno.");
           return;
         }
 
         const res = await apiFetch("/turnos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conductor_id, auto_id })
+          body: JSON.stringify({ conductor_id, auto_id, punto_id })  // 🔹 enviar también punto_id
         });
         const data = await res.json();
 
@@ -2744,7 +2774,7 @@
           cargarConductoresEnTurnoDespacho();
           cargarAutosActivosSelect();
           cargarConductoresEnTurnoCrear();
-          cargarAutosDisponiblesSelect()
+          cargarAutosDisponiblesSelect();
         } else {
           alert("❌ Error al iniciar turno: " + (data.error || "verifica datos"));
         }
@@ -2753,7 +2783,36 @@
       console.error("❌ No existe #btnIniciarTurno en el DOM");
     }
   });
-  
+////Lógica modal conductores en punto de espera///////
+  // Capturar Ctrl+P y abrir modal
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === "p") {
+      e.preventDefault(); // evita print del navegador
+      const modal = new bootstrap.Modal(document.getElementById("modalConductoresEspera"));
+      modal.show();
+      cargarConductoresEspera();
+    }
+  });
+
+  // Función para llenar la tabla
+  async function cargarConductoresEspera() {
+    try {
+      const res = await apiFetch("/turnos/conductores_espera"); // tu endpoint Flask
+      const data = await res.json();
+      const tbody = document.getElementById("tablaConductoresEspera");
+
+      tbody.innerHTML = data.map(c => `
+        <tr>
+          <td>${c.nombre}</td>
+          <td>${c.punto}</td>
+        </tr>
+      `).join("");
+
+    } catch (err) {
+      console.error("Error cargando conductores en espera:", err);
+    }
+  }
+
    
 </script>
     <!-- Modal Editar Cliente -->
@@ -2977,6 +3036,31 @@
           </div>
         </div>
       </div>
+    <!-- Modal Conductores en Puntos de Espera -->
+    <div class="modal fade" id="modalConductoresEspera" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-indigo-600 text-white">
+            <h5 class="modal-title">Conductores en Puntos de Espera</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Conductor</th>
+                  <th>Punto de Espera</th>
+                </tr>
+              </thead>
+              <tbody id="tablaConductoresEspera">
+                <!-- Se llena dinámicamente con JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  
 
     <!-- Toasts para alarma de reserva -->
      <div class="toast-container position-fixed bottom-0 end-0 p-3">

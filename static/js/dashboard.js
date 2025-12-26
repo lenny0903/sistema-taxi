@@ -214,3 +214,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
   }
 });
+function abrirVista(vistaId) {
+  // Ocultar todas las vistas
+  const vistas = document.querySelectorAll(".vista");
+  vistas.forEach(v => v.style.display = "none");
+
+  // Mostrar la vista solicitada si existe
+  const seccion = document.getElementById(vistaId);
+  if (seccion) {
+    seccion.style.display = "block";
+    seccion.scrollIntoView({ behavior: "smooth" });
+    console.log(`✅ Vista abierta: ${vistaId}`);
+  } else {
+    // En vez de warn, puedes dejarlo silencioso o con un log más discreto
+    console.log(`ℹ️ Vista '${vistaId}' no existe en el DOM`);
+  }
+}
+

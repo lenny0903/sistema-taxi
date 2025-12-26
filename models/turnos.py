@@ -1,3 +1,4 @@
+from models.puntos_espera import PuntoEspera
 from datetime import datetime
 from extensions import db
 
@@ -7,6 +8,7 @@ class Turno(db.Model):
     id_turno = db.Column(db.Integer, primary_key=True)
     conductor_id = db.Column(db.Integer, db.ForeignKey("conductores.id_conductor"), nullable=False)
     auto_id = db.Column(db.Integer, db.ForeignKey("autos.id_auto"), nullable=False)
+    punto_id = db.Column(db.Integer, db.ForeignKey("puntos_espera.id_punto"), nullable=False)  # nuevo campo
     estado = db.Column(db.String(20), default="activo")  # activo, finalizado
     inicio = db.Column(db.DateTime, default=datetime.utcnow)
     fin = db.Column(db.DateTime)
@@ -14,9 +16,11 @@ class Turno(db.Model):
     # Relaciones explícitas
     conductor = db.relationship("Conductor", backref="turnos", foreign_keys=[conductor_id])
     auto = db.relationship("Auto", backref="turnos", foreign_keys=[auto_id])
+    punto = db.relationship("PuntoEspera", back_populates="turnos", foreign_keys=[punto_id])
 
     def __repr__(self):
-        return f"<Turno {self.id_turno} - Conductor {self.conductor_id} - Auto {self.auto_id} - Estado {self.estado}>"
+        return f"<Turno {self.id_turno} - Conductor {self.conductor_id} - Auto {self.auto_id} - Punto {self.punto_id} - Estado {self.estado}>"
+
     def to_dict(self):
         return {
             "id_turno": self.id_turno,
@@ -33,5 +37,10 @@ class Turno(db.Model):
                 "placa": self.auto.nro_placa if self.auto else None,
                 "marca": self.auto.marca if self.auto else None,
                 "modelo": self.auto.modelo if self.auto else None
+            },
+            "punto": {
+                "id_punto": self.punto.id_punto if self.punto else None,
+                "codigo": self.punto.codigo if self.punto else None,
+                "nombre": self.punto.nombre if self.punto else None
             }
         }

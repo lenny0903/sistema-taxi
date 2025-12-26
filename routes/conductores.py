@@ -4,7 +4,7 @@ from models.conductores import Conductor
 from models.despachos import Despacho
 from models.turnos import Turno
 from models.autos import Auto
-
+from models.puntos_espera import PuntoEspera
 # routes/conductores.py
 conductores_bp = Blueprint("conductores", __name__)  # sin url_prefix
 
@@ -177,3 +177,4 @@ def listar_conductores_en_turno():
                 }
             })
     return jsonify(resultado), 200
+

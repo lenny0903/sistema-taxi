@@ -5,6 +5,7 @@ from datetime import datetime
 from models.conductores import Conductor
 from models.autos import Auto
 from models.despachos import Despacho
+from models.puntos_espera import PuntoEspera
 
 turnos_bp = Blueprint("turnos", __name__, url_prefix="/turnos")
 
@@ -15,6 +16,7 @@ def crear_turno():
         data = request.get_json()
         conductor_id = data.get("conductor_id")
         auto_id = data.get("auto_id")
+        punto_id = data.get("punto_id")   # 🔹 nuevo campo
 
         # Validar que el conductor esté disponible
         conductor = Conductor.query.get(conductor_id)
@@ -27,19 +29,17 @@ def crear_turno():
             return jsonify({"error": "El auto no está disponible"}), 400
 
         # Validar que no tengan turno activo
-        turno_conductor = Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first()
-        if turno_conductor:
+        if Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first():
             return jsonify({"error": "El conductor ya tiene un turno activo"}), 400
 
-        turno_auto = Turno.query.filter_by(auto_id=auto_id, estado="activo").first()
-        if turno_auto:
+        if Turno.query.filter_by(auto_id=auto_id, estado="activo").first():
             return jsonify({"error": "El auto ya está en un turno activo"}), 400
 
-        # Crear turno
+        # Crear turno con punto asociado
         turno = Turno(
             conductor_id=conductor_id,
             auto_id=auto_id,
-            #inicio=datetime.utcnow(),
+            punto_id=punto_id,   # 🔹 guardar punto
             estado="activo"
         )
 
@@ -123,7 +123,6 @@ def finalizar_turno(turno_id):
         # está intentando actualizarse de una manera que la BD no permite.
         return jsonify({"error": f"Error finalizando turno: {str(e)}"}), 500
 
-# Listar turnos activos
 @turnos_bp.route("/activos", methods=["GET"])
 def listar_turnos_activos():
     turnos = Turno.query.filter_by(estado="activo").all()
@@ -133,7 +132,7 @@ def listar_turnos_activos():
             "id_turno": t.id_turno,
             "conductor": {
                 "id_conductor": t.conductor.id_conductor,
-                "codigo": t.conductor.codigo,   # 👈 aquí incluyes el código
+                "codigo": t.conductor.codigo,
                 "nombre": t.conductor.nombre,
                 "estado": t.conductor.estado
             } if t.conductor else None,
@@ -141,15 +140,47 @@ def listar_turnos_activos():
                 "id_auto": t.auto.id_auto,
                 "placa": t.auto.nro_placa
             } if t.auto else None,
+            "punto": {
+                "id_punto": t.punto.id_punto,
+                "codigo": t.punto.codigo,
+                "nombre": t.punto.nombre
+            } if t.punto else None,   # 🔹 nuevo bloque
             "inicio": t.inicio.isoformat() if t.inicio else None,
             "fin": t.fin.isoformat() if t.fin else None
         })
     return jsonify(resultado), 200
-
-
 
 @turnos_bp.route("/", methods=["GET"])
 def listar_turnos():
     turnos = Turno.query.all()
     return jsonify([t.to_dict() for t in turnos]), 200
 
+@turnos_bp.route("/conductores_espera", methods=["GET"])
+def conductores_en_espera():
+    try:
+        # Buscar turnos activos y sus relaciones
+        turnos = (
+            db.session.query(
+                Conductor.nombre,
+                Conductor.codigo,
+                PuntoEspera.nombre.label("punto"),
+                PuntoEspera.codigo.label("codigo_punto")
+            )
+            .join(Turno, Turno.conductor_id == Conductor.id_conductor)
+            .join(PuntoEspera, Turno.punto_id == PuntoEspera.id_punto)
+            .filter(Turno.estado == "activo")
+            .all()
+        )
+
+        resultado = [
+            {
+                "nombre": f"{t.nombre} ({t.codigo})",
+                "punto": f"{t.codigo_punto} - {t.punto}"
+            }
+            for t in turnos
+        ]
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
