@@ -21,8 +21,21 @@ document.addEventListener("DOMContentLoaded", () => {
     conductores: new Set(),
     autos: new Set()
   };
+    const tipom = document.getElementById("tipoDespacho");
+    const modalMultiple = document.getElementById("modalDespachoMultiple");
 
-  // -------------------------------
+    if (modalMultiple) {
+      modalMultiple.addEventListener("hidden.bs.modal", () => {
+        console.log("🔄 Modal múltiple cerrado, reiniciando select…");
+        if (tipom) tipom.value = ""; // vuelve a opción neutra
+        iteracionActual = 0;
+        totalIteraciones = 0;
+        grupoIdGlobal = null;
+        usados.conductores.clear();
+        usados.autos.clear();
+      });
+    }
+    // -------------------------------
   // Inicializar ciclo múltiple al seleccionar tipo
   // -------------------------------
   // Dentro del DOMContentLoaded que ya tienes en modales.js
@@ -89,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (iteracionActual >= totalIteraciones) {
           bootstrap.Modal.getInstance(document.getElementById("modalDespachoMultiple")).hide();
           mostrarToast("🎯 Iteración completa, modal cerrado", "info");
+         
         }
       } else {
         mostrarToast("❌ Error al crear despacho", "error");

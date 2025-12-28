@@ -7,7 +7,18 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 DOMContentLoaded disparado (modales_tipo_despacho.js)");
   console.log("📍 Ejecutando lógica de reservas");
 
-   document.addEventListener("keydown", (event) => {
+  const tipor = document.getElementById("tipoDespacho");
+  const modalReserva1 = document.getElementById("modalDespachoReserva");
+
+  if (modalReserva1) {
+    modalReserva1.addEventListener("hidden.bs.modal", () => {
+      console.log("🔄 Modal reserva cerrado, reiniciando select…");
+      if (tipor) tipor.value = "";
+      const form = modalReserva1.querySelector("form");
+      if (form) form.reset();
+    });
+  } 
+  document.addEventListener("keydown", (event) => {
     if (event.ctrlKey && event.key.toLowerCase() === "r") {
       event.preventDefault(); // evita el refresh del navegador
 
@@ -139,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mostrarToast(`✅ Reserva creada con ID: ${dataReserva.reserva.id_reserva}`, "success");
         bootstrap.Modal.getInstance(modalReserva).hide();
         programarAlerta(dataReserva.reserva);
+                
       } else {
         mostrarToast(dataReserva.error || "❌ Error al crear la reserva", "error");
       }
