@@ -77,7 +77,7 @@ def listar_clientes():
     resultado = [
         {
             "id_cliente": c.id_cliente,
-            "telefono": c.telefono,
+            "nro_telefono": c.telefono,
             "nombre": c.nombre,
             "direccion": c.direccion,
             "punto_referencia": c.punto_referencia  # 🔹 faltaba este campo
@@ -108,12 +108,15 @@ def cliente_por_telefono(telefono):
 
     if request.method == "GET":
         if not cliente:
-            return jsonify({"existe": False})
-        return jsonify(cliente.to_dict())
+            return jsonify({"existe": False}), 200
+        return jsonify({
+            "existe": True,
+            **cliente.to_dict()
+        }), 200
 
     if request.method == "PUT":
         if not cliente:
-            return jsonify({"error": "Cliente no encontrado"}), 404
+            return jsonify({"error": "Cliente no encontrado", "existe": False}), 404
 
         data = request.get_json()
         actualizado = {}
@@ -126,10 +129,15 @@ def cliente_por_telefono(telefono):
             cliente.direccion = data["direccion"].strip()
             actualizado["direccion"] = cliente.direccion
 
+        if "punto_referencia" in data and data["punto_referencia"].strip():
+            cliente.punto_referencia = data["punto_referencia"].strip()
+            actualizado["punto_referencia"] = cliente.punto_referencia
+
         db.session.commit()
         return jsonify({
             "mensaje": "Cliente actualizado correctamente",
-            "actualizado": actualizado
+            "existe": True,
+            "id_cliente": cliente.id_cliente,
+            **actualizado
         }), 200
-
 

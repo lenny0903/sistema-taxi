@@ -105,3 +105,24 @@ def listar_autos_disponibles():
      except Exception as e:
          return jsonify({"error": str(e)}), 500
 
+@autos_bp.route("/disponibles/<int:conductor_id>", methods=["GET"])
+def listar_auto_por_conductor(conductor_id):
+    try:
+        # Buscar turno activo del conductor
+        turno = Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first()
+        if not turno:
+            return jsonify([]), 200
+
+        auto = Auto.query.get(turno.auto_id)
+        if not auto:
+            return jsonify([]), 200
+
+        return jsonify([{
+            "id_auto": auto.id_auto,
+            "placa": auto.nro_placa,
+            "marca": auto.marca,
+            "modelo": auto.modelo,
+            "estado": auto.estado
+        }]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

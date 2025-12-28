@@ -321,32 +321,33 @@
 
       <form id="formDespacho" class="space-y-2">
         <!-- Teléfono + Tipo de despacho en la misma fila -->
-        <div class="flex items-center gap-2">
-          <!-- Etiqueta y Select tipoDespacho -->
-          <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
-          <select id="tipoDespacho" class="border p-2 w-40">
-            <option value="">Seleccione...</option>
+          <div class="flex items-center gap-2">
+            <!-- Etiqueta y Select tipoDespacho -->
+            <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
+            <select id="tipoDespacho" class="border p-2 w-40">
+              <option value="">Seleccione...</option>
 
-            <!-- Opción simple -->
-            <option value="reserva">Reserva</option>
+              <!-- Opción simple -->
+              <option value="reserva">Reserva</option>
 
-            <!-- Grupo de opciones -->
-            <optgroup label="Despacho múltiple">
-              <option value="2">2 vehículos</option>
-              <option value="3">3 vehículos</option>
-              <option value="4">4 vehículos</option>
-            </optgroup>
-          </select>
+              <!-- Grupo de opciones -->
+              <optgroup label="Despacho múltiple">
+                <option value="2">2 vehículos</option>
+                <option value="3">3 vehículos</option>
+                <option value="4">4 vehículos</option>
+              </optgroup>
+            </select>
 
-          <!-- Input teléfono -->
-          <label class="block">Número de teléfono:</label>
-          <input type="text" id="desTelefono"
-                maxlength="11"
-                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
-                title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
-                class="border p-2 flex-1"
-                placeholder="Teléfono del cliente">
-        </div>
+            <!-- Campo de teléfono inicial (opcional) -->
+            <label class="block">Número de teléfono:</label>
+            <input type="text" id="desTelefono"
+                  maxlength="11"
+                  pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                  title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                  class="border p-2 flex-1"
+                  placeholder="Teléfono del cliente">
+          </div>
+
 
         <label class="block">Origen:</label>
         <input type="text" id="desOrigen" class="border p-2 w-full" disabled>
@@ -2922,7 +2923,11 @@
                 </div>
               </form>
             </div>
-
+            <!-- Select de autos -->
+            <div>
+              <label for="modalAuto" class="form-label">Auto</label>
+              <select id="modalAuto" class="form-select"></select>
+            </div>
             <!-- Footer -->
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -3072,13 +3077,14 @@
       </div>
     </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
-  <script src="{{ url_for('static', filename='js/dashboard.js') }}" ></script>
- 
-  <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <!-- Tu archivo de modales --> 
-   <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
+ <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<!-- Archivos de modales -->
+<script src="{{ url_for('static', filename='js/modales.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
   <script>
     const socket = io("http://localhost:5000");
 

@@ -71,3 +71,52 @@ def caducar_reservas_internamente():
     for r in vencidas:
         r.estado = "inactiva"
     db.session.commit()
+
+import sqlite3
+from datetime import datetime
+
+def actualizar_estados_reservas():
+    conn = sqlite3.connect('/home/lenny/app_taxis/taxis.db')
+    cursor = conn.cursor()
+
+    # Marcar como 'expirada' las reservas que ya vencieron
+    cursor.execute("""
+        UPDATE reservas
+        SET estado = 'expirada'
+        WHERE estado = 'activo'
+          AND datetime(fecha || ' ' || hora) < datetime('now');
+    """)
+
+    # Marcar como 'alerta' las reservas que están dentro de la ventana de despacho (ej. ±15 min)
+    cursor.execute("""
+        UPDATE reservas
+        SET estado = 'alerta'
+        WHERE estado = 'activo'
+          AND datetime(fecha || ' ' || hora) >= datetime('now')
+          AND datetime(fecha || ' ' || hora) <= datetime('now', '+15 minutes');
+    """)
+
+    conn.commit()
+    conn.close()
+    print("🔎 Job ejecutado: estados de reservas actualizados")
+
+from datetime import datetime, timedelta
+
+@reservas_bp.route("/reservas/por_vencer", methods=["GET"])
+def listar_reservas_por_vencer():
+    ahora = datetime.now()
+    limite = ahora + timedelta(minutes=30)  # 👈 ajusta el umbral (15 o 30 min)
+
+    # Traer reservas activas
+    reservas = Reserva.query.filter(Reserva.estado == "activo").all()
+    resultado = []
+
+    for r in reservas:
+        fecha_hora = datetime.combine(r.fecha, r.hora)
+        if ahora < fecha_hora <= limite:
+            resultado.append(r.to_dict())
+
+    return jsonify({
+        "total": len(resultado),
+        "reservas": resultado
+    }), 200

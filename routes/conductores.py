@@ -178,3 +178,29 @@ def listar_conductores_en_turno():
             })
     return jsonify(resultado), 200
 
+@conductores_bp.route("/activos_con_autos", methods=["GET"])
+def listar_conductores_activos_con_autos():
+    conductores = Conductor.query.filter(Conductor.estado.in_(["activo", "disponible"])).all()
+    resultado = []
+
+    for c in conductores:
+        turno = Turno.query.filter_by(conductor_id=c.id_conductor, estado="activo").first()
+        auto = turno.auto if turno else None
+
+        resultado.append({
+            "conductor": {
+                "id_conductor": c.id_conductor,
+                "codigo": c.codigo,
+                "nombre": c.nombre,
+                "estado": c.estado
+            },
+            "auto": {
+                "id_auto": auto.id_auto,
+                "nro_placa": auto.nro_placa,
+                "marca": auto.marca,
+                "modelo": auto.modelo
+            } if auto else None
+        })
+
+    return jsonify(resultado), 200
+
