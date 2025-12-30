@@ -189,11 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 document.addEventListener("DOMContentLoaded", () => {
-  // ... todo tu código actual ...
-
-  // -------------------------------
-  // 📌 Inicialización por rol
-  // -------------------------------
   const token = localStorage.getItem('token');
   const rol = localStorage.getItem('rol');
 
@@ -208,26 +203,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (rol && rol.toLowerCase() === 'admin') {
-    abrirVista('usuarios'); // o 'reportes', tu panel admin
+    mostrarSeccion('despachos'); // ✅ usa la función unificada
   } else {
-    abrirVista('clientes'); // tu dashboard por defecto
+    mostrarSeccion('clientesSection'); // ✅ usa la función unificada
     document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
   }
 });
-function abrirVista(vistaId) {
-  // Ocultar todas las vistas
-  const vistas = document.querySelectorAll(".vista");
-  vistas.forEach(v => v.style.display = "none");
 
-  // Mostrar la vista solicitada si existe
-  const seccion = document.getElementById(vistaId);
-  if (seccion) {
-    seccion.style.display = "block";
-    seccion.scrollIntoView({ behavior: "smooth" });
-    console.log(`✅ Vista abierta: ${vistaId}`);
+function abrirVista(idVista) {
+  // Ocultar todas las secciones
+  document.querySelectorAll(".seccion").forEach(sec => sec.classList.add("hidden"));
+
+  // Mostrar la sección solicitada
+  const vista = document.getElementById(idVista);
+  if (vista) {
+    vista.classList.remove("hidden");
+    console.log(`✅ Vista abierta: ${idVista}`);
   } else {
-    // En vez de warn, puedes dejarlo silencioso o con un log más discreto
-    console.log(`ℹ️ Vista '${vistaId}' no existe en el DOM`);
+    console.warn(`⚠️ Sección '${idVista}' no encontrada en el DOM`);
   }
 }
 

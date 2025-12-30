@@ -98,11 +98,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res.ok) {
         mostrarToast("✅ Despacho creado correctamente, continue con el siguiente", "success");
+        cargarConductoresYAutosDespachoMultiple();
         iteracionActual++;
         if (iteracionActual >= totalIteraciones) {
           bootstrap.Modal.getInstance(document.getElementById("modalDespachoMultiple")).hide();
           mostrarToast("🎯 Iteración completa, modal cerrado", "info");
-         
+          cargarConductoresEnTurnoDespacho();
+          cargarAutosActivosSelect();
         }
       } else {
         mostrarToast("❌ Error al crear despacho", "error");

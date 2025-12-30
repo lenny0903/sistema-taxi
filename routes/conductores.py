@@ -184,8 +184,19 @@ def listar_conductores_activos_con_autos():
     resultado = []
 
     for c in conductores:
+        # Verificar si el conductor tiene un despacho en curso
+        despacho_en_curso = Despacho.query.filter_by(conductor_id=c.id_conductor, estado_despacho="en curso").first()
+        if despacho_en_curso:
+            continue  # ❌ saltar este conductor porque ya está ocupado
+
         turno = Turno.query.filter_by(conductor_id=c.id_conductor, estado="activo").first()
         auto = turno.auto if turno else None
+
+        # Verificar también si el auto está ocupado en un despacho en curso
+        if auto:
+            auto_en_curso = Despacho.query.filter_by(auto_id=auto.id_auto, estado_despacho="en curso").first()
+            if auto_en_curso:
+                continue  # ❌ saltar este auto porque ya está ocupado
 
         resultado.append({
             "conductor": {

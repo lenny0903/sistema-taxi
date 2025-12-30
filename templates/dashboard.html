@@ -608,6 +608,14 @@
     //////cargar usuarios
     async function cargarUsuarios() {
       console.log("Entrando a cargarUsuarios()");
+      
+      // 🔒 Solo cargar si la sección está visible
+      const seccion = document.getElementById('usuarios');
+      if (!seccion || seccion.classList.contains('hidden')) {
+        console.log("⏸ Sección usuarios oculta, no cargo datos");
+        return;
+      }
+
       try {
         const res = await fetch("/usuarios/usuarios"); // ruta correcta
         if (!res.ok) throw new Error("Error HTTP " + res.status);
@@ -638,6 +646,7 @@
         alert("No se pudo cargar la lista de usuarios");
       }
     }
+
 
     //////activar/desactivar usuario
     async function toggleUsuario(id, activo) {
@@ -737,15 +746,15 @@
 
 
     // Mostrar secciones
-   function mostrarSeccion(id) {
-      document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-      const target = document.getElementById(id.trim());
-      if (target) {
-        target.classList.remove('hidden');
-      } else {
-        console.error(`⚠️ Sección ${id} no encontrada`);
-      }
-    }
+  // function mostrarSeccion(id) {
+  //    document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
+  //    const target = document.getElementById(id.trim());
+  //    if (target) {
+  //      target.classList.remove('hidden');
+  //    } else {
+  //      console.error(`⚠️ Sección ${id} no encontrada`);
+  //    }
+  //  }
 
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -785,19 +794,19 @@
       });
     };
     // 🔗 Enlazar botón "Crear turno" con la función
-    const btnCrearTurno = document.getElementById("btnCrearTurno");
-    if (btnCrearTurno) {
-      btnCrearTurno.addEventListener("click", async (e) => {
-        e.preventDefault(); // 🔑 evita submit doble si el botón está dentro de un form
-        btnCrearTurno.disabled = true; // 🔑 evita doble clic
+  //  const btnCrearTurno = document.getElementById("btnCrearTurno");
+  //  if (btnCrearTurno) {
+  //    btnCrearTurno.addEventListener("click", async (e) => {
+  //      e.preventDefault(); // 🔑 evita submit doble si el botón está dentro de un form
+  //      btnCrearTurno.disabled = true; // 🔑 evita doble clic
 
-        try {
-          await crearTurno();
-        } finally {
-          btnCrearTurno.disabled = false; // 🔑 se vuelve a habilitar al terminar
-        }
-      });
-    }
+  //      try {
+  //        await crearTurno();
+   //     } finally {
+    //      btnCrearTurno.disabled = false; // 🔑 se vuelve a habilitar al terminar
+    //    }
+    //  });
+    //}
     // Función para cargar puntos de espera en el select
     async function cargarPuntos() {
       const resp = await fetch("/api/puntos_espera");
@@ -1531,16 +1540,35 @@
   }
 
   function mostrarSeccion(id) {
-    document.querySelectorAll('.seccion').forEach(el => el.classList.add('hidden'));
-    const target = document.getElementById(id);
+    document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
+    const target = document.getElementById(id.trim());
     if (target) {
       target.classList.remove('hidden');
-      if (id === 'turnosActivos') {
-        cargarConductoresDisponibles();
-        cargarAutosDisponiblesSelect();
+      console.log("✅ Mostrando sección:", id);
+
+      switch (id) {
+        case 'usuarios':
+          cargarUsuarios();
+          break;
+        case 'turnosActivos':
+          cargarTurnos(); // solo turnos
+          break;
+        case 'despachos':
+          cargarConductoresDisponibles();
+          cargarAutosDisponiblesSelect();
+          break;
+        case 'despachosActivos':
+          cargarDespachosActivos();
+          break;
       }
+    } else {
+      console.error(`⚠️ Sección ${id} no encontrada`);
     }
   }
+
+
+
+
 
    
     // Cargar conductores disponibles para el select de crear turno
@@ -1759,7 +1787,7 @@
         cargarDespachosActivos();
         //cargarConductoresDisponiblesDespacho();
         cargarConductoresEnTurnoDespacho();
-        cargarConductoresActivosSelect();
+        cargarAutosActivosSelect();
 
         // 🔹 Limpieza de formulario
         e.target.reset();
@@ -2347,7 +2375,7 @@
     //cargarConductoresAsignacion();
     cargarConductoresEnTurnoCrear();
     cargarConductoresEnTurnoDespacho();
-    mostrarSeccion('despachos')
+    mostrarSeccion('despachos');
 
     
   });

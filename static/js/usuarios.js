@@ -1,5 +1,7 @@
-window.onload = cargarUsuarios;
+//window.onload = cargarUsuarios;
 async function cargarUsuarios() {
+       const seccion = document.getElementById('usuarios');
+      if (!seccion || seccion.classList.contains('hidden')) return;
       console.log("Entrando a cargarUsuarios()");
       try {
         const res = await fetch("/usuarios/usuarios"); // ruta correcta

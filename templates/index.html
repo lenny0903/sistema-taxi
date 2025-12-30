@@ -48,16 +48,23 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    // Guardar token y rol en localStorage
                     localStorage.setItem('token', data.access_token);
-                    localStorage.setItem('rol', data.rol_nombre);
-                    localStorage.setItem('rolDescripcion', data.rol_descripcion);
 
-                    // Redirigir a la interfaz principal
+                    // Normalizar rol
+                    let rol = '';
+                    if (data.rol_id === 1 || data.rol_nombre.toLowerCase().includes('admin')) {
+                        rol = 'admin';
+                    } else {
+                        rol = 'operador';
+                    }
+                    localStorage.setItem('rol', rol);
+
+                    localStorage.setItem('rolDescripcion', data.rol_descripcion);
+                    localStorage.setItem('usuario', usuario);
+
                     window.location.href = '/panel.html';
-                } else {
-                    document.getElementById('loginError').classList.remove('hidden');
                 }
+
             } catch (err) {
                 console.error('Error en login:', err);
                 document.getElementById('loginError').classList.remove('hidden');
