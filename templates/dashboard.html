@@ -63,7 +63,7 @@
     <!-- Menú lateral -->
    <nav class="w-64 bg-white shadow-md h-screen p-4">
       <ul class="space-y-2">
-        <li><button onclick="mostrarSeccion('clientesSection')" class="w-full text-left">Clientes</button></li>
+        <!--<li><button onclick="mostrarSeccion('clientesSection')" class="w-full text-left">Clientes</button></li>-->
         <!--<li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>-->
         <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button></li>
         <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button></li>
@@ -152,12 +152,22 @@
         </form>
 
         <!-- Tabla de clientes -->
-        <table id="tablaClientes" class="mt-4">
-          <thead>
-            <tr><th>Nombre</th><th>Teléfono</th><th>Dirección</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <section style="height:400px; overflow-y:auto; border:1px solid #ccc;">
+          <table id="tablaClientes" class="mt-4" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="position:sticky; top:0; background:#f0f0f0; z-index:1;">Nombre</th>
+                <th style="position:sticky; top:0; background:#f0f0f0; z-index:1;">Teléfono</th>
+                <th style="position:sticky; top:0; background:#f0f0f0; z-index:1;">Dirección</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- filas dinámicas -->
+            </tbody>
+          </table>
+        </section>
+
+
       </section>
 
     <section id="conductores" class="seccion hidden">
@@ -342,8 +352,8 @@
             <label class="block">Número de teléfono:</label>
             <input type="text" id="desTelefono"
                   maxlength="11"
-                  pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
-                  title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                  pattern="^(0276[0-9]{7}|04[0-9]{9})$"
+                  title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
                   class="border p-2 flex-1"
                   placeholder="Teléfono del cliente">
           </div>
@@ -520,6 +530,31 @@
         <button id="btnPrint" class="bg-gray-700 text-white px-4 py-2 rounded mt-4">
           🖨️ Imprimir Reporte
         </button>
+        <!-- Reporte por Cliente -->
+        <div class="mt-6">
+          <label for="telefonoCliente">Teléfono del Cliente:</label>
+          <input type="text" id="telefonoCliente" class="border p-2 rounded" placeholder="Ej: 0414XXXXXXX">
+          <button id="btnReporteCliente" class="bg-indigo-500 text-white px-4 py-2 rounded ml-2">
+            Reporte por Cliente
+          </button>
+        </div>
+        <!-- Contenedor del resultado -->
+        <div id="reporteClienteResultado" class="mt-4"></div>
+        <div class="tabla-dinamica mb-4">
+          <table border="1" cellspacing="0" cellpadding="5" class="mt-2 w-full">
+            <thead>
+              <tr>
+                <th>Conductor</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-reporte-cliente">
+              <!-- filas dinámicas -->
+            </tbody>
+          </table>
+        </div>
       </section>
       <!-- Sección: Respaldo -->
       <section id="respaldo" class="seccion hidden">
@@ -716,12 +751,12 @@
         let valor = e.target.value.replace(/\D/g, ''); // solo números
         e.target.value = valor;
 
-        const prefijos = ["0276", "0412", "0414", "0416", "0424", "0426"];
-        const tienePrefijo = prefijos.some(pref => valor.startsWith(pref));
         const longitudValida = valor.length === 11;
+        const esFijo = valor.startsWith("0276");
+        const esMovil = valor.startsWith("04");
 
-        if (!tienePrefijo) {
-          campo.setCustomValidity("Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426");
+        if (!(esFijo || esMovil)) {
+          campo.setCustomValidity("Debe comenzar con 0276 (fijo) o 04 (móvil)");
         } else if (!longitudValida) {
           campo.setCustomValidity("El número debe tener exactamente 11 dígitos");
         } else {
@@ -729,6 +764,7 @@
         }
       });
     }
+
     // Validación centralizada de nombres
     function validarNombre(nombre) {
       if (!nombre) return false;                // 🔹 No vacío
@@ -1182,17 +1218,25 @@
 
         const sel = document.getElementById('desAuto');
         sel.innerHTML = "";
-
+        console.log("🔎 Autos en turno recibidos:", data);
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(t => {
             if (t.auto) {
+              console.log("🚗 Auto agregado al select:", {
+                id_auto: t.auto.id_auto,
+                placa: t.auto.nro_placa || t.auto.placa,
+                conductor: t.conductor.nombre
+              });
               const opt = document.createElement("option");
               opt.value = t.auto.id_auto;
               opt.textContent = `${t.auto.nro_placa || t.auto.placa || '—'} - ${t.conductor.nombre}`;
               sel.appendChild(opt);
+            } else {
+              console.warn("⚠️ Conductor en turno sin auto asignado:", t.conductor);
             }
           });
         } else {
+          console.log("🚫 No hay autos disponibles para despachos");
           const opt = document.createElement("option");
           opt.disabled = true;
           opt.textContent = "No hay autos disponibles";
@@ -1205,7 +1249,7 @@
           sel.innerHTML = '<option disabled>Error al cargar autos</option>';
         }
       }
-  }
+   }
 
    
 // Modificar campo específico de cliente con token
@@ -2634,7 +2678,8 @@
       // 0) Validar conductores disponibles desde backend y select
       const conductores = await cargarConductoresEnTurnoDespacho(); // 🔑 ahora devuelve data
       const selConductor = document.getElementById("desConductor");
-
+      console.log("🔎 Conductores en turno recibidos:", conductores);
+      console.log("🔎 Opciones actuales en select de conductores:", selConductor?.options.length);
       if (!Array.isArray(conductores) || conductores.length === 0 || !selConductor || selConductor.options.length === 0) {
         mostrarToast("🚫 No hay conductores libres → no se puede cargar cliente al formulario de despacho", "error");
         document.getElementById("btnCrearDespacho").disabled = true;
@@ -2647,6 +2692,14 @@
       console.log("Cliente recibido:", cliente);
 
       // 2. Prellenar el formulario de creación de despacho (con defensas)
+      console.log("📝 Formulario prellenado con cliente:", {
+        id: cliente.cliente_id,
+        nombre: cliente.cliente_nombre,
+        telefono: cliente.nro_telefono,
+        origen: cliente.origen,
+        destino: cliente.destino,
+        tarifa: cliente.tarifa
+      });
       const desCliente = document.getElementById("desCliente");
       if (desCliente) {
         desCliente.innerHTML = `<option selected value="${cliente.cliente_id}">${cliente.cliente_nombre}</option>`;
@@ -2669,7 +2722,7 @@
 
       // 3. Guardar referencia del cliente en espera
       window.clienteEnEsperaSeleccionado = clienteId;
-
+      console.log("📌 Cliente en espera seleccionado:", window.clienteEnEsperaSeleccionado);
       // 4. Feedback visual
       mostrarToast(
         `Cliente ${cliente.cliente_nombre} cargado en el formulario. Selecciona conductor y auto para confirmar el despacho.`,
@@ -2678,11 +2731,12 @@
 
       // 5. Refrescar tabla de lista de espera para que ya no muestre al cliente
       await cargarListaEspera();
-
+      console.log("🔄 Lista de espera refrescada");
       // ✅ Activar el botón principal de creación de despacho SOLO si hay conductor
       document.getElementById("btnCrearDespacho").disabled = false;
 
       // 6. Mostrar sección de despachos
+      console.log("✅ Sección despachos mostrada, botón crear habilitado");
       mostrarSeccion("despachos");
     } catch (err) {
       console.error("Error cargando cliente desde lista de espera:", err);
@@ -2912,7 +2966,8 @@
                   <label for="modalTelefono" class="form-label">Teléfono del cliente</label>
                   <input type="text" id="modalTelefono" 
                         maxlength="11"
-                        pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                        pattern="^(0276[0-9]{7}|04[0-9]{9})$"
+                        title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
                         class="form-control"
                         placeholder="Ej: 04121234567">
                 </div>
@@ -2986,7 +3041,8 @@
                   <label for="resTelefono" class="form-label">Teléfono del cliente</label>
                   <input type="text" id="resTelefono"
                         maxlength="11"
-                        pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                        pattern="^(0276[0-9]{7}|04[0-9]{9})$"
+                        title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
                         class="form-control"
                         placeholder="Ej: 04121234567">
                 </div>
@@ -3094,6 +3150,73 @@
       </div>
     </div>
   
+<!-- Modal independiente: Gestión de Teléfonos de Clientes -->
+      <div id="modalTelefonosClientes" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded shadow-lg w-[600px] max-h-[90vh] flex flex-col">
+
+          <!-- Header -->
+          <div class="modal-header">
+            <h3 class="text-xl font-bold">Gestión de Teléfonos de Clientes</h3>
+            <button type="button" 
+                    onclick="cerrarModalTelefonosClientes()" 
+                    class="text-gray-500 hover:text-black text-2xl font-bold">
+              ×
+            </button>
+          </div>
+
+          <!-- Body con scroll -->
+          <div class="modal-body">
+            <!-- Búsqueda dinámica -->
+            <label for="buscarNombreTel" class="block">Buscar cliente por nombre:</label>
+            <input type="text" id="buscarNombreTel" 
+                  placeholder="Ej: Carlos Pérez"
+                  class="border p-2 w-full mb-4">
+
+            <!-- Tabla dinámica -->
+            <section class="mb-4" style="height:250px; overflow-y:auto; border:1px solid #ccc;">
+              <table id="tablaClientesTel" style="width:100%; border-collapse:collapse;">
+                <thead>
+                  <tr>
+                    <th style="position:sticky; top:0; background:#f0f0f0;">#</th>
+                    <th style="position:sticky; top:0; background:#f0f0f0;">Nombre</th>
+                    <th style="position:sticky; top:0; background:#f0f0f0;">Teléfono</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- filas dinámicas -->
+                </tbody>
+              </table>
+            </section>
+
+            <!-- Formulario de edición -->
+            <form id="formEditarTelefono" class="space-y-2">
+              <label>Nombre:</label>
+              <input type="text" id="cliNombreTel" class="border p-2 w-full" readonly>
+
+              <label>Teléfono actual:</label>
+              <input type="text" id="cliTelefonoActualTel" class="border p-2 w-full" readonly>
+
+              <label>Nuevo teléfono:</label>
+              <input type="text" id="cliTelefonoNuevoTel"
+                    maxlength="11"
+                    pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                    title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
+                    class="border p-2 w-full">
+            </form>
+          </div>
+
+          <!-- Footer fijo -->
+          <div class="modal-footer">
+            <button type="button" class="bg-red-500 text-white px-4 py-2 rounded" onclick="eliminarClienteTel()">Eliminar</button>
+            <div class="flex gap-2">
+              <button type="button" class="bg-gray-400 text-white px-4 py-2 rounded" onclick="cerrarModalTelefonosClientes()">Cancelar</button>
+              <button type="submit" form="formEditarTelefono" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
 
     <!-- Toasts para alarma de reserva -->
      <div class="toast-container position-fixed bottom-0 end-0 p-3">

@@ -7,6 +7,7 @@ from sqlalchemy import func
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from flask import send_file
+from models.clientes import Cliente
 
 reporte_bp = Blueprint('reportes', __name__, url_prefix='/reportes')
 
@@ -90,7 +91,7 @@ def reportes_conductores():
 
     resultados = (
         db.session.query(
-            Conductor.nombre.label("conductor"),
+            Conductor.nombre.label("nombre_conductor"),
             func.count(Despacho.id_despacho).label("total_servicios"),
             func.sum(Despacho.tarifa).label("total_tarifa")
         )
@@ -218,4 +219,47 @@ def reporte_embarque_desembarque():
     })
 
 
+# -------------------------------
+# 📌 Reporte por cliente (conductores que lo atendieron)
+# -------------------------------
+@reporte_bp.route("/cliente", methods=["GET"])
+@jwt_required()
+def reporte_por_cliente():
+    telefono = request.args.get("telefono")
+    if not telefono:
+        return jsonify({"error": "Debes enviar el número de teléfono"}), 400
 
+    try:
+        resultados = (
+            db.session.query(
+                Conductor.codigo,
+                Conductor.nombre,
+                Despacho.origen_despacho,
+                Despacho.destino_despacho,
+                Despacho.fecha_hora_fin
+            )
+            .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
+            .join(Cliente, Cliente.id_cliente == Despacho.cliente_id)
+            .filter(
+                Cliente.telefono == telefono,
+                Despacho.estado_despacho == "finalizado"
+            )
+            .all()
+        )
+
+        data = []
+        for r in resultados:
+            ultima = r.fecha_hora_fin.strftime("%Y-%m-%d %H:%M") if r.fecha_hora_fin else "-"
+            data.append({
+                "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
+                "origen": r.origen_despacho,
+                "destino": r.destino_despacho,
+                "ultima_fecha": ultima
+            })
+
+        print("➡️ Data enviada al frontend:", data)
+        return jsonify(data)
+
+    except Exception as e:
+        print("❌ Error en reporte_por_cliente:", e)
+        return jsonify({"error": str(e)}), 500

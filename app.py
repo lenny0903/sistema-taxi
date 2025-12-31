@@ -7,7 +7,7 @@ from routes.views import views_bp
 from flask import send_from_directory
 from models.turnos import Turno
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import event 
+from sqlalchemy import event, text 
 from sqlalchemy.engine import Engine
 from tasks.scheduler import iniciar_scheduler
 import config
@@ -31,10 +31,20 @@ def create_app():
     jwt = JWTManager(app)
     socketio.init_app(app)
 
+   
     with app.app_context():
         import models
         from models.lista_espera import ListaEspera
         db.create_all()
+         # 🔹 Activar WAL mode en cada conexión SQLite
+        @event.listens_for(db.engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.close()
+         # Verificación opcional
+        result = db.session.execute(text("PRAGMA journal_mode;")).scalar() 
+        print("📝 Journal mode actual:", result)
 
     # 🔹 Inicializar el scheduler con app y socketio (fuera del app_context)
     iniciar_scheduler(app, socketio)

@@ -55,3 +55,80 @@
   background-color: #c82333;
 }
 #tipoDespacho { max-width: 150px; /* ajusta según tu diseño */ }
+
+#tablaClientesTel tr {
+  cursor: pointer;
+}
+
+#tablaClientesTel tr:hover {
+  background-color: #f0f8ff; /* azul claro al pasar el mouse */
+}
+
+#tablaClientesTel tr.fila-seleccionada {
+  background-color: #ffe58a; /* amarillo suave para la fila seleccionada */
+}
+/* Contenedor del modal */
+#modalTelefonosClientes {
+  position: fixed;
+  inset: 0;                  /* cubrir toda la ventana */
+  display: none;             /* oculto por defecto */
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;             /* por encima de todo */
+}
+
+/* Estado visible */
+#modalTelefonosClientes.active {
+  display: flex;
+}
+
+/* Caja interna del modal */
+#modalTelefonosClientes > div {
+  background: #fff;
+  width: 600px;
+  max-height: 90vh;          /* nunca más alto que la ventana */
+  display: flex;
+  flex-direction: column;    /* header, body, footer */
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Header */
+#modalTelefonosClientes .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Botón X */
+#modalTelefonosClientes .modal-header button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+}
+#modalTelefonosClientes .modal-header button:hover {
+  color: #000;
+}
+
+/* Body con scroll */
+#modalTelefonosClientes .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* Footer fijo */
+#modalTelefonosClientes .modal-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  background: #f9f9f9;
+}

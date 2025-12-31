@@ -21,20 +21,32 @@ document.addEventListener("DOMContentLoaded", () => {
     conductores: new Set(),
     autos: new Set()
   };
-    const tipom = document.getElementById("tipoDespacho");
-    const modalMultiple = document.getElementById("modalDespachoMultiple");
 
-    if (modalMultiple) {
-      modalMultiple.addEventListener("hidden.bs.modal", () => {
-        console.log("🔄 Modal múltiple cerrado, reiniciando select…");
-        if (tipom) tipom.value = ""; // vuelve a opción neutra
-        iteracionActual = 0;
-        totalIteraciones = 0;
-        grupoIdGlobal = null;
-        usados.conductores.clear();
-        usados.autos.clear();
-      });
-    }
+  const tipom = document.getElementById("tipoDespacho");
+  const modalMultiple = document.getElementById("modalDespachoMultiple");
+
+  if (modalMultiple) {
+    modalMultiple.addEventListener("hidden.bs.modal", async () => {
+      console.log("🔄 Modal múltiple cerrado, reiniciando y refrescando selects…");
+
+      // Reinicio de variables
+      if (tipom) tipom.value = ""; // vuelve a opción neutra
+      iteracionActual = 0;
+      totalIteraciones = 0;
+      grupoIdGlobal = null;
+      usados.conductores.clear();
+      usados.autos.clear();
+
+      // Refresco de selects
+      try {
+        await cargarConductoresYAutosDespachoMultiple();
+        console.log("✅ Selects de múltiple refrescados");
+      } catch (err) {
+        console.error("❌ Error refrescando múltiple:", err);
+      }
+    });
+  }
+
     // -------------------------------
   // Inicializar ciclo múltiple al seleccionar tipo
   // -------------------------------
@@ -98,17 +110,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res.ok) {
         mostrarToast("✅ Despacho creado correctamente, continue con el siguiente", "success");
-        cargarConductoresYAutosDespachoMultiple();
+        usados.conductores.add(conductorId); 
+        usados.autos.add(autoId);
+        let data;
+        try {
+          // 🔹 Esperar al backend
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          // 🔹 Limpiar listeners previos
+          const conductorSelect = document.getElementById("modalConductor");
+          const autoSelect = document.getElementById("modalAuto");
+          conductorSelect.replaceWith(conductorSelect.cloneNode(true));
+          autoSelect.replaceWith(autoSelect.cloneNode(true));
+
+          // 🔹 Repoblar selects
+          data=await cargarConductoresYAutosDespachoMultiple();
+          //await cargarConductoresYAutosDespachoMultiple();
+          limpiarCamposVariables();
+          console.log("🔄 Selects de múltiple refrescados tras asignar vehículo");
+        } catch (err) {
+          console.error("❌ Error refrescando múltiple tras asignación:", err);
+        }
+        console.log("📦 Datos recibidos tras iteración:", data);
+
         iteracionActual++;
         if (iteracionActual >= totalIteraciones) {
           bootstrap.Modal.getInstance(document.getElementById("modalDespachoMultiple")).hide();
           mostrarToast("🎯 Iteración completa, modal cerrado", "info");
-          cargarConductoresEnTurnoDespacho();
-          cargarAutosActivosSelect();
+          await cargarConductoresEnTurnoDespacho();
+          await cargarAutosActivosSelect();
         }
       } else {
         mostrarToast("❌ Error al crear despacho", "error");
       }
+
+
     }
 
 
@@ -123,18 +159,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   async function cargarConductoresYAutosDespachoMultiple() {
     try {
-      const res = await apiFetch("/conductores/activos_con_autos"); // 👈 nuevo endpoint
+      // 👈 Usar el mismo endpoint que el formulario normal
+      const res = await apiFetch("/conductores/en_turno_disponibles");
       const data = await res.json();
 
       const conductorSelect = document.getElementById("modalConductor");
       const autoSelect = document.getElementById("modalAuto");
 
+      // 🔹 Limpiar selects
       conductorSelect.innerHTML = "<option value='' disabled selected>Seleccione...</option>";
       autoSelect.innerHTML = "<option value='' disabled selected>Seleccione...</option>";
 
       if (Array.isArray(data) && data.length > 0) {
         data.forEach(t => {
           if (t.auto) {
+            // 🔒 Excluir recursos ya usados en el modal múltiple
+            if (usados.conductores.has(t.conductor.id_conductor)) return;
+            if (usados.autos.has(t.auto.id_auto)) return;
+
             // Poblar conductores
             const optConductor = document.createElement("option");
             optConductor.value = t.conductor.id_conductor;
@@ -144,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Poblar autos
             const optAuto = document.createElement("option");
             optAuto.value = t.auto.id_auto;
-            optAuto.textContent = `${t.auto.nro_placa} - ${t.auto.marca} ${t.auto.modelo}`;
+            optAuto.textContent = `${t.auto.nro_placa}`;
             autoSelect.appendChild(optAuto);
           }
         });
@@ -174,8 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 
-
-
     // -------------------------------
   // Inicializar modal múltiple
   // -------------------------------
@@ -203,25 +243,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 // -------------------------------
-// Listener de Bootstrap al mostrar modal
+// Listener de Bootstrap al mostrar modal y // Enganchar al evento de Bootstrap
 // -------------------------------
-document.addEventListener("shown.bs.modal", async (e) => {
-  if (e.target.id === "modalDespachoMultiple") {
-    console.log("🟢 Modal múltiple mostrado");
-    await onShowModalOnce();
-  }
-});
+  const modalEl = document.getElementById("modalDespachoMultiple");
 
-
-  // -------------------------------
-  // Enganchar al evento de Bootstrap
-  // -------------------------------
-  document.addEventListener("shown.bs.modal", async (e) => {
+  function handleModalShow(e) {
     if (e.target.id === "modalDespachoMultiple") {
-      console.log("🟢 Modal múltiple mostrado");
-      await onShowModalOnce();
+      console.log("🟢 Modal múltiple mostrado (listener único)");
+      onShowModalOnce();
     }
-  });
+  }
+
+  // 🔒 Blindaje: eliminar duplicado antes de enganchar
+  document.removeEventListener("shown.bs.modal", handleModalShow);
+  document.addEventListener("shown.bs.modal", handleModalShow);
 
  
 

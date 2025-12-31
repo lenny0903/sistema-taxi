@@ -13,7 +13,12 @@ def validar_nombre(nombre: str) -> bool:
     if len(nombre) < 2 or len(nombre) > 50:
         return False
     return True
-
+#Validación de teléfono
+def validar_telefono(telefono: str) -> bool:
+    if not telefono:
+        return False
+    patron = re.compile(r"^(0276[0-9]{7}|04[0-9]{9})$")
+    return bool(patron.match(telefono))
 
 # 🔹 Crear cliente
 @clientes_bp.route('/', methods=['POST'])
@@ -23,11 +28,14 @@ def crear_cliente():
     if not telefono:
         return jsonify({"error": "Teléfono es obligatorio"}), 400
 
+    # 🔹 Validación de formato
+    if not validar_telefono(telefono):
+        return jsonify({"error": "Teléfono inválido. Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos"}), 400
+
     if Cliente.query.filter_by(telefono=telefono).first():
         return jsonify({"error": "Teléfono ya registrado"}), 400
 
     nombre = (data.get('nombre') or "").strip()
-    # 🔹 Validación mínima: no vacío y al menos 2 caracteres
     if not validar_nombre(nombre):
         return jsonify({"error": "Nombre inválido"}), 400
 
@@ -54,11 +62,15 @@ def actualizar_cliente_por_telefono(telefono):
     if not cliente:
         return jsonify({"error": "Cliente no encontrado"}), 404
 
-    # Validar nombre si se envía
+    if 'telefono' in data:
+        nuevo_tel = data['telefono']
+        if not validar_telefono(nuevo_tel):
+            return jsonify({"error": "Teléfono inválido"}), 400
+        cliente.telefono = nuevo_tel
+
     if 'nombre' in data and not validar_nombre(data['nombre']):
         return jsonify({"error": "Nombre inválido"}), 400
 
-    # Actualizar campos con fallback
     cliente.nombre = data.get('nombre', cliente.nombre)
     cliente.direccion = data.get('direccion', cliente.direccion)
     cliente.punto_referencia = data.get('punto_referencia', cliente.punto_referencia)
@@ -69,6 +81,7 @@ def actualizar_cliente_por_telefono(telefono):
         "id_cliente": cliente.id_cliente,
         "punto_referencia": cliente.punto_referencia
     }), 200
+
 
 # Listar clientes
 @clientes_bp.route('/', methods=['GET'])
@@ -141,3 +154,37 @@ def cliente_por_telefono(telefono):
             **actualizado
         }), 200
 
+@clientes_bp.route('/delete', methods=['POST'])
+def eliminar_cliente():
+    data = request.get_json()
+    nombre = (data.get("nombre") or "").strip()
+
+    if not validar_nombre(nombre):
+        return jsonify({"error": "Nombre inválido"}), 400
+
+    cliente = Cliente.query.filter_by(nombre=nombre).first()
+    if not cliente:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    db.session.delete(cliente)
+    db.session.commit()
+    return jsonify({"message": f"Cliente {nombre} eliminado"}), 200
+
+@clientes_bp.route('/updateTelefono', methods=['POST'])
+def update_telefono():
+    data = request.get_json()
+    nombre = (data.get("nombre") or "").strip()
+    nuevo_tel = (data.get("telefono") or "").strip()
+
+    if not validar_nombre(nombre):
+        return jsonify({"error": "Nombre inválido"}), 400
+    if not validar_telefono(nuevo_tel):
+        return jsonify({"error": "Teléfono inválido"}), 400
+
+    cliente = Cliente.query.filter_by(nombre=nombre).first()
+    if not cliente:
+        return jsonify({"error": "Cliente no encontrado"}), 404
+
+    cliente.telefono = nuevo_tel
+    db.session.commit()
+    return jsonify({"message": "Teléfono actualizado correctamente"}), 200

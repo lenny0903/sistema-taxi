@@ -108,7 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-
+  
+  
   // -------------------------------
   // 📌 Sección: Atajos de Teclado F1–F7
   // -------------------------------
@@ -187,6 +188,59 @@ document.addEventListener("DOMContentLoaded", () => {
       </tbody>
     </table>`;
   }
+   // -------------------------------
+  // 📌 Sección: Reportes por Cliente
+  // -------------------------------
+  const btnCliente = document.getElementById("btnReporteCliente");
+  if (btnCliente) {
+    btnCliente.addEventListener("click", async () => {
+      const telefono = document.getElementById("telefonoCliente").value;
+      const token = localStorage.getItem("token");
+      if (!telefono) {
+        alert("Debes ingresar un número de teléfono");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,   // 👈 enviar token JWT
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        const tbody = document.getElementById("tabla-reporte-cliente");
+        tbody.innerHTML = "";
+
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(item => {
+            const row = `
+              <tr>
+                <td>${item.nombre_conductor}</td>
+                <td>${item.origen}</td>
+                <td>${item.destino}</td>
+                <td>${item.ultima_fecha}</td>
+              </tr>
+            `;
+            tbody.innerHTML += row;
+          });
+        } else {
+          tbody.innerHTML = `<tr><td colspan="3">No se encontraron registros</td></tr>`;
+        }
+      } catch (err) {
+        console.error("❌ Error generando reporte por cliente:", err);
+        alert("Error al generar reporte por cliente");
+      }
+
+    });
+  }
+  
 });
 document.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem('token');
@@ -208,6 +262,147 @@ document.addEventListener("DOMContentLoaded", () => {
     mostrarSeccion('clientesSection'); // ✅ usa la función unificada
     document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
   }
+    // -------------------------------
+  // 📌 Modal independiente: Teléfonos de Clientes
+  // -------------------------------
+  let clientesCacheTel = [];
+
+  async function cargarClientesTel() {
+    try {
+      const res = await apiFetch('/clientes');
+      const data = await res.json();
+      clientesCacheTel = Array.isArray(data) ? data : [];
+      renderTablaClientesTel(clientesCacheTel);
+    } catch (err) {
+      console.error("❌ Error cargando clientes:", err);
+    }
+  }
+
+  function renderTablaClientesTel(clientes) {
+    const tbody = document.querySelector('#tablaClientesTel tbody');
+    tbody.innerHTML = ""; // limpiar tabla
+
+    clientes.forEach((cliente, index) => {
+      const tr = document.createElement("tr");
+
+      // celda de numeración
+      const tdNum = document.createElement("td");
+      tdNum.textContent = index + 1; // empieza en 1
+
+      const tdNombre = document.createElement("td");
+      tdNombre.textContent = cliente.nombre;
+
+      const tdTelefono = document.createElement("td");
+      tdTelefono.textContent = cliente.nro_telefono;
+
+      tr.appendChild(tdNum);
+      tr.appendChild(tdNombre);
+      tr.appendChild(tdTelefono);
+
+      // evento de selección
+      tr.addEventListener("click", () => {
+        seleccionarClienteTel(cliente);
+        [...tbody.querySelectorAll("tr")].forEach(r => r.classList.remove("fila-seleccionada"));
+        tr.classList.add("fila-seleccionada");
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+
+
+
+  document.querySelector("#buscarNombreTel").addEventListener("input", e => {
+    const query = e.target.value.trim().toLowerCase();
+    const filtrados = query === "" 
+      ? clientesCacheTel 
+      : clientesCacheTel.filter(c => c.nombre.toLowerCase().includes(query));
+    renderTablaClientesTel(filtrados);
+  });
+
+  function seleccionarClienteTel(cliente) {
+    document.querySelector("#cliNombreTel").value = cliente.nombre;
+    document.querySelector("#cliTelefonoActualTel").value = cliente.nro_telefono;
+  }
+  
+
+ function abrirModalTelefonosClientes() {
+    document.getElementById("modalTelefonosClientes").classList.add("active");
+    document.getElementById("modalTelefonosClientes").classList.remove("hidden");
+    cargarClientesTel();
+  }
+  window.abrirModalTelefonosClientes = abrirModalTelefonosClientes;
+  function cerrarModalTelefonosClientes() {
+    document.getElementById("modalTelefonosClientes").classList.remove("active");
+    document.getElementById("modalTelefonosClientes").classList.add("hidden");
+
+  }
+  window.cerrarModalTelefonosClientes = cerrarModalTelefonosClientes;
+
+  document.getElementById("formEditarTelefono").addEventListener("submit", async e => {
+    e.preventDefault();
+    const nombre = document.querySelector("#cliNombreTel").value;
+    const nuevoTel = document.querySelector("#cliTelefonoNuevoTel").value;
+
+    try {
+      await apiFetch(`/clientes/updateTelefono`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono: nuevoTel })
+      });
+      alert("✅ Teléfono actualizado correctamente");
+      cerrarModalTelefonosClientes();
+      cargarClientesTel();
+    } catch (err) {
+      console.error("❌ Error actualizando teléfono:", err);
+      alert("Error al actualizar teléfono");
+    }
+  });
+
+  async function eliminarClienteTel() {
+    const nombre = document.querySelector("#cliNombreTel").value;
+    if (!nombre) {
+      alert("⚠️ Selecciona un cliente primero.");
+      return;
+    }
+
+    if (!confirm(`¿Seguro que deseas eliminar al cliente "${nombre}"?`)) {
+      return;
+    }
+
+    try {
+      await apiFetch(`/clientes/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre })
+      });
+      alert("✅ Cliente eliminado correctamente");
+      cerrarModalTelefonosClientes();
+      cargarClientesTel();
+    } catch (err) {
+      console.error("❌ Error eliminando cliente:", err);
+      alert("Error al eliminar cliente");
+    }
+  }
+  window.eliminarClienteTel = eliminarClienteTel;
+  // -------------------------------
+  // 📌 Atajo de teclado Ctrl+T (solo admins)
+  // -------------------------------
+  // 📌 Atajo de teclado Alt+T (solo admins)
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey && e.key.toLowerCase() === "t") {
+      e.preventDefault(); // evita cualquier acción por defecto
+      const rol = localStorage.getItem('rol');
+      if (rol && rol.toLowerCase() === 'admin') {
+        abrirModalTelefonosClientes();
+      } else {
+        alert("⚠️ Solo los administradores pueden acceder a la gestión de teléfonos de clientes.");
+      }
+    }
+  });
+
+  
 });
 
 function abrirVista(idVista) {
