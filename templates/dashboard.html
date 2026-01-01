@@ -466,6 +466,7 @@
                       <th class="border px-2 py-1">Destino</th>
                       <th class="border px-2 py-1">Hora Solicitud</th>
                       <th class="border px-2 py-1">Tarifa</th>
+                      <th class="border px-2 py-1">Estado</th>
                       <th class="border px-2 py-1">Acciones</th>
                     </tr>
                   </thead>
@@ -843,36 +844,36 @@
     //    }
     //  });
     //}
-    // Función para cargar puntos de espera en el select
-    async function cargarPuntos() {
-      const resp = await fetch("/api/puntos_espera");
-      const puntos = await resp.json();
-
-      const selectPunto = document.getElementById("nuevoPunto");
-      selectPunto.innerHTML = "";
-      puntos.forEach(p => {
-        const option = document.createElement("option");
-        option.value = p.id_punto;
-        option.textContent = `${p.codigo} - ${p.nombre}`;
-        selectPunto.appendChild(option);
-      });
-    }
-    // Carga inicial
-    cargarClientes();
-    cargarConductores();
-    cargarAutosTabla();
-    //cargarAutosActivosSelect();
-    //cargarConductoresEnTurno()
-    cargarAutosDisponiblesSelect();
-    //cargarDespachos();
-    cargarTurnos();
-    //cargarConductoresDisponibles();
-    cargarConductoresEnTurnoCrear();
-    cargarConductoresEnTurnoDespacho();
-    cargarPuntos();
-    mostrarSeccion('despachos');
+    
+    
+    
+    //cargarClientes();
+    //cargarConductores();
+    //cargarAutosTabla();
+    //cargarTurnos();
+    //cargarConductoresEnTurnoCrear();
+    //cargarAutosDisponiblesSelect();
+    //cargarConductoresEnTurnoDespacho();
+    //cargarPuntos();
+    //mostrarSeccion('despachos');
   });
+  async function cargarPuntos() {
+    const resp = await fetch("/api/puntos_espera");
+    const puntos = await resp.json();
 
+    const selectPunto = document.getElementById("nuevoPunto");
+    if (!selectPunto) {
+      console.error("❌ No existe #nuevoPunto en el DOM");
+      return;
+    }
+    selectPunto.innerHTML = "";
+    puntos.forEach(p => {
+      const option = document.createElement("option");
+      option.value = p.id_punto;
+      option.textContent = `${p.codigo} - ${p.nombre}`;
+      selectPunto.appendChild(option);
+    });
+  }
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -1398,7 +1399,7 @@
       alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
     }
   }
-  //////////////////////////////////////////////////////
+  //////////Función para poblar select de conductores disponibles al crear turno//////////
   async function cargarConductoresEnTurnoCrear() {
     try {
       const res = await apiFetch('/conductores/disponibles_conductores');
@@ -1434,41 +1435,41 @@
 //cargar autos disponibles para el select de crear turno
  
   // Función para crear turno desde el panel
-  async function crearTurno() {
-    const conductorId = document.getElementById("desConductor").value;
-    const autoId = document.getElementById("selectAuto").value;
-    const usuarioId = localStorage.getItem("usuario_id"); // operador logueado
+//  async function crearTurno() {
+//    const conductorId = document.getElementById("desConductor").value;
+//    const autoId = document.getElementById("selectAuto").value;
+//    const usuarioId = localStorage.getItem("usuario_id"); // operador logueado
 
-    try {
-      const res = await window.apiFetch("/turnos/activos", {
-        method: "POST",
-        body: JSON.stringify({
-          conductor_id: conductorId,
-          auto_id: autoId,
-          usuario_id: usuarioId   // opcional según tu modelo
-        })
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        // ✅ Turno creado correctamente
-        alert("Turno creado: " + data.id_turno);
-        cargarTurnos(); // refresca la tabla dinámica
-        //cargarConductoresDisponiblesDespacho();
-        cargarConductoresEnTurnoCrear();
-        cargarConductoresEnTurnoDespacho();
-        cargarConductoresDisponibles();
-        cargarAutosDisponiblesSelect();
-      } else {
-        // ❌ Error de validación desde backend
-        alert("Error: " + (data.error || "No se pudo crear el turno"));
-      }
-    } catch (err) {
-      console.error("Error creando turno:", err);
-      alert("Error inesperado al crear turno");
-    }
-  }
+//    try {
+//      const res = await window.apiFetch("/turnos/activos", {
+//        method: "POST",
+//        body: JSON.stringify({
+//          conductor_id: conductorId,
+//          auto_id: autoId,
+//          usuario_id: usuarioId   // opcional según tu modelo
+//        })
+//      });
+//
+//      const data = await res.json();
+//
+//      if (res.ok) {
+//        // ✅ Turno creado correctamente
+//        alert("Turno creado: " + data.id_turno);
+//        cargarTurnos(); // refresca la tabla dinámica
+//        //cargarConductoresDisponiblesDespacho();
+//        cargarConductoresEnTurnoCrear();
+//        cargarConductoresEnTurnoDespacho();
+//        cargarConductoresDisponibles();
+//        cargarAutosDisponiblesSelect();
+//      } else {
+//        // ❌ Error de validación desde backend
+//        alert("Error: " + (data.error || "No se pudo crear el turno"));
+//      }
+//    } catch (err) {
+//      console.error("Error creando turno:", err);
+//      alert("Error inesperado al crear turno");
+//    }
+//  }
  
  
     // Despachos
@@ -1527,8 +1528,10 @@
       }
     }
 
-   // Tabla turnos activos
+   // Tabla para desplegar turnos activos
   async function cargarTurnos() {
+    console.trace("▶️ cargarTurnos disparado");
+
     try {
       const res = await apiFetch('/turnos/activos'); // solo activos
       const data = await res.json();
@@ -1544,7 +1547,7 @@
                 <th class="border px-2 py-1">ID Turno</th>
                 <th class="border px-2 py-1">Conductor</th>
                 <th class="border px-2 py-1">Auto</th>
-                <th class="border px-2 py-1">Punto de espera</th> <!-- 🔹 nueva columna -->
+                <th class="border px-2 py-1">Punto de espera</th>
                 <th class="border px-2 py-1">Inicio</th>
                 <th class="border px-2 py-1">Acciones</th>
               </tr>
@@ -1557,7 +1560,7 @@
                       <td class="border px-2 py-1">${t.id_turno}</td>
                       <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
                       <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
-                      <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td> <!-- 🔹 solo código y nombre -->
+                      <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td>
                       <td class="border px-2 py-1">${t.inicio}</td>
                       <td class="border px-2 py-1 text-center">
                         <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
@@ -1574,14 +1577,15 @@
         </div>  
       `;
 
-      return data; // 🔑 devolver el array al listener
+      return data; // 🔑 solo devuelve turnos, no toca despachos
     } catch (err) {
       console.error("❌ Error cargando turnos:", err);
       const contenedor = document.getElementById('turnosActivosLista');
       contenedor.innerHTML = "<p class='text-red-600'>Error al cargar turnos activos</p>";
-      return []; // 🔑 devolver array vacío en caso de error
+      return [];
     }
   }
+
 
   function mostrarSeccion(id) {
     document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
@@ -1596,10 +1600,13 @@
           break;
         case 'turnosActivos':
           cargarTurnos(); // solo turnos
+          cargarConductoresEnTurnoCrear();
+          cargarAutosDisponiblesSelect();
+          cargarPuntos();
           break;
         case 'despachos':
-          cargarConductoresDisponibles();
-          cargarAutosDisponiblesSelect();
+          cargarConductoresEnTurnoDespacho();
+          cargarAutosActivosSelect();
           break;
         case 'despachosActivos':
           cargarDespachosActivos();
@@ -1615,15 +1622,15 @@
 
 
    
-    // Cargar conductores disponibles para el select de crear turno
-    async function cargarConductoresDisponibles() {
-      const res = await apiFetch('/conductores');
-      const data = await res.json();
-      const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = Array.isArray(data)
-         ? data.map(c => `<option value="${c.id_conductor}">${c.codigo} - ${c.nombre}</option>`).join('')
-        : '';
-    }
+    // Cargar conductores disponibles para el select de crear despacho
+  //  async function cargarConductoresDisponibles() {
+  //    const res = await apiFetch('/conductores');
+  //    const data = await res.json();
+  //    const sel = document.getElementById('desConductor');
+  //    sel.innerHTML = Array.isArray(data)
+  //       ? data.map(c => `<option value="${c.id_conductor}">${c.codigo} - ${c.nombre}</option>`).join('')
+  //      : '';
+  //   }
     //Actualizar autos disponibles para el select de crear turno
     async function cargarAutosDisponiblesSelect() {
       const res = await apiFetch('/autos/disponibles');
@@ -1790,61 +1797,62 @@
    
    // Submit único del formulario de despacho-creación del despacho
   document.getElementById('formDespacho').addEventListener('submit', async e => {
-    e.preventDefault();
+      e.preventDefault();
 
-    const despacho = {
-      cliente_id: parseInt(document.getElementById('desCliente').value),
-      conductor_id: parseInt(document.getElementById('desConductor').value),
-      auto_id: parseInt(document.getElementById('desAuto').value),
-      origen_despacho: document.getElementById('desOrigen').value.trim(),
-      destino_despacho: document.getElementById('desDestino').value.trim(),
-      tarifa: parseFloat(document.getElementById('desTarifa').value),
-      estado_despacho: "en curso"
-    };
+      const btnCrearDespacho = document.getElementById('btnCrearDespacho');
+      btnCrearDespacho.disabled = true; // 🔑 evita doble clic desde el inicio
 
-    // Validación rápida
-    if (!despacho.origen_despacho || !despacho.destino_despacho) {
-      alert("⚠️ Debes ingresar origen y destino del despacho.");
-      return;
-    }
+      const despacho = {
+        cliente_id: parseInt(document.getElementById('desCliente').value),
+        conductor_id: parseInt(document.getElementById('desConductor').value),
+        auto_id: parseInt(document.getElementById('desAuto').value),
+        origen_despacho: document.getElementById('desOrigen').value.trim(),
+        destino_despacho: document.getElementById('desDestino').value.trim(),
+        tarifa: parseFloat(document.getElementById('desTarifa').value),
+        estado_despacho: "en curso"
+      };
 
-    try {
-      const res = await apiFetch('/despachos', {
-        method: 'POST',
-        body: JSON.stringify(despacho)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("✅ Despacho creado correctamente");
-
-        // 🔹 Si el cliente venía de la lista de espera, eliminarlo ahora
-        if (window.clienteEnEsperaSeleccionado) {
-          await apiFetch(`/lista_espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
-
-          window.clienteEnEsperaSeleccionado = null;
-          cargarListaEspera();
-        }
-
-        // 🔹 Refrescar tablas y selects
-        //cargarDespachos();
-        cargarDespachosActivos();
-        //cargarConductoresDisponiblesDespacho();
-        cargarConductoresEnTurnoDespacho();
-        cargarAutosActivosSelect();
-
-        // 🔹 Limpieza de formulario
-        e.target.reset();
-        document.getElementById('btnCrearDespacho').disabled = true;
-
-      } else {
-        alert("❌ Error al crear despacho: " + (data.error || "verifica datos"));
+      if (!despacho.origen_despacho || !despacho.destino_despacho) {
+        alert("⚠️ Debes ingresar origen y destino del despacho.");
+        btnCrearDespacho.disabled = false; // 🔑 reactivar si falla validación
+        return;
       }
-    } catch (err) {
-      console.error("Error en creación de despacho:", err);
-      alert("❌ Error inesperado al crear despacho");
-    }
-  });
+
+      try {
+        const res = await apiFetch('/despachos', {
+          method: 'POST',
+          body: JSON.stringify(despacho)
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          console.log("✅ Despacho creado:", data); // 🔑 log de auditoría
+          alert("✅ Despacho creado correctamente");
+
+          if (window.clienteEnEsperaSeleccionado) {
+            await apiFetch(`/lista_espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
+            window.clienteEnEsperaSeleccionado = null;
+            cargarListaEspera();
+          }
+
+          // 🔹 Refrescar solo lo necesario
+          cargarDespachosActivos();
+          cargarConductoresEnTurnoDespacho();
+          cargarAutosActivosSelect();
+
+          // 🔹 Limpieza de formulario
+          e.target.reset();
+        } else {
+          alert("❌ Error al crear despacho: " + (data.error || "verifica datos"));
+        }
+      } catch (err) {
+        console.error("❌ Error en creación de despacho:", err);
+        alert("❌ Error inesperado al crear despacho");
+      } finally {
+        btnCrearDespacho.disabled = false; // 🔑 siempre reactivar al terminar
+      }
+    });
+
   //Boton para limpiar formulario de despacho
   document.getElementById("btnCancelarDespacho").addEventListener("click", function() {
     // Limpiar campos del formulario despacho
@@ -2062,8 +2070,8 @@
         alert("Auto creado correctamente");
         e.target.reset();
         cargarAutosTabla();
-        cargarAutosActivosSelect();
-        cargarAutosDisponiblesSelect();
+        //cargarAutosActivosSelect();
+        //cargarAutosDisponiblesSelect();
       } else {
         alert(data.error || "Error al crear auto");
       }
@@ -2145,42 +2153,42 @@
     }
   }
  // Cargar conductores activos en el select de crear despacho
-  async function cargarConductoresActivosSelect() {
-    try {
-      const res = await apiFetch('/conductores/activos');
-      const data = await res.json();
-      console.log("Respuesta completa de /conductores/activos:", data);
+//  async function cargarConductoresActivosSelect() {
+//    try {
+//      const res = await apiFetch('/conductores/activos');
+//      const data = await res.json();
+//      console.log("Respuesta completa de /conductores/activos:", data);
+//
+//      const sel = document.getElementById('desConductor');
+//      sel.innerHTML = "";
 
-      const sel = document.getElementById('desConductor');
-      sel.innerHTML = "";
-
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach(c => {
-          // ahora c es directamente el conductor
-          if (c.estado && c.estado.toLowerCase() === "disponible") {
-            console.log("Conductor recibido:", c);
-            const opt = document.createElement("option");
-            opt.value = c.id_conductor || c.id || c.conductor_id;
-            opt.textContent = `${c.codigo} - ${c.nombre} (${c.auto?.nro_placa || "-"})`;
-            sel.appendChild(opt);
-          } else {
-            console.warn("Conductor no disponible:", c);
-          }
-        });
-      } else {
-        const opt = document.createElement("option");
-        opt.disabled = true;
-        opt.textContent = "No hay conductores activos";
-        sel.appendChild(opt);
-      }
-    } catch (err) {
-      console.error("Error al cargar conductores activos:", err);
-      const sel = document.getElementById('desConductor');
-      if (sel) {
-        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
-      }
-    }
-  }
+//      if (Array.isArray(data) && data.length > 0) {
+//        data.forEach(c => {
+//          // ahora c es directamente el conductor
+//          if (c.estado && c.estado.toLowerCase() === "disponible") {
+//            console.log("Conductor recibido:", c);
+//            const opt = document.createElement("option");
+//            opt.value = c.id_conductor || c.id || c.conductor_id;
+//            opt.textContent = `${c.codigo} - ${c.nombre} (${c.auto?.nro_placa || "-"})`;
+//           sel.appendChild(opt);
+//          } else {
+//            console.warn("Conductor no disponible:", c);
+//          }
+//        });
+//      } else {
+//        const opt = document.createElement("option");
+//        opt.disabled = true;
+//        opt.textContent = "No hay conductores activos";
+//        sel.appendChild(opt);
+//      }
+//    } catch (err) {
+//      console.error("Error al cargar conductores activos:", err);
+//      const sel = document.getElementById('desConductor');
+//      if (sel) {
+//        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
+//      }
+//    }
+//  }
 
 
  // Registrar embarque
@@ -2304,7 +2312,7 @@
         cargarConductoresEnTurnoDespacho(); // 🔹 sincronizar despachos
         cargarAutosActivosSelect();         // 🔹 autos activos
         cargarConductoresEnTurnoCrear();    // 🔹 conductores disponibles para crear turno
-        cargarAutosDisponiblesSelect();     // 🔹 autos disponibles
+        //cargarAutosDisponiblesSelect();     // 🔹 autos disponibles
       } else {
         console.warn("⚠️ Falló el backend:", data);
         alert(data.error || data.msg || "Error al finalizar turno");
@@ -2412,17 +2420,17 @@
     }
 
   // Inicialización
-  document.addEventListener('DOMContentLoaded', () => {
-    cargarDespachosActivos();
+ // document.addEventListener('DOMContentLoaded', () => {
+ //   cargarDespachosActivos();
     //cargarConductoresActivosSelect();
     //cargarConductoresEnTurno();
     //cargarConductoresAsignacion();
-    cargarConductoresEnTurnoCrear();
-    cargarConductoresEnTurnoDespacho();
-    mostrarSeccion('despachos');
+ //   cargarConductoresEnTurnoCrear();
+ //   cargarConductoresEnTurnoDespacho();
+ //   mostrarSeccion('despachos');
 
     
-  });
+ // });
 // --- funciones de acción ---
  async function finalizarDespacho(id) {
     try {
@@ -2567,9 +2575,9 @@
       });
     }
     document.addEventListener("DOMContentLoaded", () => {
-      cargarTurnos(); 
+      //cargarTurnos(); 
       //cargarConductoresActivosSelect();
-      cargarAutosActivosSelect();
+      //cargarAutosActivosSelect();
       cargarListaEspera();
       //cargarConductoresDisponiblesDespacho();
     }); 
@@ -2764,7 +2772,16 @@
       btn.disabled = false; // volver a habilitar
     }
   });
-
+    // Nueva función para validar turnos sin renderizar tabla
+    async function validarTurnosActivos() {
+      try {
+        const res = await apiFetch('/turnos/activos');
+        return await res.json();
+      } catch (err) {
+        console.error("❌ Error validando turnos activos:", err);
+        return [];
+      }
+    }
     // Listener para activar lista de espera / crear despacho
     document.getElementById("desTelefono").addEventListener("keydown", async e => {
       if (e.key === "Enter") {
@@ -2797,15 +2814,14 @@
           return;
         }
 
-        // 3) Validar turnos activos
-        const turnos = await cargarTurnos();
+        // 3) Validar turnos activos (solo datos, sin refrescar tabla)
+        const turnos = await validarTurnosActivos();
         if (!Array.isArray(turnos) || turnos.length === 0) {
           mostrarToast("❌ No hay turnos activos → no se puede crear despacho", "error");
           btnCrear.disabled = true;
           btnListaEspera.disabled = true;
           return;
         }
-
         // 4) Poblar conductores disponibles
         const conductores = await cargarConductoresEnTurnoDespacho();
         if (!Array.isArray(conductores) || conductores.length === 0 || selConductor.options.length === 0) {
@@ -2852,8 +2868,8 @@
         if (res.ok) {
           alert("✅ Turno iniciado correctamente: " + data.id_turno);
           cargarTurnos();
-          cargarConductores();
-          cargarAutosTabla();
+          //cargarConductores();
+          //cargarAutosTabla();
           cargarConductoresEnTurnoDespacho();
           cargarAutosActivosSelect();
           cargarConductoresEnTurnoCrear();
