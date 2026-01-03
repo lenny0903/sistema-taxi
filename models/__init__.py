@@ -6,6 +6,7 @@ from .autos import Auto
 from .despachos import Despacho
 from .turnos import Turno
 from .grupo import Grupo
+from .lista_espera_multiple import ListaEsperaMultiple
 
 __all__ = [
     "Usuario",
@@ -15,5 +16,6 @@ __all__ = [
     "Auto",
     "Despacho",
     "Turno",
-    "Grupo"
+    "Grupo",
+    "ListaEsperaMultiple",
 ]

@@ -112,7 +112,7 @@
           <label class="block">Teléfono:</label>
           <input type="text" id="cliTelefonoEdit"
                 maxlength="11"
-                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                pattern="^(0276[0-9]{7}|04[0-9]{9})$"
                 title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
                 readonly
                 class="border p-2 w-full">
@@ -138,7 +138,7 @@
           <label class="block">Teléfono:</label>
           <input type="text" id="cliTelefonoNuevo"
                   maxlength="11"
-                  pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                  pattern="^(0276[0-9]{7}|04[0-9]{9})$"
                   title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
                   required
                   class="border p-2 w-full">
@@ -189,7 +189,7 @@
           <label class="block">Teléfono:</label>
           <input type="text" id="conTelefono" name="nro_telefono"
                 maxlength="11"
-                pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                pattern="^(0276[0-9]{7}|04[0-9]{9})$"
                 title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
                 class="border p-2 w-full" required>
         </div>
@@ -608,7 +608,7 @@
       setTimeout(() => {
         toast.style.opacity = "0";
         setTimeout(() => toast.remove(), 300);
-      }, 6000);
+      }, 4000);
     }
     function abrirModalCambio() {
       var modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));
@@ -856,6 +856,7 @@
     //cargarConductoresEnTurnoDespacho();
     //cargarPuntos();
     //mostrarSeccion('despachos');
+    //cargarListaEspera();
   });
   async function cargarPuntos() {
     const resp = await fetch("/api/puntos_espera");
@@ -1013,26 +1014,55 @@
         console.error("❌ Error cargando clientes:", err);
       }
     }
+    async function apiFetch(url, options = {}) {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          ...options.headers
+        };
+
+        const res = await fetch(url, { ...options, headers });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error ${res.status}: ${text}`);
+        }
+
+        // Devuelve el JSON directamente
+        return await res.json();
+      } catch (err) {
+        console.error("❌ Error en apiFetch:", err);
+        throw err;
+      }
+    }
+
+
+
     ///Cargar clientes en la tabla dinámica lista espera
     async function cargarListaEspera() {
+      console.log("📍 Ejecutando cargarListaEspera()");
       try {
-        const res = await apiFetch("/lista_espera");
+        const res = await apiFetch("/lista_espera/");
         const data = await res.json();
+        console.log("📦 Datos recibidos en lista de espera:", data);
 
         const tbody = document.querySelector("#tablaClientesEspera tbody");
+        console.log("📍 tbody encontrado:", !!tbody);
+
         tbody.innerHTML = Array.isArray(data) ? data.map((c, idx) => `
           <tr>
             <td class="border px-2 py-1">${idx + 1}</td>
-            <td>${c.nro_telefono || c.cliente_telefono || ""}</td>
-            <td class="border px-2 py-1">${c.cliente_nombre}</td>
+            <td class="border px-2 py-1">${c.nro_telefono || ""}</td>
+            <td class="border px-2 py-1">${c.cliente_nombre || ""}</td>
             <td class="border px-2 py-1">
-              ${(c.origen || '')}${c.punto_referencia ? '- Pto ref: ' + c.punto_referencia : ''}
+              ${(c.origen || '')}${c.punto_referencia ? ' - Pto ref: ' + c.punto_referencia : ''}
             </td>
-
-            <td class="border px-2 py-1">${c.destino}</td>
+            <td class="border px-2 py-1">${c.destino || ""}</td>
             <td class="border px-2 py-1">${formatearHoraLocal(c.hora)}</td>
-            <td class="border px-2 py-1">${c.tarifa}</td>
-            <td class="border px-2 py-1">${c.estado}</td>
+            <td class="border px-2 py-1">${c.tarifa || ""}</td>
+            <td class="border px-2 py-1">${c.estado || ""}</td>
             <td class="border px-2 py-1">
               <button class="bg-red-500 text-white px-2 py-1 rounded"
                       onclick="cancelarCliente(${c.id})">
@@ -1044,11 +1074,19 @@
               </button>
             </td>
           </tr>
-        `).join("") : "<tr><td colspan='7'>No hay clientes en espera</td></tr>";
+        `).join("") : "<tr><td colspan='9'>No hay clientes en espera</td></tr>";
+
+        // 🔑 Devuelve los datos para que otras funciones puedan usarlos
+        return data;
+
       } catch (err) {
-        console.error("Error cargando lista de espera:", err);
+        console.error("❌ Error cargando lista de espera:", err);
+        return []; // Devuelve array vacío en caso de error
       }
     }
+
+
+
     // Listener unificado para creación/edición de clientes
   function registrarCliente(formId, ids) {
     document.getElementById(formId).addEventListener('submit', async e => {
@@ -1610,6 +1648,7 @@
           break;
         case 'despachosActivos':
           cargarDespachosActivos();
+          cargarListaEspera();
           break;
       }
     } else {
@@ -2578,7 +2617,7 @@
       //cargarTurnos(); 
       //cargarConductoresActivosSelect();
       //cargarAutosActivosSelect();
-      cargarListaEspera();
+      //cargarListaEspera();
       //cargarConductoresDisponiblesDespacho();
     }); 
     document.addEventListener("DOMContentLoaded", () => {
@@ -2624,31 +2663,38 @@
   // Renderizar tabla de clientes en espera
   function renderClientesEspera() {
     const tbody = document.querySelector("#tablaClientesEspera tbody");
-    tbody.innerHTML = clientesEspera.map((c, idx) => `
-      <tr>
-        <td class="border px-2 py-1">${idx + 1}</td>
-        <td class="border px-2 py-1">${c.cliente}</td>
-        <td class="border px-2 py-1">
-          ${(c.origen || '')}${c.punto_referencia ? ' - ' + c.punto_referencia : ''}
-        </td>
+    console.log("clientesEspera:", clientesEspera);
 
-        <td class="border px-2 py-1">${c.destino}</td>
-        <td class="border px-2 py-1">${c.hora}</td>
-        <td class="border px-2 py-1">${c.tarifa}</td>
-        <td class="border px-2 py-1">${c.estado}</td>
-        <td class="border px-2 py-1">
-          <button onclick="cancelarCliente(${c.id})"
-                  class="bg-red-500 text-white px-2 py-1 rounded">
-            Cancelar
-          </button>
-          <button class="bg-green-500 text-white px-2 py-1 rounded"
-                  onclick="crearDespachoDesdeEspera(${c.id})">
-            Crear despacho
-          </button>
-        </td>
-      </tr>
-    `).join("");
+    tbody.innerHTML = clientesEspera.map((c, idx) => {
+      // Aquí sí existe c
+      console.log("Fila lista_espera:", c.id, "Cliente:", c.cliente_id);
+
+      return `
+        <tr>
+          <td class="border px-2 py-1">${idx + 1}</td>
+          <td class="border px-2 py-1">${c.cliente}</td>
+          <td class="border px-2 py-1">
+            ${(c.origen || '')}${c.punto_referencia ? ' - ' + c.punto_referencia : ''}
+          </td>
+          <td class="border px-2 py-1">${c.destino}</td>
+          <td class="border px-2 py-1">${c.hora}</td>
+          <td class="border px-2 py-1">${c.tarifa}</td>
+          <td class="border px-2 py-1">${c.estado}</td>
+          <td class="border px-2 py-1">
+            <button onclick="cancelarCliente(${c.id})"
+                    class="bg-red-500 text-white px-2 py-1 rounded">
+              Cancelar
+            </button>
+            <button class="bg-green-500 text-white px-2 py-1 rounded"
+                    onclick="crearDespachoDesdeEspera(${c.id})">
+              Crear despacho
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
   }
+
 
   // Habilitación de botones en creación de despacho
   async function actualizarBotones() {
@@ -3215,7 +3261,7 @@
               <label>Nuevo teléfono:</label>
               <input type="text" id="cliTelefonoNuevoTel"
                     maxlength="11"
-                    pattern="^(0276|0412|0414|0416|0424|0426)[0-9]{7}$"
+                    pattern="^(0276[0-9]{7}|04[0-9]{9})$"
                     title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
                     class="border p-2 w-full">
             </form>
@@ -3243,6 +3289,58 @@
         </div>
       </div>
     </div>
+  <!--Modal creación lista espera múltiple-->
+    <div class="modal" id="modalColaMultiple" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Crear Cola Múltiple</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formColaMultiple">
+              <label for="telefono">Teléfono del cliente:</label>
+              <input type="text" id="telefono" class="form-control mb-2" placeholder="Teléfono" required>
+              <label for="nombre">Nombre del cliente:</label>
+              <input type="text" id="nombre" class="form-control mb-2" placeholder="Nombre" required>
+              <label for="direccion">Dirección de origen:</label>
+              <input type="text" id="direccion" class="form-control mb-3" placeholder="Dirección de origen" required>
+              <button type="submit" class="btn btn-primary">Guardar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Modal tabla lista espera múltiple -->
+    <div class="modal fade" id="modalTablaListaEsperaMultiple" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Lista de Espera Múltiple</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <table id="tablaListaEspera" class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Teléfono</th>
+                  <th>Nombre</th>
+                  <th>Dirección</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Aquí se insertan las filas dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+
 
  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
@@ -3252,6 +3350,9 @@
 <!-- Archivos de modales -->
 <script src="{{ url_for('static', filename='js/modales.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lista_espera_multiple.js') }}"></script>
+
+
   <script>
     const socket = io("http://localhost:5000");
 

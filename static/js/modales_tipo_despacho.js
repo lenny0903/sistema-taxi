@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.key === "Enter") {
         event.preventDefault();
         const telefono = telefonoInput.value.trim();
-        const regexTelefono = /^(0276|0412|0414|0416|0424|0426)[0-9]{7}$/;
+        const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
 
         if (!regexTelefono.test(telefono)) {
           mostrarToast("⚠️ Número de teléfono inválido.", "error");
@@ -111,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const regexTelefono = /^(0276|0412|0414|0416|0424|0426)[0-9]{7}$/;
+    const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
     if (!regexTelefono.test(telefono)) {
       mostrarToast("⚠️ Número de teléfono inválido.", "error");
       return;

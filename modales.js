@@ -40,33 +40,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // Dentro del DOMContentLoaded que ya tienes en modales.js
   const tipo = document.getElementById("tipoDespacho");
-  if (tipo) {
-    tipo.addEventListener("change", async () => {
-      const val = tipo.value;
+    if (tipo) {
+      tipo.addEventListener("change", async () => {
+          const val = tipo.value;
 
-      if (["2","3","4"].includes(val)) {
-        const conductores = await cargarConductoresEnTurnoDespacho();
-        if (!Array.isArray(conductores) || conductores.length < parseInt(val, 10)) {
-          mostrarToast(`🚦 No hay suficientes conductores → se requieren ${val}, disponibles: ${conductores?.length || 0}`, "error");
+          if (["2","3","4"].includes(val)) {
+            const conductores = await cargarConductoresYAutosDespachoMultiple();
+            if (!Array.isArray(conductores) || conductores.length < parseInt(val, 10)) {
+              mostrarToast(`🚦 No hay suficientes conductores → se requieren ${val}, disponibles: ${conductores?.length || 0}`, "error");
+              return;
+            }
 
-          // 👉 Aquí abrimos el modal de cola múltiple
-          const modalCola = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalColaMultiple"));
-          modalCola.show();
-          return;
-        }
+            iniciarDespachoMultiple(parseInt(val, 10));
+            usados.conductores.clear();
+            usados.autos.clear();
 
-        // Si hay suficientes → flujo normal de despacho múltiple
-        iniciarDespachoMultiple(parseInt(val, 10));
-        usados.conductores.clear();
-        usados.autos.clear();
-
-        const modalEl = document.getElementById("modalDespachoMultiple");
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-      }
-    });
-  }
-
+            const modalEl = document.getElementById("modalDespachoMultiple");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+          }
+        });
+    }
 
   // -------------------------------
   // Crear despacho iterado
@@ -241,7 +235,7 @@ document.addEventListener("shown.bs.modal", async (e) => {
       if (event.key === "Enter") {
         event.preventDefault();
         const telefono = telefonoInput.value.trim();
-        const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
+        const regexTelefono = /^(0276|0412|0414|0416|0424|0426)[0-9]{7}$/;
 
         if (!regexTelefono.test(telefono)) {
           mostrarToast("⚠️ Número de teléfono inválido.", "error");

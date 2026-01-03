@@ -1,5 +1,5 @@
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
-from flask import Flask, render_template, url_for, redirect
+from flask import Flask, app, render_template, url_for, redirect
 from flask_migrate import Migrate
 from extensions import db
 import routes
@@ -66,6 +66,8 @@ def create_app():
     from routes.reservas import reservas_bp
     from routes.views import views_bp
     from routes.puntos_espera import puntos_bp
+    from routes.lista_espera_multiple import lista_espera_multiple_bp
+
     
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -83,6 +85,8 @@ def create_app():
     app.register_blueprint(views_bp)
     app.register_blueprint(reservas_bp)
     app.register_blueprint(puntos_bp)
+    app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
+
     
     @app.route("/")
     def home():
