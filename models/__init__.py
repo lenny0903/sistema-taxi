@@ -7,6 +7,9 @@ from .despachos import Despacho
 from .turnos import Turno
 from .grupo import Grupo
 from .lista_espera_multiple import ListaEsperaMultiple
+from .lista_espera import ListaEspera
+from .reserva import Reserva
+from .puntos_espera import PuntoEspera
 
 __all__ = [
     "Usuario",
@@ -18,4 +21,7 @@ __all__ = [
     "Turno",
     "Grupo",
     "ListaEsperaMultiple",
+    "ListaEspera",
+    "Reserva",
+    "PuntoEspera"
 ]
