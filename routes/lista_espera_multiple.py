@@ -7,7 +7,7 @@ lista_espera_multiple_bp = Blueprint("lista_espera_multiple", __name__)
 # GET → listar cola con datos del cliente
 @lista_espera_multiple_bp.route("/api/cola_multiple", methods=["GET"])
 def listar_cola_multiple():
-    registros = ListaEsperaMultiple.query.join(Cliente).all()
+    registros = ListaEsperaMultiple.query.join(Cliente).filter(ListaEsperaMultiple.estado == "EN_ESPERA_MULTIPLE").all()
     return jsonify([
         {
             "id_lista_multiple": r.id_lista_multiple,
@@ -57,3 +57,4 @@ def mover_a_despacho_multiple(idCola):
     db.session.commit()
 
     return jsonify({"status": "ok", "mensaje": "Cliente movido a despacho múltiple"}), 200
+

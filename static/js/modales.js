@@ -111,7 +111,38 @@ document.addEventListener("DOMContentLoaded", () => {
           mostrarToast("🎯 Iteración completa, modal cerrado", "info");
           cargarConductoresEnTurnoDespacho();
           cargarAutosActivosSelect();
+
+          const telefono = document.getElementById("modalTelefono").value.trim();
+
+          try {
+            // 1. Buscar cliente en lista_espera_multiple por teléfono
+            const resLista = await fetch("/lista_espera_multiple/api/cola_multiple");
+            const clientes = await resLista.json();
+
+            const cliente = clientes.find(c => c.telefono === telefono);
+
+            if (cliente && cliente.estado === "EN_ESPERA_MULTIPLE") {
+              const resEstado = await fetch(`/lista_espera_multiple/api/despacho_multiple/${cliente.id_lista_multiple}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ iteraciones: totalIteraciones })
+              });
+
+              if (resEstado.ok) {
+                mostrarToast("📌 Estado actualizado a 'ASIGNADO'", "success");
+                await cargarListaEsperamultiple(); // refrescar tabla
+              } else {
+                mostrarToast("⚠️ No se pudo actualizar el estado en lista de espera múltiple", "error");
+              }
+            }
+
+          } catch (err) {
+            console.error("Error al actualizar estado:", err);
+            mostrarToast("❌ Error de conexión al actualizar estado", "error");
+          }
         }
+
+
       } else {
         mostrarToast("❌ Error al crear despacho", "error");
       }

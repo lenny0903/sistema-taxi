@@ -352,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ nombre, telefono: nuevoTel })
       });
       alert("✅ Teléfono actualizado correctamente");
-      cerrarModalTelefonosClientes();
+      //cerrarModalTelefonosClientes();
       cargarClientesTel();
     } catch (err) {
       console.error("❌ Error actualizando teléfono:", err);
@@ -378,7 +378,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ nombre })
       });
       alert("✅ Cliente eliminado correctamente");
-      cerrarModalTelefonosClientes();
+      //cerrarModalTelefonosClientes();
       cargarClientesTel();
     } catch (err) {
       console.error("❌ Error eliminando cliente:", err);
@@ -386,8 +386,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   window.eliminarClienteTel = eliminarClienteTel;
-  // -------------------------------
-  // 📌 Atajo de teclado Ctrl+T (solo admins)
+  
   // -------------------------------
   // 📌 Atajo de teclado Alt+T (solo admins)
   document.addEventListener("keydown", (e) => {
@@ -401,6 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+  
 
   
 });

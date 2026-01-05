@@ -90,11 +90,15 @@ function renderListaEspera(clientes) {
       <td>${c.telefono}</td>
       <td>${c.nombre}</td>
       <td>${c.direccion}</td>
-      <td>
-        <button class="btn btn-success" onclick="pasarADespachoMultiple(${c.id_lista_multiple}, ${c.iteraciones}, '${c.telefono}', '${c.nombre}', '${c.direccion}')">
-          Despachar
-        </button>
-      </td>
+      <td>${c.iteraciones}</td>
+     <!-- <td>-->
+        <!--<button class="btn btn-success" -->
+               <!--onclick="pasarADespachoMultiple(${c.id_lista_multiple}, ${c.iteraciones}, '${c.telefono}', '${c.nombre}', '${c.direccion}')"-->
+               <!-- <button class="btn btn-success" -->
+          <!--Despachar-->
+        <!--</button>-->
+      <!--</td>-->
+
     `;
     tbody.appendChild(tr);
   });
@@ -103,53 +107,41 @@ function renderListaEspera(clientes) {
 
 // 4. Pasar cliente de lista de espera → despacho múltiple
 // Pasar cliente de lista de espera → despacho múltiple
-async function pasarADespachoMultiple(idCola, iteracionesGuardadas, telefono, nombre, direccion) {
+async function pasarADespachoMultiple(idCola, iteracionesGuardadas, telefono) {
   try {
-    // 1. Validar disponibilidad de conductores
     const disponibles = await cargarConductoresEnTurnoDespacho();
-
     if (!disponibles || disponibles.length === 0) {
       mostrarToast("❌ No hay conductores disponibles en turno", "error");
       return;
     }
 
-    // 2. Iteraciones guardadas en la tabla lista_espera_multiple
-    const iteraciones = iteracionesGuardadas;
-
-    // 3. Validar que disponibilidad >= iteraciones
-    if (disponibles.length < iteraciones) {
+    if (disponibles.length < iteracionesGuardadas) {
       mostrarToast(
-        `❌ Solo hay ${disponibles.length} conductores disponibles, se requieren ${iteraciones}`,
+        `❌ Solo hay ${disponibles.length} conductores disponibles, se requieren ${iteracionesGuardadas}`,
         "error"
       );
       return;
     }
 
-    // 4. Llamar al backend para mover cliente a despacho múltiple
     const res = await fetch(`/lista_espera_multiple/api/despacho_multiple/${idCola}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ iteraciones })
+      body: JSON.stringify({ iteraciones: iteracionesGuardadas })
     });
     const data = await res.json();
 
     if (data.status === "ok") {
-      // Cerrar modal de lista de espera
       bootstrap.Modal.getOrCreateInstance(
         document.getElementById("modalTablaListaEsperaMultiple")
       ).hide();
 
-      // 👉 Inyectar datos del cliente en los inputs del modal de despachos múltiples
+      // 👉 Solo pasar el teléfono y disparar la lógica de consulta
       const telEl = document.getElementById("modalTelefono");
-      if (telEl) telEl.value = telefono;
+      if (telEl) {
+        telEl.value = telefono;
+        telEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      }
 
-      const nombreEl = document.getElementById("modalCliente");
-      if (nombreEl) nombreEl.value = nombre;
-
-      const origenEl = document.getElementById("modalOrigen");
-      if (origenEl) origenEl.value = direccion;
-
-      // Abrir modal de despacho múltiple
       bootstrap.Modal.getOrCreateInstance(
         document.getElementById("modalDespachoMultiple")
       ).show();
@@ -163,7 +155,6 @@ async function pasarADespachoMultiple(idCola, iteracionesGuardadas, telefono, no
     mostrarToast("❌ Error de conexión con backend", "error");
   }
 }
-
 
 
 // 5. Atajo de teclado Alt+E → abrir modal de lista de espera múltiple
@@ -183,3 +174,37 @@ document.addEventListener("keydown", async (e) => {
   }
 });
 
+// Función para verificar disponibilidad y disparar alarma
+async function verificarDisponibilidadListaMultiple() {
+  try {
+    // 1. Obtener lista de espera múltiple
+    const resLista = await fetch("/lista_espera_multiple/api/cola_multiple");
+    const clientes = await resLista.json();
+
+    // 2. Obtener conductores disponibles
+    const disponibles = await cargarConductoresEnTurnoDespacho();
+
+    // 3. Revisar cada cliente en espera
+    clientes.forEach(c => {
+      if (c.estado === "EN_ESPERA_MULTIPLE") {
+        if (disponibles.length >= c.iteraciones) {
+          // 👉 Alarma para el operador
+          mostrarToast(
+            `⏰ Alerta: Cliente ${c.nombre} (${c.telefono}) tiene disponibilidad de ${disponibles.length} conductores para ${c.iteraciones} iteraciones`,
+            "info"
+          );
+
+          // Opcional: sonido de alerta
+          const audio = new Audio("/static/sounds/alerta.mp3");
+          audio.play();
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error verificando disponibilidad:", err);
+    mostrarToast("❌ Error verificando disponibilidad de conductores", "error");
+  }
+}
+
+// 4. Programar verificación cada X segundos (ej: cada 30s)
+setInterval(verificarDisponibilidadListaMultiple, 30000);
