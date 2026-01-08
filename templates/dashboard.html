@@ -325,81 +325,60 @@
       </div>
     </section>
 
-     <!-- Sección: Despachos -->
+<!-- Sección: Despachos -->
     <section id="despachos" class="seccion hidden">
       <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
 
       <form id="formDespacho" class="space-y-2">
         <!-- Teléfono + Tipo de despacho en la misma fila -->
-          <div class="flex items-center gap-2">
-            <!-- Etiqueta y Select tipoDespacho -->
-            <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
-            <select id="tipoDespacho" class="border p-2 w-40">
-              <option value="">Seleccione...</option>
+        <div class="flex items-center gap-2">
+          <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
+          <select id="tipoDespacho" class="border p-2 w-40">
+            <option value="">Seleccione...</option>
+            <option value="reserva">Reserva</option>
+            <optgroup label="Despacho múltiple">
+              <option value="2">2 vehículos</option>
+              <option value="3">3 vehículos</option>
+              <option value="4">4 vehículos</option>
+            </optgroup>
+          </select>
 
-              <!-- Opción simple -->
-              <option value="reserva">Reserva</option>
+          <label class="block">Teléfono:</label>
+          <input type="text" id="desTelefono"
+                maxlength="11"
+                pattern="^(0276[0-9]{7}|04[0-9]{9})$"
+                title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
+                class="border p-2 flex-1"
+                placeholder="Teléfono del cliente">
+        </div>
 
-              <!-- Grupo de opciones -->
-              <optgroup label="Despacho múltiple">
-                <option value="2">2 vehículos</option>
-                <option value="3">3 vehículos</option>
-                <option value="4">4 vehículos</option>
-              </optgroup>
-            </select>
+        <!-- Nombre del cliente -->
+        <label class="block">Nombre del cliente:</label>
+        <input type="text" id="desNombre" class="border p-2 w-full" placeholder="Nombre del cliente">
 
-            <!-- Campo de teléfono inicial (opcional) -->
-            <label class="block">Número de teléfono:</label>
-            <input type="text" id="desTelefono"
-                  maxlength="11"
-                  pattern="^(0276[0-9]{7}|04[0-9]{9})$"
-                  title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
-                  class="border p-2 flex-1"
-                  placeholder="Teléfono del cliente">
-          </div>
-
-
+        <!-- Origen -->
         <label class="block">Origen:</label>
-        <input type="text" id="desOrigen" class="border p-2 w-full" disabled>
+        <input type="text" id="desOrigen" class="border p-2 w-full" placeholder="Dirección de origen">
 
-        <label class="block">Destino:</label>
-        <input type="text" id="desDestino" class="border p-2 w-full" disabled>
-
-        <label class="block">Punto de referencia:</label>
-        <input type="text" id="desReferencia" class="border p-2 w-full">
-
-        <label class="block">Tarifa:</label>
-        <input type="number" id="desTarifa" class="border p-2 w-full" disabled>
-
-        <label class="block">Cliente:</label>
-        <select id="desCliente" class="border p-2 w-full"></select>
-
-        <label class="block">Conductor:</label>
-        <select id="desConductor" class="border p-2 w-full"></select>
-
-        <label class="block">Auto:</label>
-        <select id="desAuto" class="border p-2 w-full"></select>
+        <!-- Botones -->
+        <button id="btnEnviarDespacho" type="submit" 
+                class="bg-green-500 text-white px-4 py-2 rounded">
+          Enviar
+        </button>
 
         <button type="button"
           class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
           onclick="abrirModalEditarCliente()">Modificar cliente
         </button>
 
-        <button id="btnCrearDespacho" type="submit" 
-                class="bg-green-500 text-white px-4 py-2 rounded" disabled>
-          Crear despacho
-        </button>
-
-        <button id="btnListaEspera" type="button" 
-                class="bg-yellow-500 text-white px-4 py-2 rounded ml-2" disabled>
-          Enviar a lista de espera
-        </button>
-
         <button id="btnCancelarDespacho" type="button" class="btn btn-danger">
           Cancelar
         </button>
       </form>
+     
+
     </section>
+
 
 
       <section id="turnosActivos" class="seccion hidden">
@@ -436,7 +415,6 @@
                   <th class="border px-2 py-1">Conductor</th>
                   <th class="border px-2 py-1">Auto</th>
                   <th class="border px-2 py-1">Origen</th>
-                  <th class="border px-2 py-1">Destino</th>
                   <th class="border px-2 py-1">Estado</th>
                   <th class="border px-2 py-1">Acciones</th>
                 </tr>
@@ -1182,39 +1160,7 @@
     }
 
     
-    // Poblar select de conductores en turno para el despacho
-    async function cargarConductoresEnTurnoDespacho() {
-      const res = await apiFetch("/conductores/en_turno_disponibles");
-      const data = await res.json();
-      console.log("Conductores en turno disponibles:", data);
-
-      const select = document.getElementById("desConductor");
-      const btnListaEspera = document.getElementById("btnListaEspera");
-      select.innerHTML = "";
-
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach(t => {
-          const exists = [...select.options].some(opt => opt.value == t.conductor.id_conductor);
-          if (!exists) {
-            const option = document.createElement("option");
-            option.value = t.conductor.id_conductor;
-            option.textContent = `${t.conductor.codigo} - ${t.conductor.nombre} (${t.auto.nro_placa})`;
-            select.appendChild(option);
-          }
-        });
-        btnListaEspera.disabled = true;   // 🚦 hay conductores → botón deshabilitado
-      } else {
-        const option = document.createElement("option");
-        option.disabled = true;
-        option.textContent = "No hay conductores disponibles";
-        select.appendChild(option);
-        btnListaEspera.disabled = false;  // 🚦 no hay conductores → botón habilitado
-        //console.log("🚦 No hay conductores en turno → habilitando lista de espera");
-        cargarListaEspera();
-      }
-      return data; 
-    }
-
+    
   
   document.getElementById('formConductor').addEventListener('submit', async e => {
     e.preventDefault();
@@ -1643,8 +1589,8 @@
           cargarPuntos();
           break;
         case 'despachos':
-          cargarConductoresEnTurnoDespacho();
-          cargarAutosActivosSelect();
+          //cargarConductoresEnTurnoDespacho();
+          //cargarAutosActivosSelect();
           break;
         case 'despachosActivos':
           cargarDespachosActivos();
@@ -1679,83 +1625,8 @@
         ? data.map(a => `<option value="${a.id_auto}">${a.nro_placa || a.placa || '—'}</option>`).join('')
         : '<option disabled>No hay autos disponibles</option>';
     }
-   // Validar cliente por teléfono con opción de crear nuevo (incluye referencia)
-  async function validarClientePorTelefono() {
-    const telefono = document.getElementById('desTelefono').value.trim();
-    if (!telefono) return null; // 🔑 devolver null si no hay teléfono
+  
 
-    try {
-      const res = await apiFetch(`/clientes/buscar?telefono=${telefono}`);
-      const data = await res.json();
-      const selCliente = document.getElementById('desCliente');
-
-      if (Array.isArray(data) && data.length > 0) {
-        // Cliente encontrado
-        const cliente = data[0];
-        selCliente.innerHTML = `<option value="${cliente.id_cliente}">${cliente.nombre}</option>`;
-        document.getElementById('desOrigen').value = cliente.direccion;
-        document.getElementById('desReferencia').value = cliente.punto_referencia || '';
-        // Rellenar también el formulario de edición de clientes
-        document.getElementById('cliNombreEdit').value = cliente.nombre || '';
-        document.getElementById('cliTelefonoEdit').value = cliente.nro_telefono || cliente.telefono || '';
-        document.getElementById('cliTelefonoEdit').dataset.id_cliente = cliente.id_cliente; // 👈 guardar id
-        document.getElementById('cliDireccionEdit').value = cliente.direccion || '';
-        document.getElementById('cliReferenciaEdit').value = cliente.punto_referencia || '';
-
-        activarCamposDespacho(true);
-        return cliente; // ✅ devolver el cliente encontrado
-      } else {
-        // Cliente no encontrado
-        selCliente.innerHTML = '';
-        document.getElementById('desOrigen').value = '';
-        document.getElementById('desReferencia').value = '';
-        activarCamposDespacho(false);
-
-        if (confirm("Cliente no registrado. ¿Desea crear uno nuevo?")) {
-          const nombre = prompt("Ingrese el nombre del cliente:");
-          const direccion = prompt("Ingrese la dirección del cliente:");
-          const referencia = prompt("Ingrese el punto de referencia del cliente:");
-          // 🔑 Validar nombre antes de crear
-          if (!validarNombre(nombre)) {
-            alert("❌ Nombre inválido. Debe contener solo letras, tildes, espacios o apóstrofos.");
-            return null;
-          }
-          if (nombre && direccion && referencia) {
-            const nuevoCliente = { telefono, nombre, direccion, punto_referencia: referencia };
-            const resPost = await apiFetch("/clientes/", {
-              method: "POST",
-              body: JSON.stringify(nuevoCliente)
-            });
-            const result = await resPost.json();
-
-            if (resPost.ok) {
-              alert("✅ Cliente creado correctamente");
-              selCliente.innerHTML = `<option value="${result.id_cliente}">${nombre}</option>`;
-              document.getElementById('desOrigen').value = direccion;
-              document.getElementById('desReferencia').value = referencia;
-
-              // Rellenar también el formulario de edición con el nuevo cliente
-              document.getElementById('cliNombreEdit').value = nombre;
-              document.getElementById('cliTelefonoEdit').value = telefono;
-              document.getElementById('cliDireccionEdit').value = direccion;
-              document.getElementById('cliReferenciaEdit').value = referencia;
-
-              activarCamposDespacho(true);
-              return result; // ✅ devolver el nuevo cliente creado
-            } else {
-              alert("❌ Error al crear cliente: " + (result.error || "verifica datos"));
-              return null;
-            }
-          }
-        }
-
-        return null; // 🔑 devolver null si no se crea cliente
-      }
-    } catch (err) {
-      console.error("❌ Error validando cliente:", err);
-      return null; // 🔑 blindaje en caso de error
-    }
-  }
 
     // Habilitación automática del botón al completar selects
     function verificarDespachoListo() {
@@ -1771,12 +1642,14 @@
 
     // Activar/desactivar campos del despacho
     function activarCamposDespacho(estado) {
-      document.getElementById('desOrigen').disabled = !estado;
-      document.getElementById('desDestino').disabled = !estado;
-      document.getElementById('desTarifa').disabled = !estado;
-      document.getElementById('desCliente').disabled = !estado;
-      document.getElementById('desConductor').disabled = !estado;
-      document.getElementById('desAuto').disabled = !estado;
+      const nombre = document.getElementById('desNombre');
+      if (nombre) nombre.disabled = !estado;
+
+      const origen = document.getElementById('desOrigen');
+      if (origen) origen.disabled = !estado;
+
+      const enviarBtn = document.getElementById('btnEnviarDespacho');
+      if (enviarBtn) enviarBtn.disabled = !estado;
     }
 
     // Listeners
@@ -1821,11 +1694,11 @@
     });
 
 
-    document.getElementById('desCliente').addEventListener('change', verificarDespachoListo);
-    document.getElementById('desConductor').addEventListener('change', verificarDespachoListo);
-    document.getElementById('desAuto').addEventListener('change', verificarDespachoListo);
-    document.getElementById('desDestino').addEventListener('input', verificarDespachoListo);
-    document.getElementById('desTarifa').addEventListener('input', verificarDespachoListo);
+    //document.getElementById('desCliente').addEventListener('change', verificarDespachoListo);
+    //document.getElementById('desConductor').addEventListener('change', verificarDespachoListo);
+    //document.getElementById('desAuto').addEventListener('change', verificarDespachoListo);
+    //document.getElementById('desDestino').addEventListener('input', verificarDespachoListo);
+    //document.getElementById('desTarifa').addEventListener('input', verificarDespachoListo);
     document.addEventListener('DOMContentLoaded', () => {
       validarTelefono('cliTelefonoNuevo'); // formulario de cliente nuevo
       validarTelefono('cliTelefonoEdit');  // formulario de edición de cliente
@@ -1834,63 +1707,7 @@
     });
     
    
-   // Submit único del formulario de despacho-creación del despacho
-  document.getElementById('formDespacho').addEventListener('submit', async e => {
-      e.preventDefault();
-
-      const btnCrearDespacho = document.getElementById('btnCrearDespacho');
-      btnCrearDespacho.disabled = true; // 🔑 evita doble clic desde el inicio
-
-      const despacho = {
-        cliente_id: parseInt(document.getElementById('desCliente').value),
-        conductor_id: parseInt(document.getElementById('desConductor').value),
-        auto_id: parseInt(document.getElementById('desAuto').value),
-        origen_despacho: document.getElementById('desOrigen').value.trim(),
-        destino_despacho: document.getElementById('desDestino').value.trim(),
-        tarifa: parseFloat(document.getElementById('desTarifa').value),
-        estado_despacho: "en curso"
-      };
-
-      if (!despacho.origen_despacho || !despacho.destino_despacho) {
-        alert("⚠️ Debes ingresar origen y destino del despacho.");
-        btnCrearDespacho.disabled = false; // 🔑 reactivar si falla validación
-        return;
-      }
-
-      try {
-        const res = await apiFetch('/despachos', {
-          method: 'POST',
-          body: JSON.stringify(despacho)
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          console.log("✅ Despacho creado:", data); // 🔑 log de auditoría
-          alert("✅ Despacho creado correctamente");
-
-          if (window.clienteEnEsperaSeleccionado) {
-            await apiFetch(`/lista_espera/${window.clienteEnEsperaSeleccionado}`, { method: "DELETE" });
-            window.clienteEnEsperaSeleccionado = null;
-            cargarListaEspera();
-          }
-
-          // 🔹 Refrescar solo lo necesario
-          cargarDespachosActivos();
-          cargarConductoresEnTurnoDespacho();
-          cargarAutosActivosSelect();
-
-          // 🔹 Limpieza de formulario
-          e.target.reset();
-        } else {
-          alert("❌ Error al crear despacho: " + (data.error || "verifica datos"));
-        }
-      } catch (err) {
-        console.error("❌ Error en creación de despacho:", err);
-        alert("❌ Error inesperado al crear despacho");
-      } finally {
-        btnCrearDespacho.disabled = false; // 🔑 siempre reactivar al terminar
-      }
-    });
+ 
 
   //Boton para limpiar formulario de despacho
   document.getElementById("btnCancelarDespacho").addEventListener("click", function() {
@@ -1933,11 +1750,7 @@
             <td class="border px-2 py-1">${d.cliente_nombre}</td>
             <td class="border px-2 py-1">${d.conductor_nombre || '—'}</td>
             <td class="border px-2 py-1">${d.auto_placa}</td>
-            <td class="border px-2 py-1">
-              ${formatearDireccion(d.origen, d.punto_referencia)}
-            </td>
-
-            <td class="border px-2 py-1">${d.destino}</td>
+            <td class="border px-2 py-1"> ${d.origen_despacho} </td>
             <td class="border px-2 py-1">${d.estado_despacho}</td>
             <td class="border px-2 py-1 text-center">
               <button id="btnEmbarque" onclick="registrarEmbarque(${d.id_despacho})">
@@ -2348,8 +2161,8 @@
         cargarTurnos();                     // 🔹 lista de turnos activos
         cargarConductores();                // 🔹 conductores disponibles
         cargarAutosTabla();                 // 🔹 autos en tabla
-        cargarConductoresEnTurnoDespacho(); // 🔹 sincronizar despachos
-        cargarAutosActivosSelect();         // 🔹 autos activos
+        //cargarConductoresEnTurnoDespacho(); // 🔹 sincronizar despachos
+        //cargarAutosActivosSelect();         // 🔹 autos activos
         cargarConductoresEnTurnoCrear();    // 🔹 conductores disponibles para crear turno
         //cargarAutosDisponiblesSelect();     // 🔹 autos disponibles
       } else {
@@ -2471,22 +2284,26 @@
     
  // });
 // --- funciones de acción ---
- async function finalizarDespacho(id) {
+  async function finalizarDespacho(id) {
     try {
       const res = await apiFetch(`/despachos/${id}/finalizar`, { method: 'PUT' });
       const data = await res.json();
-      const select = document.getElementById("desConductor");
 
       if (res.ok) {
         alert("✅ Despacho finalizado correctamente");
 
-        // 🔑 refrescar ambas tablas
+        // 🔑 refrescar tablas
         cargarDespachosActivos(); // tabla de activos
-        //cargarDespachos();        // tabla general
-        cargarConductoresEnTurnoDespacho(); // Actulaliza conductes disponibles para despachos
-        cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
-        //cargarAutosDisponiblesSelect();
-        console.log("Conductor seleccionado:", select.value);
+        // cargarDespachos();      // tabla general
+        // cargarConductoresEnTurnoDespacho(); // actualizar conductores disponibles
+        // cargarAutosActivosSelect();         // actualizar autos disponibles
+
+        // ✅ usar datos del backend en vez de un select inexistente
+        console.log("Despacho finalizado:", {
+          id_despacho: data.id_despacho,
+          conductor: data.conductor_nombre,
+          auto: data.auto_placa
+        });
       } else {
         alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
       }
@@ -2549,21 +2366,7 @@
       }
 
 
-  // Cancelar cliente de la lista de espera
-    async function cancelarCliente(idCliente) {
-      try {
-        const res = await fetch(`/lista_espera/${idCliente}`, {
-          method: "DELETE"
-        });
-        const data = await res.json();
-        console.log("Cliente eliminado:", data);
-        // 🚦 refrescar la tabla después de eliminar
-        cargarListaEspera();
-        cargarConductoresEnTurnoDespacho();
-      } catch (err) {
-        console.error("Error eliminando cliente:", err);
-      }
-    }
+ 
     // Cancelar despacho 
     async function cancelarDespacho(id) {
       try {
@@ -2572,8 +2375,8 @@
         if (res.ok) {
           alert("⚠️ Despacho cancelado");
           cargarDespachosActivos(); // refresca la tabla
-          cargarConductoresEnTurnoDespacho();
-          cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
+          //cargarConductoresEnTurnoDespacho();
+          //cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
         } else {
           alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
         }
@@ -2620,15 +2423,12 @@
       //cargarListaEspera();
       //cargarConductoresDisponiblesDespacho();
     }); 
-    document.addEventListener("DOMContentLoaded", () => {
-      const selConductor = document.getElementById("desConductor");
-      if (selConductor) {
-        selConductor.addEventListener("change", verificarDespachoListo);
-        console.log("✅ Listener enganchado a #desConductor");
-      } else {
-        console.error("❌ #desConductor no existe en el DOM todavía");
-      }
-    });
+   const selConductor = document.getElementById("desConductor");
+    if (selConductor) {
+      selConductor.addEventListener("change", verificarDespachoListo);
+      console.log("✅ Listener enganchado a #desConductor");
+    }
+
 
     async function testConductoresActivos() {
         try {
@@ -2725,99 +2525,29 @@
   }
 
  
- // Acción: crear despacho desde la lista de espera
-  
-  async function crearDespachoDesdeEspera(clienteId) {
-    try {
-      // 0) Validar conductores disponibles desde backend y select
-      const conductores = await cargarConductoresEnTurnoDespacho(); // 🔑 ahora devuelve data
-      const selConductor = document.getElementById("desConductor");
-      console.log("🔎 Conductores en turno recibidos:", conductores);
-      console.log("🔎 Opciones actuales en select de conductores:", selConductor?.options.length);
-      if (!Array.isArray(conductores) || conductores.length === 0 || !selConductor || selConductor.options.length === 0) {
-        mostrarToast("🚫 No hay conductores libres → no se puede cargar cliente al formulario de despacho", "error");
-        document.getElementById("btnCrearDespacho").disabled = true;
-        return; // 🔑 bloquear el llenado del formulario
-      }
-
-      // 1. Obtener datos completos del cliente en espera desde el backend
-      const res = await apiFetch(`/lista_espera/${clienteId}`);
-      const cliente = await res.json();
-      console.log("Cliente recibido:", cliente);
-
-      // 2. Prellenar el formulario de creación de despacho (con defensas)
-      console.log("📝 Formulario prellenado con cliente:", {
-        id: cliente.cliente_id,
-        nombre: cliente.cliente_nombre,
-        telefono: cliente.nro_telefono,
-        origen: cliente.origen,
-        destino: cliente.destino,
-        tarifa: cliente.tarifa
-      });
-      const desCliente = document.getElementById("desCliente");
-      if (desCliente) {
-        desCliente.innerHTML = `<option selected value="${cliente.cliente_id}">${cliente.cliente_nombre}</option>`;
-      }
-
-      const desTelefono = document.getElementById("desTelefono");
-      if (desTelefono) desTelefono.value = cliente.nro_telefono || "";
-
-      const desOrigen = document.getElementById("desOrigen");
-      if (desOrigen) desOrigen.value = cliente.origen || "";
-
-      const desReferencia = document.getElementById("desReferencia");
-      if (desReferencia) desReferencia.value = cliente.punto_referencia || "";
-
-      const desDestino = document.getElementById("desDestino");
-      if (desDestino) desDestino.value = cliente.destino || "";
-
-      const desTarifa = document.getElementById("desTarifa");
-      if (desTarifa) desTarifa.value = cliente.tarifa ?? "";
-
-      // 3. Guardar referencia del cliente en espera
-      window.clienteEnEsperaSeleccionado = clienteId;
-      console.log("📌 Cliente en espera seleccionado:", window.clienteEnEsperaSeleccionado);
-      // 4. Feedback visual
-      mostrarToast(
-        `Cliente ${cliente.cliente_nombre} cargado en el formulario. Selecciona conductor y auto para confirmar el despacho.`,
-        "info"
-      );
-
-      // 5. Refrescar tabla de lista de espera para que ya no muestre al cliente
-      await cargarListaEspera();
-      console.log("🔄 Lista de espera refrescada");
-      // ✅ Activar el botón principal de creación de despacho SOLO si hay conductor
-      document.getElementById("btnCrearDespacho").disabled = false;
-
-      // 6. Mostrar sección de despachos
-      console.log("✅ Sección despachos mostrada, botón crear habilitado");
-      mostrarSeccion("despachos");
-    } catch (err) {
-      console.error("Error cargando cliente desde lista de espera:", err);
-      mostrarToast("❌ Error cargando cliente desde lista de espera", "error");
-    }
-  }
-
+ 
 
 
 
   ///////////////// Listeners //////////////////
 
 // Enviar a lista de espera
-  document.getElementById("btnListaEspera").addEventListener("click", async () => {
-    const btn = document.getElementById("btnListaEspera");
-    btn.disabled = true; // 🚦 evitar doble clic
+ const btnListaEspera = document.getElementById("btnListaEspera");
+  if (btnListaEspera) {
+    btnListaEspera.addEventListener("click", async () => {
+      btnListaEspera.disabled = true;
+      try {
+        await enviarAListaEspera();
+        cargarListaEspera();
+      } catch (err) {
+        console.error("Error enviando a lista de espera:", err);
+        alert("No se pudo enviar a lista de espera");
+      } finally {
+        btnListaEspera.disabled = false;
+      }
+    });
+  }
 
-    try {
-      await enviarAListaEspera();
-      cargarListaEspera(); // refresca la tabla
-    } catch (err) {
-      console.error("Error enviando a lista de espera:", err);
-      alert("No se pudo enviar a lista de espera");
-    } finally {
-      btn.disabled = false; // volver a habilitar
-    }
-  });
     // Nueva función para validar turnos sin renderizar tabla
     async function validarTurnosActivos() {
       try {
@@ -2828,66 +2558,12 @@
         return [];
       }
     }
-    // Listener para activar lista de espera / crear despacho
-    document.getElementById("desTelefono").addEventListener("keydown", async e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-
-        const btnCrear = document.getElementById("btnCrearDespacho");
-        const btnListaEspera = document.getElementById("btnListaEspera");
-        const selConductor = document.getElementById("desConductor");
-
-        // 1) Validar cliente por teléfono
-        const cliente = await validarClientePorTelefono();
-        if (!cliente) {
-          mostrarToast("❌ Cliente no válido → no se puede crear despacho", "error");
-          btnCrear.disabled = true;
-          btnListaEspera.disabled = true;
-          return;
-        }
-
-        // 2) Validar si cliente ya tiene despacho en curso
-        const despachos = await cargarDespachosActivos();
-        const enCurso = despachos.find(d =>
-          d.cliente_telefono === cliente.telefono &&
-          d.estado_despacho === "en curso"
-        );
-
-        if (enCurso) {
-          mostrarToast("🚫 Cliente ya tiene un despacho en curso → no se puede crear otro", "error");
-          btnCrear.disabled = true;
-          btnListaEspera.disabled = true;
-          return;
-        }
-
-        // 3) Validar turnos activos (solo datos, sin refrescar tabla)
-        const turnos = await validarTurnosActivos();
-        if (!Array.isArray(turnos) || turnos.length === 0) {
-          mostrarToast("❌ No hay turnos activos → no se puede crear despacho", "error");
-          btnCrear.disabled = true;
-          btnListaEspera.disabled = true;
-          return;
-        }
-        // 4) Poblar conductores disponibles
-        const conductores = await cargarConductoresEnTurnoDespacho();
-        if (!Array.isArray(conductores) || conductores.length === 0 || selConductor.options.length === 0) {
-          mostrarToast("🚦 Hay turnos activos pero ningún conductor disponible → enviar a lista de espera", "error");
-          btnCrear.disabled = true;
-          btnListaEspera.disabled = false;
-          return;
-        }
-
-        // 5) Todo correcto → habilitar despacho
-        btnCrear.disabled = false;
-        btnListaEspera.disabled = true;
-        mostrarToast("✔ Cliente validado y hay conductores disponibles → Crear despacho habilitado", "info");
-      }
-    });
+    
 
 
   /////// Habilitar/deshabilitar botones según selección
-  document.getElementById("desCliente").addEventListener("change", actualizarBotones);
-  document.getElementById("desConductor").addEventListener("change", actualizarBotones);
+  //document.getElementById("desCliente").addEventListener("change", actualizarBotones);
+  //document.getElementById("desConductor").addEventListener("change", actualizarBotones);
  ///// Iniciar turno
   document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("btnIniciarTurno");
@@ -2916,8 +2592,8 @@
           cargarTurnos();
           //cargarConductores();
           //cargarAutosTabla();
-          cargarConductoresEnTurnoDespacho();
-          cargarAutosActivosSelect();
+          //cargarConductoresEnTurnoDespacho();
+          //cargarAutosActivosSelect();
           cargarConductoresEnTurnoCrear();
           cargarAutosDisponiblesSelect();
         } else {
@@ -3338,9 +3014,112 @@
         </div>
       </div>
     </div>
+<!-- Modal Crear Cliente (Tailwind puro) -->
+    <div id="modalCrearCliente"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-xl font-bold mb-4">Crear nuevo cliente</h3>
+
+        <label class="block mb-2">Nombre:</label>
+        <input type="text" id="nuevoClienteNombre"
+              class="border p-2 w-full mb-3 rounded" placeholder="Nombre del cliente">
+
+        <label class="block mb-2">Dirección:</label>
+        <textarea id="nuevoClienteDireccion" 
+                  rows="4" 
+                  class="border p-2 w-full mb-3 rounded resize-y" 
+                  placeholder="Dirección completa del cliente"></textarea>
+
+        <div class="flex justify-end gap-2">
+          <button id="btnCancelarModal"
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Cancelar
+          </button>
+          <button id="btnGuardarCliente"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+   <!-- Modal cola de clientes  para despachos-->
+    <div id="modalColaClientes"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-xl w-[800px] max-h-[90vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-4">Cola de clientes en espera</h3>
+
+       <div class="max-h-96 overflow-y-auto border border-gray-300 rounded">
+          <table class="table-auto w-full border-collapse">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="border px-2 py-1">Teléfono</th>
+                <th class="border px-2 py-1">Nombre</th>
+                <th class="border px-2 py-1">Dirección</th>
+                <th class="border px-2 py-1">Nro Autos</th>
+                <th class="border px-2 py-1">Tarifa</th>
+                <th class="border px-2 py-1">Estado</th>
+                <th class="border px-2 py-1">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaColaClientes">
+              <!-- Filas dinámicas generadas por JS -->
+            </tbody>
+          </table>
+        </div>
 
 
+        <div class="flex justify-end mt-4">
+          <button id="btnCerrarCola"
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+   <!-- Modal para asignar despacho -->
+    <div id="modalCrearDespacho"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-xl font-bold mb-4">Asignar despacho</h3>
+        <!-- Campos ocultos para cliente y origen -->
+        <input type="hidden" id="modalClienteId">
+        <input type="hidden" id="modalOrigen">
 
+        <!-- Select de conductores -->
+        <label class="block mb-2">Conductor:</label>
+        <select id="selectConductor"
+                class="border p-2 w-full mb-3 rounded">
+          <!-- Opciones dinámicas cargadas por JS -->
+          <!-- Ejemplo:
+          <option value="1">Pedro Gómez</option>
+          <option value="2">María López</option>
+          -->
+        </select>
+
+        <!-- Select de autos -->
+        <label class="block mb-2">Auto:</label>
+        <select id="selectAuto"
+                class="border p-2 w-full mb-3 rounded">
+          <!-- Opciones dinámicas cargadas por JS -->
+          <!-- Ejemplo:
+          <option value="10">Toyota Corolla - ABC123</option>
+          <option value="11">Chevrolet Aveo - XYZ789</option>
+          -->
+        </select>
+
+        <!-- Botones -->
+        <div class="flex justify-end gap-2 mt-4">
+          <button id="btnCancelarDespacho"
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Cancelar
+          </button>
+          <button id="btnConfirmarDespacho"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+            Despachar
+          </button>
+        </div>
+      </div>
+    </div>
 
 
  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
@@ -3352,6 +3131,7 @@
 <script src="{{ url_for('static', filename='js/modales.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lista_espera_multiple.js') }}"></script>
+<script src="{{ url_for('static', filename='js/despacho_express.js') }}"></script>
 
 
   <script>

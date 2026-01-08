@@ -20,5 +20,5 @@ class Cliente(db.Model):
             "telefono": self.telefono,
             "nombre": self.nombre,
             "direccion": self.direccion,
-            "punto_referencia": self.punto_referencia
+            #"punto_referencia": self.punto_referencia
         }

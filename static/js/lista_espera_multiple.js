@@ -201,8 +201,8 @@ async function verificarDisponibilidadListaMultiple() {
       }
     });
   } catch (err) {
-    console.error("Error verificando disponibilidad:", err);
-    mostrarToast("❌ Error verificando disponibilidad de conductores", "error");
+    //console.error("Error verificando disponibilidad:", err);
+    //mostrarToast("❌ Error verificando disponibilidad de conductores", "error");
   }
 }
 

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from models.cola_despachos import ColaDespacho
 
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
@@ -25,62 +26,58 @@ def crear_despacho():
         data = request.get_json()
         print("📥 Datos recibidos en /despachos:", data)
 
-        # Validación rápida
+        # Validación mínima
         origen = data.get("origen_despacho")
-        destino = data.get("destino_despacho")
-        if not origen or not destino:
-            return jsonify({"error": "Origen y destino son obligatorios"}), 400
+        if not origen:
+            return jsonify({"error": "El origen del despacho es obligatorio"}), 400
 
-        cliente_id = data.get("cliente_id")
+        cliente_id   = data.get("cliente_id")
         conductor_id = data.get("conductor_id")
-        auto_id = data.get("auto_id")
-        tarifa = data.get("tarifa")
-        estado = data.get("estado_despacho", "en curso")
-        grupo_id = data.get("grupo_id")
+        auto_id      = data.get("auto_id")
+        tarifa       = data.get("tarifa")
+        estado       = data.get("estado_despacho", "en curso")
+        grupo_id     = data.get("grupo_id")
+        cola_id      = data.get("cola_id")  # 🔹 id de la cola enviado desde el frontend
 
+        # Crear despacho
         nuevo_despacho = Despacho(
             origen_despacho=origen,
-            destino_despacho=destino,
             cliente_id=cliente_id,
             conductor_id=conductor_id,
             auto_id=auto_id,
             tarifa=tarifa,
             estado_despacho=estado,
-            fecha_hora_inicio=hora_local(),
+            fecha_hora_inicio=datetime.now(),
             grupo_id=grupo_id
         )
 
         db.session.add(nuevo_despacho)
 
-        # Cambiar estado del conductor a Ocupado
-        #if conductor_id:
-        #    conductor = Conductor.query.get(conductor_id)
-        #    if conductor:
-        #        conductor.estado = "Ocupado"
-        #        db.session.add(conductor)
+        # 🔹 Eliminar de la cola
+        if cola_id:
+            cola = ColaDespacho.query.get(cola_id)
+            if cola:
+                db.session.delete(cola)
 
-        # Si viene de lista de espera, marcar como finalizado
-        lista_espera_id = data.get("lista_espera_id")
-        if lista_espera_id:
-            cliente_espera = ListaEspera.query.get(lista_espera_id)
-            if cliente_espera:
-                cliente_espera.estado = "finalizado"
-                db.session.add(cliente_espera)
+        # Opcional: cambiar estado del conductor
+        # if conductor_id:
+        #     conductor = Conductor.query.get(conductor_id)
+        #     if conductor:
+        #         conductor.estado = "Ocupado"
+        #         db.session.add(conductor)
 
         db.session.commit()
 
         return jsonify({
             "msg": "Despacho creado",
             "id_despacho": nuevo_despacho.id_despacho,
-            "despacho": nuevo_despacho.to_dict()  # si tienes un método to_dict
+            "despacho": nuevo_despacho.to_dict()
         }), 201
 
     except Exception as e:
         db.session.rollback()
         print("❌ Error creando despacho:", str(e))
         return jsonify({"error": str(e)}), 500
-
-
 
 
 
@@ -232,10 +229,10 @@ def listar_despachos_activos():
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
             "origen": d.origen_despacho,
-            "destino": d.destino_despacho,
+            #"destino": d.destino_despacho,
             "tarifa": d.tarifa,
             "estado_despacho": d.estado_despacho,
-            "punto_referencia": d.cliente.punto_referencia if d.cliente else ""
+            #"punto_referencia": d.cliente.punto_referencia if d.cliente else ""
         })
     return jsonify(resultado), 200
 

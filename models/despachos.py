@@ -8,11 +8,11 @@ import pytz
 class Despacho(db.Model):
     __tablename__ = "despachos"
 
-    id_despacho = db.Column(db.Integer, primary_key=True)
+    id_despacho = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
 
     # Datos básicos del despacho
-    origen_despacho = db.Column(db.String(100), nullable=False)
-    destino_despacho = db.Column(db.String(100), nullable=False)
+    origen_despacho = db.Column(db.String(200), nullable=False)
     fecha_hora_embarque = db.Column(db.DateTime, nullable=True)
 
     # Relaciones con otras entidades
@@ -48,7 +48,6 @@ class Despacho(db.Model):
             "conductor_id": self.conductor_id,
             "auto_id": self.auto_id,
             "origen_despacho": self.origen_despacho,
-            "destino_despacho": self.destino_despacho,
             "fecha_hora_inicio": self.fecha_hora_inicio.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_inicio else None,
             "fecha_hora_fin": self.fecha_hora_fin.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_fin else None,
             "tarifa": float(self.tarifa) if self.tarifa is not None else None,
