@@ -366,10 +366,13 @@
           Enviar
         </button>
 
-        <button type="button"
-          class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
-          onclick="abrirModalEditarCliente()">Modificar cliente
+       <button type="button"
+                id="btnModificarCliente"
+                class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
+                disabled>
+          Modificar cliente
         </button>
+
 
         <button id="btnCancelarDespacho" type="button" class="btn btn-danger">
           Cancelar
@@ -493,9 +496,7 @@
                   <th>Nombre Cliente</th>
                   <th>Teléfono Cliente</th>
                   <th>Conductor</th>
-                  <th>Origen</th>
                   <th>Embarque (hora)</th>
-                  <th>Destino</th>
                   <th>Desembarque (hora)</th>
                 </tr>
               </thead>
@@ -525,7 +526,6 @@
               <tr>
                 <th>Conductor</th>
                 <th>Origen</th>
-                <th>Destino</th>
                 <th>Fecha</th>
               </tr>
             </thead>
@@ -969,29 +969,7 @@
 
    /////////////////////////FIN CRUD CLIENTES//////////////////
     // Clientes
-    async function cargarClientes() {
-      try {
-        const res = await apiFetch('/clientes');
-        const data = await res.json();
-
-        // Llenar SOLO la tabla de clientes
-        const tbody = document.querySelector('#tablaClientes tbody');
-        tbody.innerHTML = Array.isArray(data)
-          ? data.map(c => `
-            <tr onclick="seleccionarCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})">
-              <td>${c.nombre}</td>
-              <td>${c.nro_telefono}</td>
-              <td>${c.direccion || '-'}</td>
-            </tr>
-          `).join('')
-          : "<tr><td colspan='3'>No hay clientes registrados</td></tr>";
-
-        // ⚠️ Importante: NO llenar aquí el select #desCliente
-        // Ese select se llena únicamente en validarClientePorTelefono()
-      } catch (err) {
-        console.error("❌ Error cargando clientes:", err);
-      }
-    }
+    
     async function apiFetch(url, options = {}) {
       try {
         const token = localStorage.getItem("token");
@@ -1017,118 +995,7 @@
     }
 
 
-
-    ///Cargar clientes en la tabla dinámica lista espera
-    async function cargarListaEspera() {
-      console.log("📍 Ejecutando cargarListaEspera()");
-      try {
-        const res = await apiFetch("/lista_espera/");
-        const data = await res.json();
-        console.log("📦 Datos recibidos en lista de espera:", data);
-
-        const tbody = document.querySelector("#tablaClientesEspera tbody");
-        console.log("📍 tbody encontrado:", !!tbody);
-
-        tbody.innerHTML = Array.isArray(data) ? data.map((c, idx) => `
-          <tr>
-            <td class="border px-2 py-1">${idx + 1}</td>
-            <td class="border px-2 py-1">${c.nro_telefono || ""}</td>
-            <td class="border px-2 py-1">${c.cliente_nombre || ""}</td>
-            <td class="border px-2 py-1">
-              ${(c.origen || '')}${c.punto_referencia ? ' - Pto ref: ' + c.punto_referencia : ''}
-            </td>
-            <td class="border px-2 py-1">${c.destino || ""}</td>
-            <td class="border px-2 py-1">${formatearHoraLocal(c.hora)}</td>
-            <td class="border px-2 py-1">${c.tarifa || ""}</td>
-            <td class="border px-2 py-1">${c.estado || ""}</td>
-            <td class="border px-2 py-1">
-              <button class="bg-red-500 text-white px-2 py-1 rounded"
-                      onclick="cancelarCliente(${c.id})">
-                Cancelar
-              </button>
-              <button class="bg-green-500 text-white px-2 py-1 rounded"
-                      onclick="crearDespachoDesdeEspera(${c.id})">
-                Crear despacho
-              </button>
-            </td>
-          </tr>
-        `).join("") : "<tr><td colspan='9'>No hay clientes en espera</td></tr>";
-
-        // 🔑 Devuelve los datos para que otras funciones puedan usarlos
-        return data;
-
-      } catch (err) {
-        console.error("❌ Error cargando lista de espera:", err);
-        return []; // Devuelve array vacío en caso de error
-      }
-    }
-
-
-
-    // Listener unificado para creación/edición de clientes
-  function registrarCliente(formId, ids) {
-    document.getElementById(formId).addEventListener('submit', async e => {
-      e.preventDefault();
-
-      const cliente = {
-        nombre: document.getElementById(ids.nombre).value.trim(),
-        nro_telefono: document.getElementById(ids.telefono).value.trim(),
-        direccion: document.getElementById(ids.direccion).value.trim(),
-        punto_referencia: document.getElementById(ids.referencia).value.trim()
-      };
-
-      try {
-        const res = await apiFetch('/clientes/', {
-          method: 'POST',
-          body: JSON.stringify(cliente)
-        });
-
-        if (res.ok) {
-          alert("✅ Cliente creado correctamente");
-          e.target.reset();
-          cargarClientes();
-        } else {
-          const data = await res.json();
-          alert("❌ Error al crear cliente: " + (data.error || "verifica datos"));
-        }
-      } catch (err) {
-        console.error("❌ Error creando cliente:", err);
-        alert("❌ Error inesperado al crear cliente.");
-      }
-    });
-  }
-
-  // 🔹 Enganchar ambos formularios con sus respectivos IDs
-  registrarCliente('formClienteNuevo', {
-    nombre: 'cliNombreNuevo',
-    telefono: 'cliTelefonoNuevo',
-    direccion: 'cliDireccionNuevo',
-    referencia: 'cliReferenciaNuevo'
-  });
-
-  registrarCliente('formCliente', {
-    nombre: 'cliNombre',
-    telefono: 'cliTelefono',
-    direccion: 'cliDireccion',
-    referencia: 'cliReferencia'
-  });
-
-    //Función para seleccionar cliente y rellenar formulario de edición
-    function seleccionarCliente(c) {
-      document.getElementById('cliNombreEdit').value = c.nombre || '';
-      document.getElementById('cliTelefonoEdit').value = c.nro_telefono || c.telefono || '';
-      document.getElementById('cliTelefonoEdit').dataset.id_cliente = c.id_cliente || '';
-      document.getElementById('cliDireccionEdit').value = c.direccion || '';
-      document.getElementById('cliReferenciaEdit').value = c.punto_referencia || '';
-
-      const desOrigen = document.getElementById('desOrigen');
-      if (desOrigen) desOrigen.value = c.direccion || '';
-
-      const desRef = document.getElementById('desReferencia');
-      if (desRef) desRef.value = c.punto_referencia || '';
-    }
-
- 
+    
     // Conductores
     async function cargarConductores() {
       const res = await apiFetch('/conductores');
@@ -1853,9 +1720,7 @@
           <td>${row.cliente}</td>
           <td>${row.telefono_cliente}</td>
           <td>${row.conductor_codigo} - ${row.conductor_nombre} - ${row.auto_placa}</td>
-          <td>${row.origen}</td>
           <td>${row.embarque || "-"}</td>
-          <td>${row.destino}</td>
           <td>${row.desembarque}</td>
         `;
         tbody.appendChild(tr);
@@ -2004,44 +1869,7 @@
       alert("Error: " + (data.error || "No se pudo registrar el embarque"));
     }
   }
- // Cargar conductores activos en el select de crear despacho
-//  async function cargarConductoresActivosSelect() {
-//    try {
-//      const res = await apiFetch('/conductores/activos');
-//      const data = await res.json();
-//      console.log("Respuesta completa de /conductores/activos:", data);
-//
-//      const sel = document.getElementById('desConductor');
-//      sel.innerHTML = "";
-
-//      if (Array.isArray(data) && data.length > 0) {
-//        data.forEach(c => {
-//          // ahora c es directamente el conductor
-//          if (c.estado && c.estado.toLowerCase() === "disponible") {
-//            console.log("Conductor recibido:", c);
-//            const opt = document.createElement("option");
-//            opt.value = c.id_conductor || c.id || c.conductor_id;
-//            opt.textContent = `${c.codigo} - ${c.nombre} (${c.auto?.nro_placa || "-"})`;
-//           sel.appendChild(opt);
-//          } else {
-//            console.warn("Conductor no disponible:", c);
-//          }
-//        });
-//      } else {
-//        const opt = document.createElement("option");
-//        opt.disabled = true;
-//        opt.textContent = "No hay conductores activos";
-//        sel.appendChild(opt);
-//      }
-//    } catch (err) {
-//      console.error("Error al cargar conductores activos:", err);
-//      const sel = document.getElementById('desConductor');
-//      if (sel) {
-//        sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
-//      }
-//    }
-//  }
-
+ 
 
  // Registrar embarque
   async function registrarEmbarque(idDespacho) {
@@ -2176,37 +2004,6 @@
   }
 
 
-
-  // =======================
-  // Iniciar turno
-  // =======================
-
- //document.getElementById("btnIniciarTurno").addEventListener("click", async e => {
- //   e.preventDefault();
-//
-//    const turno = {
-//      conductor_id: document.getElementById("nuevoConductor").value,
-//      auto_id: document.getElementById("nuevoAuto").value
-//    };
-
-//    const res = await apiFetch("/turnos", {
-//      method: "POST",
-//      body: JSON.stringify(turno)
-//    });
-//    const data = await res.json();
-
-//    if (res.ok) {
-//      alert("Turno iniciado correctamente");
-//      cargarTurnos();
-//      //cargarConductoresActivosSelect();
-//      cargarAutosActivosSelect();
-//    } else {
-//      alert(data.error || "Error al iniciar turno");
-//    }
-//  });
-
-
-
   // Reportes  
   async function cargarReporte() {
     try {
@@ -2313,60 +2110,7 @@
     }
   }
 
-  // Abrir modal de edición de cliente para modificar datos
-   function abrirModalEditarCliente() {
-      document.getElementById('modalNombre').value =
-        document.getElementById('cliNombreEdit').value || "";
-
-      document.getElementById('modalDireccion').value =
-        document.getElementById('cliDireccionEdit').value || "";
-
-      document.getElementById('modalReferencia').value =
-        document.getElementById('cliReferenciaEdit').value || "";
-
-      document.getElementById('modalEditarCliente').classList.remove('hidden');
-    }
-
-
-  // Cerrar modal de edición
-    function cerrarModal() {
-      document.getElementById('modalEditarCliente').classList.add('hidden');
-    }
-
-    async function guardarCambiosCliente() {
-        const telefono = document.getElementById('cliTelefonoEdit').value.trim();
-        const nombre = document.getElementById('modalNombre').value.trim();
-        const direccion = document.getElementById('modalDireccion').value.trim();
-        const punto_referencia = document.getElementById('modalReferencia').value.trim();
-
-        if (!telefono) {
-          alert("No hay teléfono cargado para este cliente.");
-          return;
-        }
-
-        const res = await apiFetch(`/clientes/telefono/${telefono}`, {
-          method: "PUT",
-          body: JSON.stringify({ nombre, direccion, punto_referencia })
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          alert("Cliente actualizado correctamente");
-          cerrarModal();
-          cargarClientes();
-
-          // 🔑 sincronizar inputs locales
-          document.getElementById('cliDireccionEdit').value = direccion || "";
-          document.getElementById('cliReferenciaEdit').value = punto_referencia || "";
-          document.getElementById('desOrigen').value = direccion || "";
-          document.getElementById('desReferencia').value = punto_referencia || "";
-        } else {
-          alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
-        }
-      }
-
-
- 
+   
     // Cancelar despacho 
     async function cancelarDespacho(id) {
       try {
@@ -2430,31 +2174,7 @@
     }
 
 
-    async function testConductoresActivos() {
-        try {
-          const res = await apiFetch('/conductores/activos');
-          const data = await res.json();
-          console.log("[TEST] Data recibida:", data);
-
-          const sel = document.getElementById("desConductor");
-          console.log("[TEST] Select encontrado:", !!sel);
-
-        if (!sel) return;
-        sel.innerHTML = "";
-
-        data.forEach(c => {
-          const opt = document.createElement("option");
-          opt.value = c.id_conductor;
-          opt.textContent = c.nombre;
-          sel.appendChild(opt);
-        });
-
-        console.log("[TEST] Opciones creadas:", sel.options.length);
-      } catch (err) {
-        console.error("[TEST] Error:", err);
-      }
-    }
-
+   
   //document.addEventListener("DOMContentLoaded", testConductoresActivos);
   ////////Lógica para despachos con lista de espera////////////////////////
   // Array para manejar clientes en espera
@@ -2646,13 +2366,11 @@
 
         <label class="block mb-2">Dirección:</label>
         <input type="text" id="modalDireccion" class="border p-2 w-full mb-4">
-
-        <label class="block mb-2">Punto de referencia:</label>
-        <input type="text" id="modalReferencia" class="border p-2 w-full mb-4">
-
+        
         <div class="flex justify-end gap-2">
-          <button onclick="cerrarModal()" class="bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-          <button onclick="guardarCambiosCliente()" class="bg-blue-500 text-white px-3 py-1 rounded">Guardar</button>
+          <button id="btnCancelarModal" class="bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+          <button id="btnGuardarModal" class="bg-blue-500 text-white px-3 py-1 rounded">Guardar</button>
+
         </div>
       </div>
     </div>
@@ -2735,7 +2453,27 @@
                 </div>
 
                 <!-- Conductor -->
-                <div>
+                <div> <div id="reporte-container" class="mt-4">
+          <h3 id="fecha-reporte"></h3>
+          <h4 id="rango-reporte"></h4>
+          <div class="tabla-dinamica mb-4">
+            <table border="1" cellspacing="0" cellpadding="5" class="mt-2 w-full">
+              <thead>
+                <tr>
+                  <th>Nro</th>
+                  <th>Nombre Cliente</th>
+                  <th>Teléfono Cliente</th>
+                  <th>Conductor</th>
+                  <th>Embarque (hora)</th>
+                  <th>Desembarque (hora)</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-reporte">
+                <!-- filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
                   <label for="modalConductor" class="form-label">Conductor</label>
                   <select id="modalConductor" class="form-select">
                     <option value="">Seleccione...</option>
@@ -3132,7 +2870,9 @@
 <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lista_espera_multiple.js') }}"></script>
 <script src="{{ url_for('static', filename='js/despacho_express.js') }}"></script>
-
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modales_cliente.js') }}"></script>
+<script src="{{ url_for('static', filename='js/cola_despachos.js') }}"></script>
 
   <script>
     const socket = io("http://localhost:5000");

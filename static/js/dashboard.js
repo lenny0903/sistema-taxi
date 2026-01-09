@@ -142,8 +142,6 @@ document.addEventListener("DOMContentLoaded", () => {
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Tarifa</th>
             </tr>
@@ -154,8 +152,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="border px-2 py-1">${r.id_despacho}</td>
                 <td class="border px-2 py-1">${r.cliente_nombre}</td>
                 <td class="border px-2 py-1">${r.conductor_codigo} - ${r.conductor_nombre} - ${r.auto_placa}</td>
-                <td class="border px-2 py-1">${r.origen}</td>
-                <td class="border px-2 py-1">${r.destino}</td>
                 <td class="border px-2 py-1">${r.fecha}</td>
                 <td class="border px-2 py-1">${r.tarifa}</td>
               </tr>
@@ -168,26 +164,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-  function generarTablaConductores(data) {
-    return `<table class="border-collapse border w-full">
-      <thead class="bg-gray-100">
-        <tr>
-          <th class="border px-2 py-1">Conductor</th>
-          <th class="border px-2 py-1">Total Servicios</th>
-          <th class="border px-2 py-1">Total Tarifa</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${data.map(r => `
-          <tr>
-            <td class="border px-2 py-1">${r.conductor}</td>
-            <td class="border px-2 py-1">${r.total_servicios}</td>
-            <td class="border px-2 py-1">${r.total_tarifa.toFixed(2)}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>`;
+ function generarTablaConductores(data) {
+    return `
+      <div class="tabla-dinamica mb-4">
+        <table class="border-collapse border w-full min-w-max">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Total Servicios</th>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Total Tarifa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(r => `
+              <tr>
+                <td class="border px-2 py-1">${r.conductor}</td>
+                <td class="border px-2 py-1 text-center">${r.total_servicios}</td>
+                <td class="border px-2 py-1 text-right">${r.total_tarifa.toFixed(2)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
+
    // -------------------------------
   // 📌 Sección: Reportes por Cliente
   // -------------------------------
@@ -224,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
               <tr>
                 <td>${item.nombre_conductor}</td>
                 <td>${item.origen}</td>
-                <td>${item.destino}</td>
                 <td>${item.ultima_fecha}</td>
               </tr>
             `;

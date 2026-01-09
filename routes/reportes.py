@@ -11,25 +11,49 @@ from models.clientes import Cliente
 
 reporte_bp = Blueprint('reportes', __name__, url_prefix='/reportes')
 
-# -------------------------------
-# 📌 Reporte por conductor (sin rango de fechas)
-# -------------------------------
-@reporte_bp.route('/conductor', methods=['GET'])
-@jwt_required()
-def reporte_por_conductor():
-    resultados = db.session.query(
-        Conductor.nombre,
-        func.count(Despacho.id_despacho).label('total_servicios'),
-        func.sum(Despacho.tarifa).label('total_tarifas')
-    ).join(Despacho, Despacho.conductor_id == Conductor.id_conductor)\
-     .filter(Despacho.estado_despacho == 'finalizado')\
-     .group_by(Conductor.nombre).all()
+@reporte_bp.route("/conductores", methods=["GET"])
+def reportes_por_conductor():
+    try:
+        inicio = request.args.get("inicio")
+        fin = request.args.get("fin")
 
-    return jsonify([{
-        "conductor": r[0],
-        "total_servicios": r[1],
-        "total_tarifas": float(r[2]) if r[2] else 0
-    } for r in resultados])
+        if not inicio or not fin:
+            return jsonify({"error": "Debes enviar inicio y fin"}), 400
+
+        inicio_dt = datetime.strptime(inicio, "%Y-%m-%d")
+        fin_dt = datetime.strptime(fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+
+        resultados = (
+            db.session.query(
+                Conductor.nombre.label("nombre_conductor"),
+                func.count(Despacho.id_despacho).label("total_servicios"),
+                func.sum(Despacho.tarifa).label("total_tarifa")
+            )
+            .join(Despacho, Conductor.id_conductor == Despacho.conductor_id)
+            .filter(
+                Despacho.fecha_hora_fin >= inicio_dt,
+                Despacho.fecha_hora_fin <= fin_dt,
+                Despacho.estado_despacho == "finalizado"
+            )
+            .group_by(Conductor.nombre)
+            .all()
+        )
+
+        data = [
+            {
+                "conductor": r.nombre_conductor,   # 👈 usar alias correcto
+                "total_servicios": r.total_servicios,
+                "total_tarifa": float(r.total_tarifa) if r.total_tarifa else 0.0
+            }
+            for r in resultados
+        ]
+
+        return jsonify(data)
+
+    except Exception as e:
+        current_app.logger.error(f"Error en /reportes/conductores: {e}")
+        return jsonify({"error": "Error interno al generar reporte por conductor"}), 500
+
 
 # -------------------------------
 # 📌 Reporte general entre fechas
@@ -64,8 +88,8 @@ def reportes():
             "conductor_codigo": d.conductor.codigo if d.conductor else "-",
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
-            "origen": d.origen_despacho or "-",
-            "destino": d.destino_despacho or "-",
+            #"origen": d.origen_despacho or "-",
+            #"destino": d.destino_despacho or "-",
             "fecha": d.fecha_hora_fin.strftime("%Y-%m-%d %H:%M") if d.fecha_hora_fin else "-",
             "tarifa": d.tarifa or 0.0
         }
@@ -204,9 +228,9 @@ def reporte_embarque_desembarque():
             "conductor_codigo": d.conductor.codigo if d.conductor else "-",
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
-            "origen": d.origen_despacho or "-",
+            #"origen": d.origen_despacho or "-",
             "embarque": d.fecha_hora_embarque.strftime("%H:%M") if d.fecha_hora_embarque else "-",
-            "destino": d.destino_despacho or "-",
+            #"destino": d.destino_despacho or "-",
             "desembarque": d.fecha_hora_fin.strftime("%H:%M") if d.fecha_hora_fin else "-"
         }
         for idx, d in enumerate(despachos)
@@ -235,7 +259,7 @@ def reporte_por_cliente():
                 Conductor.codigo,
                 Conductor.nombre,
                 Despacho.origen_despacho,
-                Despacho.destino_despacho,
+                #Despacho.destino_despacho,
                 Despacho.fecha_hora_fin
             )
             .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
@@ -253,7 +277,7 @@ def reporte_por_cliente():
             data.append({
                 "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
                 "origen": r.origen_despacho,
-                "destino": r.destino_despacho,
+                # "destino": r.destino_despacho,
                 "ultima_fecha": ultima
             })
 

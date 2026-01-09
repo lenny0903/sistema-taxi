@@ -1,10 +1,8 @@
+// ==================== Bloque 1: Flujo rápido (alta demanda) ====================
 document.addEventListener("DOMContentLoaded", () => {
   const formDespacho = document.getElementById("formDespacho");
   const telefonoInput = document.getElementById("desTelefono");
   const btnEnviar = document.getElementById("btnEnviarDespacho");
-  const modalCola = document.getElementById("modalColaClientes");
-  const tbodyCola = document.getElementById("tablaColaClientes");
-  const btnCerrarCola = document.getElementById("btnCerrarCola");
 
   // Estado inicial
   btnEnviar.disabled = true;
@@ -16,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("⚠️ Primero valida o crea el cliente antes de enviar.");
       return;
     }
-    await crearCola();
+    await crearCola(); // ✅ flujo rápido
   });
 
   // Enter en teléfono → validar cliente
@@ -27,67 +25,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Alt+C → abrir modal cola
-  document.addEventListener("keydown", (event) => {
-    if (event.altKey && event.key.toLowerCase() === "c") {
-      event.preventDefault();
-      abrirModalCola();
-    }
+  // Refrescar cola cuando se edita cliente
+  document.addEventListener("clienteActualizado", () => {
+    cargarColaClientes();
   });
-
-  // Botón cerrar modal cola
-  if (btnCerrarCola) {
-    btnCerrarCola.addEventListener("click", cerrarModalCola);
-  }
+  
 });
 
-// ==================== Funciones auxiliares ====================
-
-function activarCamposDespacho(habilitar) {
-  const btnEnviar = document.getElementById("btnEnviarDespacho");
-  if (btnEnviar) btnEnviar.disabled = !habilitar;
-}
-
-async function validarClientePorTelefono() {
-  const telefono = document.getElementById('desTelefono').value.trim();
-  if (!telefono) return null;
-
-  try {
-    const res = await apiFetch(`/clientes/buscar?telefono=${telefono}`);
-    const data = await res.json();
-    console.log("Respuesta backend:", data); // 👀 para ver estructura real
-
-    let cliente = null;
-    if (Array.isArray(data) && data.length > 0) {
-      cliente = data[0];
-    } else if (data && typeof data === "object" && data.cliente) {
-      cliente = data.cliente;
-    }
-
-    if (cliente) {
-      document.getElementById('desNombre').value = cliente.nombre || '';
-      document.getElementById('desOrigen').value = cliente.direccion || '';
-      activarCamposDespacho(true);
-      return cliente;
-    } else {
-      document.getElementById('desNombre').value = '';
-      document.getElementById('desOrigen').value = '';
-      activarCamposDespacho(false);
-      abrirModalCrearCliente(telefono);
-      return null;
-    }
-  } catch (err) {
-    console.error("❌ Error validando cliente:", err);
-    return null;
-  }
-}
-
-
+// Función auxiliar: crear cola
 async function crearCola() {
   const telefono = document.getElementById("desTelefono").value.trim();
-  const nombre   = document.getElementById("desNombre").value.trim();
-  const origen   = document.getElementById("desOrigen").value.trim();
-  const tipo     = document.getElementById("tipoDespacho").value;
+  const nombre = document.getElementById("desNombre").value.trim();
+  const origen = document.getElementById("desOrigen").value.trim();
+  const tipo = document.getElementById("tipoDespacho").value;
 
   let nro_autos = 1;
   if (tipo && !isNaN(tipo)) nro_autos = parseInt(tipo);
@@ -99,62 +49,42 @@ async function crearCola() {
       method: "POST",
       body: JSON.stringify(payload)
     });
+
     if (!res.ok) {
       mostrarToast("❌ Error al crear cola: " + res.status, "error");
       return;
     }
+
     await res.json();
     mostrarToast("✅ Cliente agregado a la cola", "success");
+
     document.getElementById("formDespacho").reset();
     activarCamposDespacho(false);
+
+    // 🔎 refrescar datos en segundo plano, sin abrir modal
+    await cargarColaClientes();
   } catch (err) {
     console.error("❌ Error enviando despacho:", err);
+    mostrarToast("❌ Error de conexión al crear cola", "error");
   }
 }
 
-function abrirModalCrearCliente(telefono) {
-  const modal = document.getElementById("modalCrearCliente");
-  modal.classList.remove("hidden");
-  document.getElementById("btnGuardarCliente").onclick = async () => {
-    const nombre = document.getElementById("nuevoClienteNombre").value.trim();
-    const direccion = document.getElementById("nuevoClienteDireccion").value.trim();
-    if (!validarNombre(nombre)) {
-      alert("❌ Nombre inválido.");
-      return;
-    }
-    const nuevoCliente = { telefono, nombre, direccion };
-    const resPost = await apiFetch("/clientes/", {
-      method: "POST",
-      body: JSON.stringify(nuevoCliente)
-    });
-    const result = await resPost.json();
-    if (resPost.ok) {
-      mostrarToast("✅ Cliente creado correctamente", "info");
-      document.getElementById('desNombre').value = nombre;
-      document.getElementById('desOrigen').value = direccion;
-      activarCamposDespacho(true);
-    } else {
-      mostrarToast("❌ Error al crear cliente: " + (result.error || "verifica datos"), "error");
-    }
-    cerrarModalCrearCliente();
-  };
-  document.getElementById("btnCancelarModal").onclick = cerrarModalCrearCliente;
-}
 
-function cerrarModalCrearCliente() {
-  const modal = document.getElementById("modalCrearCliente");
-  modal.classList.add("hidden");
-}
+// ==================== Cola de Clientes ====================
 
-function validarNombre(nombre) {
-  return nombre && nombre.trim().length >= 2;
-}
+// Abrir modal con Alt+C
+document.addEventListener("keydown", (event) => {
+  if (event.altKey && event.key.toLowerCase() === "c") {
+    event.preventDefault();
+    abrirModalCola();
+  }
+});
 
-// Cola de clientes
 function abrirModalCola() {
+  console.log("⚡ abrirModalCola ejecutado desde despachos_express.js");
   const modalCola = document.getElementById("modalColaClientes");
   modalCola.classList.remove("hidden");
-  cargarColaClientes();
+  cargarColaClientes(); // refresca tabla al abrir
 }
 
 function cerrarModalCola() {
@@ -162,53 +92,117 @@ function cerrarModalCola() {
   modalCola.classList.add("hidden");
 }
 
+// Listener para botón cerrar modal
+const btnCerrarCola = document.getElementById("btnCerrarCola");
+if (btnCerrarCola) {
+  btnCerrarCola.addEventListener("click", cerrarModalCola);
+}
+
+// Cargar clientes en la cola
 async function cargarColaClientes() {
+  console.log("⚡ cargarColaClientes ejecutado");
   const tbodyCola = document.getElementById("tablaColaClientes");
+  tbodyCola.innerHTML = `<tr><td colspan="7">Cargando...</td></tr>`;
+
   try {
-    const res = await apiFetch("/cola_despachos/");
-    const data = await res.json();
-    tbodyCola.innerHTML = "";
-    if (!Array.isArray(data) || data.length === 0) {
-      tbodyCola.innerHTML = `<tr><td colspan="6" class="text-center">No hay clientes en cola</td></tr>`;
+    const token = localStorage.getItem("token");
+    console.log("🔑 Token leído:", token);
+
+    const res = await fetch("http://127.0.0.1:5000/cola_despachos/", {
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    console.log("📡 Status HTTP:", res.status);
+
+    if (!res.ok) {
+      tbodyCola.innerHTML = `<tr><td colspan="7">Error ${res.status} al cargar cola</td></tr>`;
       return;
     }
-    data.forEach(cliente => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border px-2 py-1">${cliente.cliente?.telefono || ""}</td>
-        <td class="border px-2 py-1">${cliente.cliente?.nombre || ""}</td>
-        <td class="border px-2 py-1">${cliente.cliente?.direccion || ""}</td>
-        <td class="border px-2 py-1">${cliente.nro_autos}</td>
+
+    const data = await res.json();
+    console.log("📡 Cola recibida:", data);
+
+    if (!Array.isArray(data) || data.length === 0) {
+      tbodyCola.innerHTML = `<tr><td colspan="7" class="text-center">No hay clientes en cola</td></tr>`;
+      return;
+    }
+
+    tbodyCola.innerHTML = data.map(c => `
+     <tr>
+        <td class="border px-2 py-1">${c.cliente?.telefono || ""}</td>
+        <td class="border px-2 py-1">${c.cliente?.nombre || ""}</td>
+        <td class="border px-2 py-1">${c.cliente?.direccion || ""}</td>
+        <td class="border px-2 py-1">${c.nro_autos}</td>
         <td class="border px-2 py-1">
-          <input type="number" id="tarifaCliente_${cliente.cliente?.id_cliente}" 
-                class="border p-1 w-24 rounded" 
+          <input type="number" id="tarifaCliente_${c.id_cola}"
+                class="border p-1 w-24 rounded"
                 placeholder="Bs." min="0">
         </td>
-        <td class="border px-2 py-1">${cliente.estado}</td>
+        <td class="border px-2 py-1">${c.estado}</td>
         <td class="border px-2 py-1">
-         <button 
-            onclick="abrirModalDespacho(${cliente.id_cola}, ${cliente.cliente?.id_cliente}, '${cliente.cliente?.direccion || ""}')" 
-            class="bg-blue-600 text-white px-2 py-1 rounded">
-            Asignar
-          </button>
-
-          <button onclick="cancelarCliente(${cliente.id_cola})" class="bg-red-600 text-white px-2 py-1 rounded">Cancelar</button>
+          <button onclick="abrirModalDespacho(${c.id_cola}, ${c.cliente?.id_cliente}, '${c.cliente?.direccion || ""}')"
+                  class="bg-blue-600 text-white px-2 py-1 rounded">Asignar</button>
+          <button onclick="cancelarCliente(${c.id_cola})"
+                  class="bg-red-600 text-white px-2 py-1 rounded">Cancelar</button>
         </td>
-      `;
-      tbodyCola.appendChild(tr);
-    });
+      </tr>
+    `).join("");
+
   } catch (err) {
     console.error("❌ Error cargando cola:", err);
+    tbodyCola.innerHTML = `<tr><td colspan="7">Error cargando cola</td></tr>`;
   }
 }
-/////Para modal de asignación de conductor y vehículo/////
-let colaSeleccionada = null; // id de la cola que estamos asignando
+
+// Cancelar cliente de la cola
+async function cancelarCliente(idCola) {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`http://127.0.0.1:5000/cola_despachos/${idCola}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    if (!res.ok) {
+      mostrarToast("❌ Error al cancelar cliente: " + res.status, "error");
+      return;
+    }
+
+    mostrarToast("✅ Cliente cancelado de la cola", "success");
+    await cargarColaClientes(); // refresca tabla
+  } catch (err) {
+    console.error("❌ Error cancelando cliente:", err);
+    mostrarToast("❌ Error de conexión al cancelar cliente", "error");
+  }
+}
+
+let colaSeleccionada = null;
 let clienteSeleccionado = null;
 let datosFormularioDespacho = {};
 
 async function abrirModalDespacho(idCola, idCliente, direccion) {
   colaSeleccionada = idCola;
   clienteSeleccionado = idCliente;
+
+  // Capturar tarifa desde la fila de la cola
+  const tarifaEl = document.getElementById("tarifaCliente_" + idCola);
+  const tarifa = tarifaEl ? tarifaEl.value.trim() : "";
+
+  // 👉 Validar que el operador haya colocado la tarifa
+  if (!tarifa) {
+    mostrarToast("⚠️ Debes colocar la tarifa antes de asignar el despacho", "error");
+    return; // 🚫 no abrir modal
+  }
+
+  // Pasar valores al modal
+  document.getElementById("modalClienteId").value = idCliente;
+  document.getElementById("modalOrigen").value = direccion || "";
+  document.getElementById("modalTarifa").value = tarifa;
 
   // Capturar valores del formulario principal
   datosFormularioDespacho = {
@@ -218,14 +212,13 @@ async function abrirModalDespacho(idCola, idCliente, direccion) {
     origen: document.getElementById("desOrigen").value
   };
 
-  // 🔎 Validar disponibilidad antes de abrir modal
+  // Validar disponibilidad de conductores
   try {
     const res = await apiFetch("/conductores/en_turno_disponibles");
     const data = await res.json();
-
     if (!Array.isArray(data) || data.length === 0) {
       mostrarToast("⚠️ No hay conductores disponibles en turno", "error");
-      return; // 🚫 no abrir modal
+      return;
     }
   } catch (err) {
     console.error("❌ Error validando disponibilidad de conductores:", err);
@@ -233,38 +226,25 @@ async function abrirModalDespacho(idCola, idCliente, direccion) {
     return;
   }
 
-  // Capturar tarifa desde la fila de la cola
-  const tarifaEl = document.getElementById("tarifaCliente_" + idCliente);
-  const tarifa = tarifaEl ? tarifaEl.value : "";
-
-  // Pasar valores al modal oculto
-  document.getElementById("modalClienteId").value = idCliente;
-  document.getElementById("modalOrigen").value = direccion || "";
-  document.getElementById("modalTarifa").value = tarifa;
-
-  // Mostrar modal solo si hay disponibilidad
+  // Mostrar modal
   const modal = document.getElementById("modalCrearDespacho");
   modal.classList.remove("hidden");
 
-  // Cargar opciones dinámicas
+  // Poblar selects
   await cargarConductoresModal();
   await cargarAutosModal();
 }
 
-
-// Poblar select de conductores en turno dentro del modal
 async function cargarConductoresModal() {
   try {
     const res = await apiFetch("/conductores/en_turno_disponibles");
     const data = await res.json();
-    console.log("Conductores en turno disponibles:", data);
-
     const select = document.getElementById("selectConductor");
     select.innerHTML = "";
 
     if (Array.isArray(data) && data.length > 0) {
       data.forEach(t => {
-        const c = t.conductor || t; // puede venir como {conductor:{...}} o directo
+        const c = t.conductor || t;
         const a = t.auto || {};
         if (c && c.id_conductor) {
           const option = document.createElement("option");
@@ -282,19 +262,16 @@ async function cargarConductoresModal() {
   }
 }
 
-// Poblar select de autos disponibles dentro del modal
 async function cargarAutosModal() {
   try {
     const res = await apiFetch("/conductores/en_turno_disponibles");
     const data = await res.json();
-    console.log("Autos en turno recibidos:", data);
-
     const sel = document.getElementById("selectAuto");
     sel.innerHTML = "";
 
     if (Array.isArray(data) && data.length > 0) {
       data.forEach(t => {
-        const a = t.auto || t; // puede venir como {auto:{...}} o directo
+        const a = t.auto || t;
         const c = t.conductor || {};
         if (a && a.id_auto) {
           const opt = document.createElement("option");
@@ -312,33 +289,13 @@ async function cargarAutosModal() {
   }
 }
 
-// Listener para botón Cancelar
-document.addEventListener("click", (event) => {
-  if (event.target.id === "btnCancelarDespacho") {
-    const modal = document.getElementById("modalCrearDespacho");
-    modal.classList.add("hidden");
-    colaSeleccionada = null;
-    clienteSeleccionado = null;
-    datosFormularioDespacho = {};
-    mostrarToast("❌ Despacho cancelado", "info"); // opcional
-  }
-});
-
-
-
 document.getElementById("btnConfirmarDespacho").onclick = async () => {
-  const conductorId = document.getElementById("selectConductor")?.value;
-  const autoId = document.getElementById("selectAuto")?.value;
-  const origen = document.getElementById("modalOrigen")?.value?.trim();
-  const clienteId = document.getElementById("modalClienteId")?.value;
-  const tarifa = document.getElementById("modalTarifa")?.value || null;
-  
-  // Logs de depuración
-  console.log("clienteId:", clienteId);
-  console.log("conductorId:", conductorId);
-  console.log("autoId:", autoId);
-  console.log("origen:", origen);
-  console.log("tarifa:", tarifa);
+  const conductorId = document.getElementById("selectConductor").value;
+  const autoId = document.getElementById("selectAuto").value;
+  const origen = document.getElementById("modalOrigen").value.trim();
+  const clienteId = document.getElementById("modalClienteId").value;
+  const tarifa = document.getElementById("modalTarifa").value;
+
   if (!clienteId || !conductorId || !autoId || !origen || !tarifa) {
     mostrarToast("⚠️ Debes completar origen, cliente, conductor, auto y tarifa", "error");
     return;
@@ -349,7 +306,7 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
     cliente_id: clienteId,
     conductor_id: conductorId,
     auto_id: autoId,
-    tarifa: tarifa,
+    tarifa,
     estado_despacho: "en curso",
     tipo_despacho: datosFormularioDespacho.tipoDespacho,
     telefono: datosFormularioDespacho.telefono,
@@ -379,19 +336,20 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
     mostrarToast("❌ Error de conexión al crear despacho", "error");
   }
 };
-///Cancelar cliente de la cola///
-async function cancelarCliente(idCola) {
-  try {
-    const res = await apiFetch(`/cola_despachos/${idCola}`, { method: "DELETE" });
-    if (res.ok) {
-      mostrarToast("✅ Cliente cancelado de la cola", "success");
-      await cargarColaClientes(); // refrescar tabla
-    } else {
-      const error = await res.json();
-      mostrarToast("❌ Error al cancelar cliente: " + (error.error || res.status), "error");
-    }
-  } catch (err) {
-    console.error("❌ Error cancelando cliente:", err);
-    mostrarToast("❌ Error de conexión al cancelar cliente", "error");
+
+// Listener para botón Cancelar
+document.addEventListener("click", (event) => {
+  if (event.target.id === "btnCancelarDespacho") {
+    const modal = document.getElementById("modalCrearDespacho");
+    modal.classList.add("hidden");
+    colaSeleccionada = null;
+    clienteSeleccionado = null;
+    datosFormularioDespacho = {};
+    mostrarToast("❌ Despacho cancelado", "info"); // opcional
   }
-}
+});
+
+
+
+
+
