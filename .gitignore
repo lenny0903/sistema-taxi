@@ -3,3 +3,7 @@ __pycache__/
 *.db
 *~
 .~lock.*
+node_modules/
+.env
+*.log
+__pycache__/
