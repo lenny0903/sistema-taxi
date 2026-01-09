@@ -413,6 +413,7 @@
             <table id="tablaDespachosActivos" class="mt-4 w-full border-collapse border border-gray-300">
               <thead class="bg-gray-100">
                 <tr data-id="${d.id_despacho}"> <!-- 🚦 id oculto -->
+                  <th class="border px-2 py-1">#</th>
                   <th class="border px-2 py-1">Teléfono Cliente</th>
                   <th class="border px-2 py-1">Cliente</th>
                   <th class="border px-2 py-1">Conductor</th>
@@ -760,18 +761,6 @@
     });
 
 
-    // Mostrar secciones
-  // function mostrarSeccion(id) {
-  //    document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-  //    const target = document.getElementById(id.trim());
-  //    if (target) {
-  //      target.classList.remove('hidden');
-  //    } else {
-  //      console.error(`⚠️ Sección ${id} no encontrada`);
-  //    }
-  //  }
-
-
   document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('token');
     const rol = localStorage.getItem('rol');
@@ -808,33 +797,7 @@
         headers: { ...baseHeaders, ...(options.headers || {}) }
       });
     };
-    // 🔗 Enlazar botón "Crear turno" con la función
-  //  const btnCrearTurno = document.getElementById("btnCrearTurno");
-  //  if (btnCrearTurno) {
-  //    btnCrearTurno.addEventListener("click", async (e) => {
-  //      e.preventDefault(); // 🔑 evita submit doble si el botón está dentro de un form
-  //      btnCrearTurno.disabled = true; // 🔑 evita doble clic
-
-  //      try {
-  //        await crearTurno();
-   //     } finally {
-    //      btnCrearTurno.disabled = false; // 🔑 se vuelve a habilitar al terminar
-    //    }
-    //  });
-    //}
     
-    
-    
-    //cargarClientes();
-    //cargarConductores();
-    //cargarAutosTabla();
-    //cargarTurnos();
-    //cargarConductoresEnTurnoCrear();
-    //cargarAutosDisponiblesSelect();
-    //cargarConductoresEnTurnoDespacho();
-    //cargarPuntos();
-    //mostrarSeccion('despachos');
-    //cargarListaEspera();
   });
   async function cargarPuntos() {
     const resp = await fetch("/api/puntos_espera");
@@ -967,35 +930,7 @@
       }
     }
 
-   /////////////////////////FIN CRUD CLIENTES//////////////////
-    // Clientes
-    
-    async function apiFetch(url, options = {}) {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-          ...options.headers
-        };
-
-        const res = await fetch(url, { ...options, headers });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Error ${res.status}: ${text}`);
-        }
-
-        // Devuelve el JSON directamente
-        return await res.json();
-      } catch (err) {
-        console.error("❌ Error en apiFetch:", err);
-        throw err;
-      }
-    }
-
-
-    
+      
     // Conductores
     async function cargarConductores() {
       const res = await apiFetch('/conductores');
@@ -1282,102 +1217,7 @@
     }
   }
 
-
-//cargar autos disponibles para el select de crear turno
  
-  // Función para crear turno desde el panel
-//  async function crearTurno() {
-//    const conductorId = document.getElementById("desConductor").value;
-//    const autoId = document.getElementById("selectAuto").value;
-//    const usuarioId = localStorage.getItem("usuario_id"); // operador logueado
-
-//    try {
-//      const res = await window.apiFetch("/turnos/activos", {
-//        method: "POST",
-//        body: JSON.stringify({
-//          conductor_id: conductorId,
-//          auto_id: autoId,
-//          usuario_id: usuarioId   // opcional según tu modelo
-//        })
-//      });
-//
-//      const data = await res.json();
-//
-//      if (res.ok) {
-//        // ✅ Turno creado correctamente
-//        alert("Turno creado: " + data.id_turno);
-//        cargarTurnos(); // refresca la tabla dinámica
-//        //cargarConductoresDisponiblesDespacho();
-//        cargarConductoresEnTurnoCrear();
-//        cargarConductoresEnTurnoDespacho();
-//        cargarConductoresDisponibles();
-//        cargarAutosDisponiblesSelect();
-//      } else {
-//        // ❌ Error de validación desde backend
-//        alert("Error: " + (data.error || "No se pudo crear el turno"));
-//      }
-//    } catch (err) {
-//      console.error("Error creando turno:", err);
-//      alert("Error inesperado al crear turno");
-//    }
-//  }
- 
- 
-    // Despachos
-    //async function cargarDespachos() {
-    //  const res = await apiFetch('/despachos/activos');
-    //  const data = await res.json();
-    //  const tbody = document.querySelector('#tablaDespachos tbody');
-    //  tbody.innerHTML = Array.isArray(data)
-    //    ? data.map(d => `<tr><td>${d.origen || ''}</td><td>${d.destino || ''}</td><td>${d.tarifa || ''}</td><td>${d.estado_despacho || d.estado || ''}</td></tr>`).join('')
-    //    : '';
-    //}
-    //Para enviar a tabla de la bd lista de espera
-    async function enviarAListaEspera() {
-      const cliente_id = parseInt(document.getElementById("desCliente").value);
-      const origen = document.getElementById("cliDireccionEdit").value.trim();
-      const destino = document.getElementById("desDestino").value.trim();
-      const hora = new Date().toLocaleString('sv-SE'); // 🔹 hora local en formato ISO-like
-      const nro_telefono = document.getElementById("desTelefono").value.trim();
-      const tarifa = parseFloat(document.getElementById("desTarifa").value);
-      const punto_referencia = document.getElementById("cliReferenciaEdit")?.value.trim() || null;
-
-      // 🔹 Validación defensiva
-      if (!cliente_id || !origen || !destino || !nro_telefono || isNaN(tarifa)) {
-        alert("⚠️ Debes ingresar cliente, origen, destino, teléfono y tarifa antes de enviar a lista de espera.");
-        return;
-      }
-
-      try {
-        const res = await apiFetch("/lista_espera", {
-          method: "POST",
-          body: JSON.stringify({
-            cliente_id,
-            origen,
-            destino,
-            hora,
-            nro_telefono,
-            tarifa,
-            estado: "en espera",
-            punto_referencia
-          })
-        });
-
-        if (res.ok) {
-          alert("✅ Cliente enviado a lista de espera.");
-          console.log("🚦 Enviando a lista_espera:", {
-            cliente_id, origen, destino, hora, nro_telefono, tarifa, punto_referencia
-          });
-          cargarListaEspera(); // refresca la tabla desde el backend
-        } else {
-          const data = await res.json();
-          alert("❌ Error al enviar cliente: " + (data.error || "verifica datos"));
-        }
-      } catch (err) {
-        console.error("Error en lista de espera:", err);
-        alert("❌ Error inesperado al enviar cliente a lista de espera.");
-      }
-    }
 
    // Tabla para desplegar turnos activos
   async function cargarTurnos() {
@@ -1396,6 +1236,7 @@
             <thead class="bg-gray-100">
               <tr>
                 <th class="border px-2 py-1">ID Turno</th>
+                <th class="border px-2 py-1">#</th>
                 <th class="border px-2 py-1">Conductor</th>
                 <th class="border px-2 py-1">Auto</th>
                 <th class="border px-2 py-1">Punto de espera</th>
@@ -1406,9 +1247,10 @@
             <tbody>
               ${
                 Array.isArray(data) && data.length > 0
-                  ? data.map(t => `
+                  ? data.map((t, index) => `
                     <tr class="hover:bg-gray-50 transition">
                       <td class="border px-2 py-1">${t.id_turno}</td>
+                      <td class="border px-2 py-1">${index + 1}</td> 
                       <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
                       <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
                       <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td>
@@ -1461,7 +1303,7 @@
           break;
         case 'despachosActivos':
           cargarDespachosActivos();
-          cargarListaEspera();
+          //cargarListaEspera();
           break;
       }
     } else {
@@ -1469,20 +1311,8 @@
     }
   }
 
-
-
-
-
+  
    
-    // Cargar conductores disponibles para el select de crear despacho
-  //  async function cargarConductoresDisponibles() {
-  //    const res = await apiFetch('/conductores');
-  //    const data = await res.json();
-  //    const sel = document.getElementById('desConductor');
-  //    sel.innerHTML = Array.isArray(data)
-  //       ? data.map(c => `<option value="${c.id_conductor}">${c.codigo} - ${c.nombre}</option>`).join('')
-  //      : '';
-  //   }
     //Actualizar autos disponibles para el select de crear turno
     async function cargarAutosDisponiblesSelect() {
       const res = await apiFetch('/autos/disponibles');
@@ -1519,13 +1349,7 @@
       if (enviarBtn) enviarBtn.disabled = !estado;
     }
 
-    // Listeners
-   // document.getElementById('desTelefono').addEventListener('keydown', e => {
-   //   if (e.key === 'Enter') {
-   //     e.preventDefault();
-   //     validarClientePorTelefono();
-   //   }
-   // });
+   
     // Validar cédula de conductor al presionar Enter
     document.getElementById("conCedula").addEventListener("keydown", async (event) => {
       if (event.key === "Enter") {
@@ -1573,8 +1397,7 @@
       validarTelefono('conTelefono');      // formulario de conductor
     });
     
-   
- 
+    
 
   //Boton para limpiar formulario de despacho
   document.getElementById("btnCancelarDespacho").addEventListener("click", function() {
@@ -1611,29 +1434,30 @@
       const tbody = document.querySelector('#tablaDespachosActivos tbody');
 
       tbody.innerHTML = Array.isArray(data)
-        ? data.map(d => `
+        ? data.map((t, index) => `
           <tr class="hover:bg-gray-50 transition">
-            <td class="border px-2 py-1">${d.cliente_telefono || ""}</td>
-            <td class="border px-2 py-1">${d.cliente_nombre}</td>
-            <td class="border px-2 py-1">${d.conductor_nombre || '—'}</td>
-            <td class="border px-2 py-1">${d.auto_placa}</td>
-            <td class="border px-2 py-1"> ${d.origen_despacho} </td>
-            <td class="border px-2 py-1">${d.estado_despacho}</td>
+            <td class="border px-2 py-1">${index + 1}</td> 
+            <td class="border px-2 py-1">${t.cliente_telefono || ""}</td>
+            <td class="border px-2 py-1">${t.cliente_nombre}</td>
+            <td class="border px-2 py-1">${t.conductor_nombre || '—'}</td>
+            <td class="border px-2 py-1">${t.auto_placa}</td>
+            <td class="border px-2 py-1"> ${t.origen_despacho} </td>
+            <td class="border px-2 py-1">${t.estado_despacho}</td>
             <td class="border px-2 py-1 text-center">
-              <button id="btnEmbarque" onclick="registrarEmbarque(${d.id_despacho})">
+              <button id="btnEmbarque" onclick="registrarEmbarque(${t.id_despacho})">
                 🚖 Reportar embarque
               </button>
 
               <button class="bg-green-500 text-white px-3 py-1 rounded mr-2"
-                      onclick="finalizarDespacho(${d.id_despacho})">
+                      onclick="finalizarDespacho(${t.id_despacho})">
                 Finalizar
               </button>
               <button class="bg-red-500 text-white px-3 py-1 rounded mr-2"
-                      onclick="cancelarDespacho(${d.id_despacho})">
+                      onclick="cancelarDespacho(${t.id_despacho})">
                 Cancelar
               </button>
               <button class="bg-indigo-500 text-white px-3 py-1 rounded"
-                      onclick="seleccionarDespacho(${d.id_despacho})">
+                      onclick="seleccionarDespacho(${t.id_despacho})">
                 Seleccionar
               </button>
             </td>
@@ -1693,43 +1517,45 @@
     cargarReporteEmbarqueDesembarque(inicio, fin);
   });    
   async function cargarReporteEmbarqueDesembarque(inicio, fin) {
-    try {
-      // Llamada al backend con las fechas seleccionadas
-      const res = await fetch(`/reportes/embarque_desembarque?inicio=${inicio}&fin=${fin}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        alert(errorData.error || "Error al generar el reporte");
-        return;
-      }
+  try {
+    // Llamada al backend con las fechas seleccionadas
+    const res = await fetch(`/reportes/embarque_desembarque?inicio=${inicio}&fin=${fin}`);
 
-      const data = await res.json();
-
-      // Encabezado: fecha del reporte y rango
-      document.getElementById("fecha-reporte").textContent =
-        "📅 Fecha del reporte: " + data.fecha_reporte;
-      document.getElementById("rango-reporte").textContent =
-        "📊 Rango del reporte: " + data.rango;
-
-      // Tabla dinámica
-      const tbody = document.getElementById("tabla-reporte");
-      tbody.innerHTML = ""; // limpiar antes de insertar
-      data.data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.nro}</td>
-          <td>${row.cliente}</td>
-          <td>${row.telefono_cliente}</td>
-          <td>${row.conductor_codigo} - ${row.conductor_nombre} - ${row.auto_placa}</td>
-          <td>${row.embarque || "-"}</td>
-          <td>${row.desembarque}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } catch (err) {
-      console.error("❌ Error cargando reporte:", err);
-      alert("No se pudo cargar el reporte");
+    if (!res.ok) {
+      const error = await res.json();
+      alert(error.error || "Error al generar el reporte");
+      return;
     }
+
+    const data = await res.json();
+
+    // Encabezado: fecha del reporte y rango
+    document.getElementById("fecha-reporte").textContent =
+      "📅 Fecha del reporte: " + data.fecha_reporte;
+    document.getElementById("rango-reporte").textContent =
+      "📊 Rango del reporte: " + data.rango;
+
+    // Tabla dinámica
+    const tbody = document.getElementById("tabla-reporte");
+    tbody.innerHTML = ""; // limpiar antes de insertar
+    data.data.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.nro}</td>
+        <td>${row.cliente}</td>
+        <td>${row.telefono_cliente}</td>
+        <td>${row.conductor_codigo} - ${row.conductor_nombre} - ${row.auto_placa}</td>
+        <td>${row.embarque || "-"}</td>
+        <td>${row.desembarque}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("❌ Error cargando reporte:", err);
+    alert("No se pudo cargar el reporte");
   }
+}
+
     // Validar placa con Enter
   document.addEventListener("DOMContentLoaded", () => {  
     document.getElementById("autoPlaca").addEventListener("keydown", async (event) => {
@@ -2068,18 +1894,7 @@
       }
     }
 
-  // Inicialización
- // document.addEventListener('DOMContentLoaded', () => {
- //   cargarDespachosActivos();
-    //cargarConductoresActivosSelect();
-    //cargarConductoresEnTurno();
-    //cargarConductoresAsignacion();
- //   cargarConductoresEnTurnoCrear();
- //   cargarConductoresEnTurnoDespacho();
- //   mostrarSeccion('despachos');
-
-    
- // });
+ 
 // --- funciones de acción ---
   async function finalizarDespacho(id) {
     try {
@@ -2244,30 +2059,8 @@
     });
   }
 
+  
  
- 
-
-
-
-  ///////////////// Listeners //////////////////
-
-// Enviar a lista de espera
- const btnListaEspera = document.getElementById("btnListaEspera");
-  if (btnListaEspera) {
-    btnListaEspera.addEventListener("click", async () => {
-      btnListaEspera.disabled = true;
-      try {
-        await enviarAListaEspera();
-        cargarListaEspera();
-      } catch (err) {
-        console.error("Error enviando a lista de espera:", err);
-        alert("No se pudo enviar a lista de espera");
-      } finally {
-        btnListaEspera.disabled = false;
-      }
-    });
-  }
-
     // Nueva función para validar turnos sin renderizar tabla
     async function validarTurnosActivos() {
       try {
@@ -2790,6 +2583,7 @@
           <table class="table-auto w-full border-collapse">
             <thead class="bg-gray-100 sticky top-0">
               <tr>
+                <th class="border px-2 py-1">#</th>
                 <th class="border px-2 py-1">Teléfono</th>
                 <th class="border px-2 py-1">Nombre</th>
                 <th class="border px-2 py-1">Dirección</th>

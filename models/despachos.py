@@ -38,7 +38,7 @@ class Despacho(db.Model):
     auto = db.relationship("Auto", backref="despachos")
 
     def __repr__(self):
-        return f"<Despacho {self.id_despacho} - {self.origen_despacho} → {self.destino_despacho}>"
+        return f"<Despacho {self.id_despacho} - {self.origen_despacho} ({self.estado_despacho})>"
     
     TZ_CARACAS = pytz.timezone("America/Caracas")
     def to_dict(self):

@@ -3,6 +3,7 @@ async function validarClientePorTelefono() {
   const telefono = document.getElementById('desTelefono').value.trim();
   if (!telefono) return null;
 
+  // 👇 Usa fetchDefensivo para normalizar formatos
   const clientes = await fetchDefensivo(`/clientes/buscar?telefono=${telefono}`);
   const cliente = clientes.length > 0 ? clientes[0] : null;
 
@@ -19,6 +20,8 @@ async function validarClientePorTelefono() {
     return null;
   }
 }
+
+
 
 window.validarClientePorTelefono = validarClientePorTelefono;
 
@@ -43,16 +46,17 @@ function abrirModalCrearCliente(telefono) {
       return;
     }
 
+    // 👇 aquí defines el objeto
     const nuevoCliente = { telefono, nombre, direccion };
-    const resPost = await apiFetch("/clientes/", {
+
+    const result = await apiFetch("/clientes/", {
       method: "POST",
       body: JSON.stringify(nuevoCliente)
     });
 
-    const result = await resPost.json();
-    if (resPost.ok) {
+    // Como apiFetch ya devuelve JSON, no necesitas .json() ni .ok
+    if (result && !result.error) {
       mostrarToast("✅ Cliente creado correctamente", "info");
-      // 👉 rellenar formulario base completo
       document.getElementById('desTelefono').value = telefono;
       document.getElementById('desNombre').value = nombre;
       document.getElementById('desOrigen').value = direccion;
@@ -61,11 +65,12 @@ function abrirModalCrearCliente(telefono) {
       mostrarToast("❌ Error al crear cliente: " + (result.error || "verifica datos"), "error");
     }
 
-    cerrarModalCrearCliente(); // 👉 cerrar modal al guardar
+    cerrarModalCrearCliente();
   };
 
   document.getElementById("btnCancelarModal").onclick = cerrarModalCrearCliente;
 }
+
 
 function cerrarModalCrearCliente() {
   const modal = document.getElementById("modalCrearCliente");

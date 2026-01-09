@@ -45,17 +45,17 @@ async function crearCola() {
   const payload = { telefono, nombre, origen, nro_autos };
 
   try {
-    const res = await apiFetch("/cola_despachos", {
+    const result = await apiFetch("/cola_despachos/", {
       method: "POST",
       body: JSON.stringify(payload)
     });
 
-    if (!res.ok) {
-      mostrarToast("❌ Error al crear cola: " + res.status, "error");
+    if (result.error) {
+      mostrarToast("❌ Error: " + result.error, "error");
       return;
     }
 
-    await res.json();
+    // ✅ apiFetch ya devuelve JSON, no necesitas res.json()
     mostrarToast("✅ Cliente agregado a la cola", "success");
 
     document.getElementById("formDespacho").reset();
@@ -115,14 +115,13 @@ async function cargarColaClientes() {
       }
     });
 
-    console.log("📡 Status HTTP:", res.status);
-
     if (!res.ok) {
-      tbodyCola.innerHTML = `<tr><td colspan="7">Error ${res.status} al cargar cola</td></tr>`;
+      tbodyCola.innerHTML = `<tr><td colspan="7">Error HTTP ${res.status} al cargar cola</td></tr>`;
       return;
     }
 
-    const data = await res.json();
+const data = await res.json();
+
     console.log("📡 Cola recibida:", data);
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -130,8 +129,9 @@ async function cargarColaClientes() {
       return;
     }
 
-    tbodyCola.innerHTML = data.map(c => `
+   tbodyCola.innerHTML = data.map((c, index) => `
      <tr>
+        <td class="border px-2 py-1">${index + 1}</td> 
         <td class="border px-2 py-1">${c.cliente?.telefono || ""}</td>
         <td class="border px-2 py-1">${c.cliente?.nombre || ""}</td>
         <td class="border px-2 py-1">${c.cliente?.direccion || ""}</td>
@@ -169,7 +169,8 @@ async function cancelarCliente(idCola) {
     });
 
     if (!res.ok) {
-      mostrarToast("❌ Error al cancelar cliente: " + res.status, "error");
+      const error = await res.json();
+      mostrarToast("❌ Error al cancelar cliente: " + (error.error || res.status), "error");
       return;
     }
 
@@ -180,6 +181,7 @@ async function cancelarCliente(idCola) {
     mostrarToast("❌ Error de conexión al cancelar cliente", "error");
   }
 }
+
 
 let colaSeleccionada = null;
 let clienteSeleccionado = null;
