@@ -1,9 +1,5 @@
 __pycache__/
-*.pyc
-*.db
-*~
-.~lock.*
-node_modules/
+venv/
 .env
-*.log
-__pycache__/
+instance/
+*.db

@@ -265,45 +265,96 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------
   // 📌 Modal independiente: Teléfonos de Clientes
   // -------------------------------
-  let clientesCacheTel = [];
+  // Variable global para la página
+let paginaActual = 1;
 
-  async function cargarClientesTel() {
-    try {
-      const res = await apiFetch('/clientes');
-      const data = await res.json();
-      clientesCacheTel = Array.isArray(data) ? data : [];
-      renderTablaClientesTel(clientesCacheTel);
-    } catch (err) {
-      console.error("❌ Error cargando clientes:", err);
-    }
+// Configurar los botones al cargar el DOM
+document.getElementById("btnPrev").onclick = () => {
+    if (paginaActual > 1) cargarClientesTel(paginaActual - 1);
+};
+document.getElementById("btnNext").onclick = () => {
+    cargarClientesTel(paginaActual + 1);
+};
+
+  // Función de carga principal
+  async function cargarClientesTel(page = 1) {
+      paginaActual = page;
+      try {
+          const res = await apiFetch(`/clientes?page=${page}`);
+          const data = await res.json();
+          
+          renderTablaClientesTel(data.clientes);
+          
+          // Actualizar info y botones
+          document.getElementById("infoPagina").textContent = `Página ${data.pagina_actual} de ${data.total_paginas}`;
+          document.getElementById("btnPrev").disabled = (data.pagina_actual === 1);
+          document.getElementById("btnNext").disabled = (data.pagina_actual === data.total_paginas);
+          
+          // Mostrar los controles (por si estaban ocultos)
+          document.getElementById("controlesPaginacion").style.display = "flex";
+      } catch (err) {
+          console.error("❌ Error:", err);
+      }
   }
+
+  
+  // 📌 Lógica del Buscador (Oculta la paginación)
+  document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
+      const query = e.target.value.trim();
+
+      if (query.length === 0) {
+          cargarClientesTel(1); // Si borra la búsqueda, vuelve a la página 1 con botones
+          return;
+      }
+
+      if (query.length < 3) return;
+
+      try {
+          // Ocultamos la paginación mientras se busca
+          document.getElementById("controlesPaginacion").style.display = "none";
+          
+          const res = await apiFetch(`/clientes/search?q=${query}`);
+          const filtrados = await res.json();
+          renderTablaClientesTel(filtrados);
+      } catch (err) {
+          console.error("❌ Error en búsqueda:", err);
+      }
+  });
+  
 
   function renderTablaClientesTel(clientes) {
     const tbody = document.querySelector('#tablaClientesTel tbody');
-    tbody.innerHTML = ""; // limpiar tabla
+    tbody.innerHTML = ""; // Limpiar tabla anterior
 
     clientes.forEach((cliente, index) => {
       const tr = document.createElement("tr");
+      tr.className = "cursor-pointer hover:bg-gray-100 border-b"; // Opcional: mejora visual
 
-      // celda de numeración
+      // 📌 Cálculo de numeración correlativa
+      // Si paginaActual es 1: (0 * 50) + (0 + 1) = 1
+      // Si paginaActual es 2: (1 * 50) + (0 + 1) = 51
       const tdNum = document.createElement("td");
-      tdNum.textContent = index + 1; // empieza en 1
+      tdNum.style.textAlign = "center";
+      tdNum.style.padding = "8px";
+      tdNum.textContent = ((paginaActual - 1) * 50) + (index + 1);
 
       const tdNombre = document.createElement("td");
+      tdNombre.style.padding = "8px";
       tdNombre.textContent = cliente.nombre;
 
       const tdTelefono = document.createElement("td");
-      tdTelefono.textContent = cliente.nro_telefono;
+      tdTelefono.style.padding = "8px";
+      tdTelefono.textContent = cliente.nro_telefono || cliente.telefono;
 
       tr.appendChild(tdNum);
       tr.appendChild(tdNombre);
       tr.appendChild(tdTelefono);
 
-      // evento de selección
+      // Evento de selección
       tr.addEventListener("click", () => {
         seleccionarClienteTel(cliente);
-        [...tbody.querySelectorAll("tr")].forEach(r => r.classList.remove("fila-seleccionada"));
-        tr.classList.add("fila-seleccionada");
+        [...tbody.querySelectorAll("tr")].forEach(r => r.classList.remove("fila-seleccionada", "bg-blue-100"));
+        tr.classList.add("fila-seleccionada", "bg-blue-100");
       });
 
       tbody.appendChild(tr);
@@ -313,12 +364,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-  document.querySelector("#buscarNombreTel").addEventListener("input", e => {
-    const query = e.target.value.trim().toLowerCase();
-    const filtrados = query === "" 
-      ? clientesCacheTel 
-      : clientesCacheTel.filter(c => c.nombre.toLowerCase().includes(query));
-    renderTablaClientesTel(filtrados);
+  // En dashboard.js, dentro del evento input del buscador:
+  document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
+      const query = e.target.value.trim();
+
+      if (query.length < 3) {
+          // Opcional: si borra la búsqueda, recargar los 50 iniciales
+          if(query.length === 0) cargarClientesTel(); 
+          return; 
+      }
+
+      try {
+          // Llamamos a la nueva ruta que busca en el SSD del servidor
+          const res = await apiFetch(`/clientes/search?q=${query}`);
+          const filtrados = await res.json();
+          renderTablaClientesTel(filtrados);
+      } catch (err) {
+          console.error("❌ Error en búsqueda remota:", err);
+      }
   });
 
   function seleccionarClienteTel(cliente) {

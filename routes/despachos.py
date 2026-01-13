@@ -24,80 +24,51 @@ despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 def crear_despacho():
     try:
         data = request.get_json()
-        print("📥 Datos recibidos en /despachos:", data)
-
-        # Validación mínima
+        
+        # 1. Extraer y validar (Igual a como lo tienes)
         origen = data.get("origen_despacho")
         if not origen:
-            return jsonify({"error": "El origen del despacho es obligatorio"}), 400
+            return jsonify({"error": "El origen es obligatorio"}), 400
 
-        cliente_id   = data.get("cliente_id")
-        conductor_id = data.get("conductor_id")
-        auto_id      = data.get("auto_id")
-        tarifa       = data.get("tarifa")
-        estado       = data.get("estado_despacho", "en curso")
-        grupo_id     = data.get("grupo_id")
-        cola_id      = data.get("cola_id")  # 🔹 id de la cola enviado desde el frontend
+        try:
+            tarifa_val = float(data.get("tarifa", 0))
+        except:
+            tarifa_val = 0.0
 
-        # Crear despacho
-        nuevo_despacho = Despacho(
-            origen_despacho=origen,
-            cliente_id=cliente_id,
-            conductor_id=conductor_id,
-            auto_id=auto_id,
-            tarifa=tarifa,
-            estado_despacho=estado,
-            fecha_hora_inicio=datetime.now(),
-            grupo_id=grupo_id
-        )
+        # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
+        with db.session.no_autoflush:
+            # 2. Crear el objeto Despacho
+            nuevo_despacho = Despacho(
+                origen_despacho=origen,
+                destino_despacho=data.get("destino_despacho"),
+                cliente_id=data.get("cliente_id"),
+                conductor_id=data.get("conductor_id"),
+                auto_id=data.get("auto_id"),
+                tarifa=tarifa_val,
+                estado_despacho=data.get("estado_despacho", "en curso"),
+                fecha_hora_inicio=datetime.now(),
+                grupo_id=data.get("grupo_id")
+            )
+            db.session.add(nuevo_despacho)
 
-        db.session.add(nuevo_despacho)
+            # 3. Borrado de Cola (Cambiamos el método para que sea atómico) 🔥
+            cola_id = data.get("cola_id")
+            if cola_id:
+                # Usamos synchronize_session=False para que no intente validar la sesión antes de borrar
+                db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
-        # 🔹 Eliminar de la cola
-        if cola_id:
-            cola = ColaDespacho.query.get(cola_id)
-            if cola:
-                db.session.delete(cola)
-
-        # Opcional: cambiar estado del conductor
-        # if conductor_id:
-        #     conductor = Conductor.query.get(conductor_id)
-        #     if conductor:
-        #         conductor.estado = "Ocupado"
-        #         db.session.add(conductor)
-
+        # 4. UN SOLO COMMIT FINAL
         db.session.commit()
 
         return jsonify({
             "msg": "Despacho creado",
-            "id_despacho": nuevo_despacho.id_despacho,
-            "despacho": nuevo_despacho.to_dict()
+            "id_despacho": nuevo_despacho.id_despacho
         }), 201
 
     except Exception as e:
         db.session.rollback()
-        print("❌ Error creando despacho:", str(e))
-        return jsonify({"error": str(e)}), 500
-
-
-
-@despachos_bp.route("/", methods=["GET"])
-def listar_despachos():
-    despachos = Despacho.query.all()
-    resultado = [
-        {
-            "id_despacho": d.id_despacho,
-            "origen": d.origen_despacho,
-            "destino": d.destino_despacho,
-            "cliente": {"id": d.cliente.id_cliente, "nombre": d.cliente.nombre},
-            "conductor": {"id": d.conductor.id_conductor, "nombre": d.conductor.nombre},
-            "auto": {"id": d.auto.id_auto, "placa": d.auto.nro_placa},
-            "tarifa": d.tarifa,
-            "estado": d.estado_despacho
-        }
-        for d in despachos
-    ]
-    return jsonify(resultado), 200
+        print("❌ Error en DB:", str(e))
+        return jsonify({"error": "Error interno: " + str(e)}), 500
 
 @despachos_bp.route("/<int:id>", methods=["GET"])
 def obtener_despacho(id):
@@ -229,7 +200,7 @@ def listar_despachos_activos():
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
             "origen": d.origen_despacho,
-            #"destino": d.destino_despacho,
+            "destino": d.destino_despacho,
             "tarifa": d.tarifa,
             "estado_despacho": d.estado_despacho,
             #"punto_referencia": d.cliente.punto_referencia if d.cliente else ""

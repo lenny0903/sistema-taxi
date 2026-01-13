@@ -186,16 +186,22 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnCrearReserva) btnCrearReserva.addEventListener("click", crearReserva);
   
   ////Función cargar reservas en modal (por implementar)/////
-  async function cargarReservasPorVencer() {
+ async function cargarReservasPorVencer() {
     try {
-      const res = await apiFetch("/reservas/por_vencer");
+      const res = await apiFetch("/reservas/por_vencer"); // 👈 usar el endpoint correcto
       const data = await res.json();
+      console.log("📡 Datos recibidos en reservas:", JSON.stringify(data, null, 2));
 
       const tbody = document.querySelector("#tablaReservas tbody");
       tbody.innerHTML = "";
 
-      if (Array.isArray(data.reservas) && data.reservas.length > 0) {
-        data.reservas.forEach(r => {
+      // 👇 filtrar solo las activas
+      const activas = Array.isArray(data.reservas) 
+        ? data.reservas.filter(r => r.estado === "activo") 
+        : [];
+
+      if (activas.length > 0) {
+        activas.forEach(r => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${r.id_reserva}</td>
@@ -217,5 +223,6 @@ document.addEventListener("DOMContentLoaded", () => {
       mostrarToast("❌ No se pudo cargar la lista de reservas", "error");
     }
   }
+
 
 });

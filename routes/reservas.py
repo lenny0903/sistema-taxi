@@ -105,9 +105,11 @@ from datetime import datetime, timedelta
 @reservas_bp.route("/reservas/por_vencer", methods=["GET"])
 def listar_reservas_por_vencer():
     ahora = datetime.now()
-    limite = ahora + timedelta(minutes=30)  # 👈 ajusta el umbral (15 o 30 min)
+    limite = ahora + timedelta(minutes=30)
 
-    # Traer reservas activas
+    # 👇 Ejecutar caducación antes de filtrar
+    caducar_reservas_internamente()
+
     reservas = Reserva.query.filter(Reserva.estado == "activo").all()
     resultado = []
 
@@ -119,4 +121,13 @@ def listar_reservas_por_vencer():
     return jsonify({
         "total": len(resultado),
         "reservas": resultado
+    }), 200
+
+@reservas_bp.route("/reservas/activas", methods=["GET"])
+def listar_reservas_activas():
+    caducar_reservas_internamente()
+    reservas = Reserva.query.filter_by(estado="activo").all()
+    return jsonify({
+        "total": len(reservas),
+        "reservas": [r.to_dict() for r in reservas]
     }), 200

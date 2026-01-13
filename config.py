@@ -8,7 +8,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Ruta relativa a la base de datos SQLite
-SQLITE_DB = os.getenv("SQLITE_DB", "taxi_system.db")
+SQLITE_DB = os.getenv("SQLITE_DB", "taxis.db")
 SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, SQLITE_DB)}"
 
 # Configuración general de Flask
