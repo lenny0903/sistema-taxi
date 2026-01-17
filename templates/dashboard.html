@@ -1525,34 +1525,35 @@
   // --- funciones de acción ---
     async function finalizarDespacho(id) {
       try {
-        // 1. apiFetch hace el trabajo pesado y nos da los datos ya procesados
         const data = await apiFetch(`/despachos/${id}/finalizar`, { method: 'PUT' });
 
-        // 2. Verificamos 'data' directamente. 
-        // Si apiFetch lanzó error, caerá en el catch. Si devolvió algo con error, lo validamos aquí:
         if (data && !data.error) {
-          alert("✅ Despacho finalizado correctamente");
+          // 1. Cerrar el modal (si es que estás finalizando desde uno)
+          const modal = document.getElementById("modalCrearDespacho");
+          if (modal) modal.classList.add("hidden");
 
-          // Refrescar tablas y componentes
+          // 2. Usar Toast en lugar de Alert (es menos intrusivo y no detiene el código)
+          if (typeof mostrarToast === 'function') {
+              mostrarToast("✅ Despacho finalizado correctamente", "success");
+          } else {
+              alert("✅ Despacho finalizado correctamente");
+          }
+
+          // 3. Refrescar tablas
           cargarDespachosActivos(); 
+          if (typeof cargarTurnos === 'function') await cargarTurnos();
           
-          // Log de seguridad
-          console.log("Despacho finalizado con éxito:", {
-            id_despacho: data.id_despacho,
-            conductor: data.conductor_nombre,
-            auto: data.auto_placa
-          });
+          // 4. Log de seguridad corregido (usando lo que realmente devuelva tu API)
+          console.log("Despacho finalizado con éxito:", data);
+
         } else {
-          // Si el backend envió un mensaje de error específico
-          alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
+          alert("❌ Error al finalizar despacho: " + (data.error || "Verifica los datos"));
         }
       } catch (err) {
-        // Este bloque captura errores de red o errores lanzados por apiFetch
         console.error("Error finalizando despacho:", err);
         alert("❌ Error inesperado al finalizar despacho");
       }
     }
-
    
     // Cancelar despacho 
     async function cancelarDespacho(id) {
@@ -1567,7 +1568,7 @@
 
         // 3. Refrescar la tabla
         await cargarDespachosActivos(); 
-
+        await refrescarConductoresDisponibles();
       } catch (err) {
         // 4. MANEJO DE PÁNICO: Aquí capturamos el mensaje real del servidor
         console.error("❌ Error al cancelar:", err.message);
@@ -2097,6 +2098,7 @@
             </div>
             <!-- Formulario de edición -->
             <form id="formEditarTelefono" class="space-y-2">
+              <input type="hidden" id="cliIdTel">
               <label>Nombre:</label>
               <input type="text" id="cliNombreTel" class="border p-2 w-full" readonly>
 

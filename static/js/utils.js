@@ -63,4 +63,21 @@ async function fetchDefensivo(url, options = {}) {
   }
 }
 
+// Asegura que sea global asignándola a window
+window.refrescarConductoresDisponibles = async function() {
+    try {
+        const data = await apiFetch("/conductores/en_turno_disponibles");
+        window.conductoresGlobales = data; 
+        
+        // Verificación de seguridad para no romper el código
+        if (typeof actualizarContadorConductores === 'function') {
+            actualizarContadorConductores(data.length);
+        }
 
+        console.log("🔄 Lista de conductores actualizada:", data);
+        return data;
+    } catch (error) {
+        console.error("Error al refrescar conductores:", error);
+        return [];
+    }
+};

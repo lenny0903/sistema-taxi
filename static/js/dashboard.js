@@ -5,6 +5,25 @@
 
 document.addEventListener("DOMContentLoaded", () => {
 
+  const token = localStorage.getItem('token');
+  const rol = localStorage.getItem('rol');
+
+  if (!token) {
+    window.location.href = '/index.html';
+    return;
+  }
+
+  const roleSpan = document.getElementById('userRole');
+  if (roleSpan) {
+    roleSpan.textContent = `Rol: ${rol}`;
+  }
+
+  if (rol && rol.toLowerCase() === 'admin') {
+    mostrarSeccion('despachos'); // ✅ usa la función unificada
+  } else {
+    mostrarSeccion('clientesSection'); // ✅ usa la función unificada
+    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+  }
   // -------------------------------
   // 📌 Sección: Reportes Generales
   // -------------------------------
@@ -261,39 +280,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
 });
-document.addEventListener("DOMContentLoaded", () => {
-  const token = localStorage.getItem('token');
-  const rol = localStorage.getItem('rol');
 
-  if (!token) {
-    window.location.href = '/index.html';
-    return;
-  }
-
-  const roleSpan = document.getElementById('userRole');
-  if (roleSpan) {
-    roleSpan.textContent = `Rol: ${rol}`;
-  }
-
-  if (rol && rol.toLowerCase() === 'admin') {
-    mostrarSeccion('despachos'); // ✅ usa la función unificada
-  } else {
-    mostrarSeccion('clientesSection'); // ✅ usa la función unificada
-    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
-  }
-    // -------------------------------
+  
+  // -------------------------------
   // 📌 Modal independiente: Teléfonos de Clientes
   // -------------------------------
   // Variable global para la página
-let paginaActual = 1;
+  let paginaActual = 1;
 
-// Configurar los botones al cargar el DOM
-document.getElementById("btnPrev").onclick = () => {
-    if (paginaActual > 1) cargarClientesTel(paginaActual - 1);
-};
-document.getElementById("btnNext").onclick = () => {
-    cargarClientesTel(paginaActual + 1);
-};
+  // Configurar los botones al cargar el DOM
+  document.getElementById("btnPrev").onclick = () => {
+      if (paginaActual > 1) cargarClientesTel(paginaActual - 1);
+  };
+  document.getElementById("btnNext").onclick = () => {
+      cargarClientesTel(paginaActual + 1);
+  };
 
   // Función de carga principal
   async function cargarClientesTel(page = 1) {
@@ -317,28 +318,31 @@ document.getElementById("btnNext").onclick = () => {
   }
 
   
-  // 📌 Lógica del Buscador (Oculta la paginación)
-  document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
-      const query = e.target.value.trim();
+ // 📌 Lógica del Buscador (Oculta la paginación)
+document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
+    const query = e.target.value.trim();
 
-      if (query.length === 0) {
-          cargarClientesTel(1); // Si borra la búsqueda, vuelve a la página 1 con botones
-          return;
-      }
+    if (query.length === 0) {
+        cargarClientesTel(1); 
+        return;
+    }
 
-      if (query.length < 3) return;
+    if (query.length < 3) return;
 
-      try {
-          // Ocultamos la paginación mientras se busca
-          document.getElementById("controlesPaginacion").style.display = "none";
-          
-          const res = await apiFetch(`/clientes/search?q=${query}`);
-          const filtrados = await res.json();
-          renderTablaClientesTel(filtrados);
-      } catch (err) {
-          console.error("❌ Error en búsqueda:", err);
-      }
-  });
+    try {
+        // Ocultamos la paginación mientras se busca
+        document.getElementById("controlesPaginacion").style.display = "none";
+        
+        // CORRECCIÓN: apiFetch ya devuelve los datos procesados
+        const filtrados = await apiFetch(`/clientes/search?q=${query}`);
+        
+        // Ahora pasamos 'filtrados' directamente a la tabla
+        renderTablaClientesTel(filtrados);
+        
+    } catch (err) {
+        console.error("❌ Error en búsqueda:", err);
+    }
+});
   
 
   function renderTablaClientesTel(clientes) {
@@ -396,29 +400,22 @@ document.getElementById("btnNext").onclick = () => {
 
 
   // En dashboard.js, dentro del evento input del buscador:
-  document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
-      const query = e.target.value.trim();
+  // 📌 Búsqueda remota 
 
-      if (query.length < 3) {
-          // Opcional: si borra la búsqueda, recargar los 50 iniciales
-          if(query.length === 0) cargarClientesTel(); 
-          return; 
-      }
 
-      try {
-          // Llamamos a la nueva ruta que busca en el SSD del servidor
-          const res = await apiFetch(`/clientes/search?q=${query}`);
-          const filtrados = await res.json();
-          renderTablaClientesTel(filtrados);
-      } catch (err) {
-          console.error("❌ Error en búsqueda remota:", err);
-      }
-  });
+ function seleccionarClienteTel(cliente) {
+    // 1. Guardamos el ID en el campo oculto (para el servidor)
+    const inputId = document.querySelector("#cliIdTel");
+    if (inputId) inputId.value = cliente.id_cliente || cliente.id;
 
-  function seleccionarClienteTel(cliente) {
+    // 2. Mostramos los datos al operador (para la vista)
     document.querySelector("#cliNombreTel").value = cliente.nombre;
-    document.querySelector("#cliTelefonoActualTel").value = cliente.nro_telefono;
-  }
+    document.querySelector("#cliTelefonoActualTel").value = cliente.nro_telefono || cliente.telefono;
+    
+    // 3. Limpiamos el campo de nuevo teléfono para que el operador escriba
+    document.querySelector("#cliTelefonoNuevoTel").value = "";
+    document.querySelector("#cliTelefonoNuevoTel").focus();
+}
   
 
  function abrirModalTelefonosClientes() {
@@ -434,49 +431,87 @@ document.getElementById("btnNext").onclick = () => {
   }
   window.cerrarModalTelefonosClientes = cerrarModalTelefonosClientes;
 
-  document.getElementById("formEditarTelefono").addEventListener("submit", async e => {
+ document.getElementById("formEditarTelefono").addEventListener("submit", async e => {
     e.preventDefault();
+    const idCliente = document.querySelector("#cliIdTel").value;
     const nombre = document.querySelector("#cliNombreTel").value;
     const nuevoTel = document.querySelector("#cliTelefonoNuevoTel").value;
-
-    try {
-      await apiFetch(`/clientes/updateTelefono`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono: nuevoTel })
-      });
-      alert("✅ Teléfono actualizado correctamente");
-      //cerrarModalTelefonosClientes();
-      cargarClientesTel();
-    } catch (err) {
-      console.error("❌ Error actualizando teléfono:", err);
-      alert("Error al actualizar teléfono");
+    if (!idCliente) {
+        alert("⚠️ Por favor, seleccione un cliente de la tabla primero.");
+        return;
     }
-  });
+    try {
+        const res = await apiFetch(`/clientes/updateTelefono`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                id_cliente: idCliente, // Para la base de datos
+                nombre: nombre,        // 👈 Para que la validación de Python no falle
+                telefono: nuevoTel 
+            })
+        });
+        
+        alert("✅ Teléfono actualizado correctamente");
+        cargarClientesTel();
+    } catch (err) {
+        console.error("❌ Error detectado:", err);
+        
+        let mensajeLimpio = "No se pudo actualizar el teléfono.";
+
+        // Convertimos el error a string para analizarlo
+        const errorStr = String(err);
+
+        // Si el error contiene un JSON (buscamos la llave { )
+        if (errorStr.includes('{')) {
+            try {
+                // Extraemos solo la parte que es JSON
+                const inicioJson = errorStr.indexOf('{');
+                const finJson = errorStr.lastIndexOf('}') + 1;
+                const jsonRaw = errorStr.substring(inicioJson, finJson);
+                
+                const errorObj = JSON.parse(jsonRaw);
+                
+                // Usamos el mensaje que definiste en Python
+                mensajeLimpio = errorObj.error || mensajeLimpio;
+            } catch (e) {
+                // Si falla el parseo, al menos quitamos el prefijo "Error: Error 400:"
+                mensajeLimpio = errorStr.replace(/^Error: Error \d+: /g, "");
+            }
+        } else {
+            mensajeLimpio = errorStr.replace(/^Error: Error \d+: /g, "");
+        }
+
+        // El alert ahora será profesional y limpio
+        alert(`⚠️ Atención:\n${mensajeLimpio}`);
+    }
+});
 
   async function eliminarClienteTel() {
+    // 1. Usar ID en lugar de nombre para precisión
+    const idCliente = document.querySelector("#cliIdTel").value; 
     const nombre = document.querySelector("#cliNombreTel").value;
-    if (!nombre) {
+
+    if (!idCliente) {
       alert("⚠️ Selecciona un cliente primero.");
       return;
     }
 
-    if (!confirm(`¿Seguro que deseas eliminar al cliente "${nombre}"?`)) {
+    if (!confirm(`¿Seguro que deseas desactivar al cliente "${nombre}"?`)) {
       return;
     }
 
     try {
-      await apiFetch(`/clientes/delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre })
+      // Cambiamos el concepto de 'delete' a 'desactivar'
+      await apiFetch(`/clientes/api/clientes/${idCliente}/desactivar`, {
+        method: "PATCH", // PATCH es mejor para actualizaciones parciales
+        headers: { "Content-Type": "application/json" }
       });
-      alert("✅ Cliente eliminado correctamente");
-      //cerrarModalTelefonosClientes();
+      
+      alert("✅ Cliente desactivado (se mantiene en el historial)");
       cargarClientesTel();
     } catch (err) {
-      console.error("❌ Error eliminando cliente:", err);
-      alert("Error al eliminar cliente");
+      console.error("❌ Error al procesar:", err);
+      alert("No se pudo desactivar el cliente.");
     }
   }
   window.eliminarClienteTel = eliminarClienteTel;
@@ -496,36 +531,34 @@ document.getElementById("btnNext").onclick = () => {
   });
   
 
-  
-});
+  function abrirVista(idVista) {
+    // Ocultar todas las secciones
+    document.querySelectorAll(".seccion").forEach(sec => sec.classList.add("hidden"));
 
-function abrirVista(idVista) {
-  // Ocultar todas las secciones
-  document.querySelectorAll(".seccion").forEach(sec => sec.classList.add("hidden"));
-
-  // Mostrar la sección solicitada
-  const vista = document.getElementById(idVista);
-  if (vista) {
-    vista.classList.remove("hidden");
-    console.log(`✅ Vista abierta: ${idVista}`);
-  } else {
-    console.warn(`⚠️ Sección '${idVista}' no encontrada en el DOM`);
-  }
-}
-
-async function registrarAuditoriaAcceso(evento) {
-    const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
-
-    try {
-        // CAMBIO DE RUTA: ahora es /usuarios/log-acceso
-        await apiFetch('/usuarios/log-acceso', {
-            method: 'POST',
-            body: JSON.stringify({
-                usuario: usuarioActivo,
-                evento: evento
-            })
-        });
-    } catch (error) {
-        console.error("Error de auditoría:", error);
+    // Mostrar la sección solicitada
+    const vista = document.getElementById(idVista);
+    if (vista) {
+      vista.classList.remove("hidden");
+      console.log(`✅ Vista abierta: ${idVista}`);
+    } else {
+      console.warn(`⚠️ Sección '${idVista}' no encontrada en el DOM`);
     }
-}
+  }
+
+    async function registrarAuditoriaAcceso(evento) {
+      const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
+
+      try {
+          // CAMBIO DE RUTA: ahora es /usuarios/log-acceso
+          await apiFetch('/usuarios/log-acceso', {
+              method: 'POST',
+              body: JSON.stringify({
+                  usuario: usuarioActivo,
+                  evento: evento
+              })
+          });
+      } catch (error) {
+          console.error("Error de auditoría:", error);
+      }
+    }
+  

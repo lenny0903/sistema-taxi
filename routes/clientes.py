@@ -1,8 +1,11 @@
 import re
 from flask import Blueprint, request, jsonify
+from psycopg2 import IntegrityError
 from extensions import db
 from models.clientes import Cliente
-
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy.exc import IntegrityError 
+from datetime import datetime
 # Definición del Blueprint
 clientes_bp = Blueprint('clientes', __name__, url_prefix="/clientes")
 
@@ -162,22 +165,29 @@ def cliente_por_telefono(telefono):
             **actualizado
         }), 200
 
-@clientes_bp.route('/delete', methods=['POST'])
-def eliminar_cliente():
-    data = request.get_json()
-    nombre = (data.get("nombre") or "").strip()
-
-    if not validar_nombre(nombre):
-        return jsonify({"error": "Nombre inválido"}), 400
-
-    cliente = Cliente.query.filter_by(nombre=nombre).first()
-    if not cliente:
-        return jsonify({"error": "Cliente no encontrado"}), 404
-
-    db.session.delete(cliente)
-    db.session.commit()
-    return jsonify({"message": f"Cliente {nombre} eliminado"}), 200
-
+@clientes_bp.route('/api/clientes/<int:id_cliente>/desactivar', methods=['PATCH'])
+@jwt_required()
+def desactivar_cliente(id_cliente):
+    # 1. Obtener ID del usuario desde el Token JWT (Trazabilidad)
+    usuario_id_responsable = get_jwt_identity()
+    
+    # 2. Buscar al cliente
+    cliente = Cliente.query.get_or_404(id_cliente)
+    
+    # 3. Cambio de estado (Borrado Lógico)
+    cliente.estado = 0
+    cliente.usuario_id_auditoria = usuario_id_responsable
+    cliente.fecha_modificacion = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            "msg": f"Cliente {cliente.nombre} desactivado correctamente",
+            "responsable_id": usuario_id_responsable
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 @clientes_bp.route('/updateTelefono', methods=['POST'])
 def update_telefono():
     data = request.get_json()
@@ -193,10 +203,19 @@ def update_telefono():
     if not cliente:
         return jsonify({"error": "Cliente no encontrado"}), 404
 
-    cliente.telefono = nuevo_tel
-    db.session.commit()
-    return jsonify({"message": "Teléfono actualizado correctamente"}), 200
-
+    try:
+        cliente.telefono = nuevo_tel
+        db.session.commit() 
+        return jsonify({"message": "Teléfono actualizado correctamente"}), 200
+    except IntegrityError:
+        db.session.rollback() 
+        # Mensaje súper amigable
+        return jsonify({"error": "No se puede guardar: este número de teléfono ya está asignado a otro cliente."}), 400
+    except Exception as e:
+        db.session.rollback()
+        #Evita enviar el {str(e)} al usuario, solo regístralo en consola del servidor
+        print(f"DEBUG ERROR: {str(e)}") 
+        return jsonify({"error": "Hubo un problema técnico en el servidor. Intente más tarde."}), 500
 # 🔹 Buscar clientes por nombre o teléfono (Server-side)
 @clientes_bp.route('/search', methods=['GET'])
 def buscar_clientes_full():

@@ -322,9 +322,19 @@ async function abrirModalDespacho(idCola, idCliente, direccion, destino, tarifa)
         };
 
         // ... resto de tu lógica de poblar inputs y mostrar modal ...
+        // 3. ASIGNACIÓN DE VALORES A LOS INPUTS DEL MODAL
+        // Aquí pasamos lo que llega por parámetros a los inputs que están en el HTML
+        document.getElementById("modalClienteIdDespacho").value = idCliente || "";
+        document.getElementById("modalOrigenDespacho").value    = direccion || "";
+        document.getElementById("modalDestinoDespacho").value   = destino   || "";
+        document.getElementById("modalTarifaDespacho").value    = tarifa    || "";
+        
+        // Guardamos la cola seleccionada en una variable global (para que el botón "Confirmar" la use)
+        window.colaSeleccionada = idCola; 
+
+        // 4. Mostrar el modal
         const modal = document.getElementById("modalCrearDespacho");
         modal.classList.remove("hidden");
-
     } catch (err) {
         console.error("❌ Error:", err);
     }
