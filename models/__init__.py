@@ -10,7 +10,8 @@ from .lista_espera_multiple import ListaEsperaMultiple
 from .lista_espera import ListaEspera
 from .reserva import Reserva
 from .puntos_espera import PuntoEspera
-from .cola_despachos import ColaDespacho    
+from .cola_despachos import ColaDespacho 
+from .auditoria_acceso import AuditoriaAcceso  
 
 __all__ = [
     "Usuario",
@@ -26,4 +27,5 @@ __all__ = [
     "Reserva",
     "PuntoEspera",
     "ColaDespacho"
+    "AuditoriaAcceso"
 ]

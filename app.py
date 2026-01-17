@@ -1,5 +1,7 @@
+import eventlet
+eventlet.monkey_patch() # Recomendado para modo 'eventlet'
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
-from flask import Flask, app, render_template, url_for, redirect
+from flask import Flask, render_template, url_for, redirect
 from flask_migrate import Migrate
 from extensions import db
 import routes
@@ -15,22 +17,21 @@ import sqlite3
 
 from flask_socketio import SocketIO
 
-socketio = SocketIO(cors_allowed_origins="*")
 
+socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
 def create_app():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
     app.config['SECRET_KEY'] = config.SECRET_KEY
     app.config['DEBUG'] = config.DEBUG
-    print("📂 Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
+    print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
     migrate = Migrate(app, db)
     app.secret_key = "clave_super_secreta_unica"  
-
+    socketio.init_app(app)
     db.init_app(app)
     jwt = JWTManager(app)
-    socketio.init_app(app)
-
+   
    
     with app.app_context():
         import models
@@ -44,7 +45,7 @@ def create_app():
             cursor.close()
          # Verificación opcional
         result = db.session.execute(text("PRAGMA journal_mode;")).scalar() 
-        print("📝 Journal mode actual:", result)
+        print(" Journal mode actual:", result)
 
     # 🔹 Inicializar el scheduler con app y socketio (fuera del app_context)
     iniciar_scheduler(app, socketio)

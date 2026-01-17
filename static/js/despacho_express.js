@@ -1,4 +1,5 @@
 // ==================== Bloque 1: Flujo rápido (alta demanda) ====================
+let memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} };
 document.addEventListener("DOMContentLoaded", () => {
     const formDespacho = document.getElementById("formDespacho");
     const telefonoInput = document.getElementById("desTelefono");
@@ -31,6 +32,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("desTelefono").focus();
         mostrarToast("Formulario listo para nueva llamada", "info");
     });
+    // Botón cancelar modal despacho
+    const modal = document.getElementById("modalCrearDespacho");
+    const btnCancelar = document.getElementById("btnCancelarDespacho");
+
+    if (btnCancelar) {
+        btnCancelar.onclick = () => {
+            modal.classList.add("hidden");
+            console.log("🚫 Despacho cancelado por el usuario");
+        };
+    }
   
 });
   // Listener de teclado global
@@ -41,17 +52,17 @@ document.addEventListener("DOMContentLoaded", () => {
           abrirModalCola(); // Ejecuta la función
       }
   });
-  function abrirModalCola() {
-  console.log("⚡ abrirModalCola ejecutado desde despachos_express.js");
-  const modalCola = document.getElementById("modalColaClientes");
-  modalCola.classList.remove("hidden");
-  cargarColaClientes(); // refresca tabla al abrir
-}
+    function abrirModalCola() {
+        console.log("⚡ abrirModalCola ejecutado desde despachos_express.js");
+        const modalCola = document.getElementById("modalColaClientes");
+        modalCola.classList.remove("hidden");
+        cargarColaClientes(); // refresca tabla al abrir
+    }
 
-function cerrarModalCola() {
-  const modalCola = document.getElementById("modalColaClientes");
-  modalCola.classList.add("hidden");
-}
+    function cerrarModalCola() {
+        const modalCola = document.getElementById("modalColaClientes");
+        modalCola.classList.add("hidden");
+    }
 
 // Listener para botón cerrar modal
 const btnCerrarCola = document.getElementById("btnCerrarCola");
@@ -59,56 +70,76 @@ if (btnCerrarCola) {
   btnCerrarCola.addEventListener("click", cerrarModalCola);
 }
 // Función: Crear entrada en la cola (con origen y destino editable)
+
 async function crearCola() {
-    // 1. Capturamos los valores (que pueden haber sido editados por el operador)
     const telefono = document.getElementById("desTelefono").value.trim();
     const nombre   = document.getElementById("desNombre").value.trim();
     const origen   = document.getElementById("desOrigen").value.trim();
     const destino  = document.getElementById("desDestino").value.trim();
+    
+    // CAPTURAMOS LA CANTIDAD DESDE EL SELECT
+    const tipoValor = document.getElementById("tipoDespacho").value;
+    
+    // Si es "reserva", no procesamos aquí (este es el flujo express)
+    if (tipoValor === "reserva") return;
+    
+    // Convertimos a número si es 2, 3 o 4. Si no, la cantidad es 1.
+    const cantidad = (['2', '3', '4'].includes(tipoValor)) ? parseInt(tipoValor) : 1;
 
-    // Validación mínima antes de enviar
     if (!telefono || !origen) {
         mostrarToast("⚠️ Teléfono y Origen son obligatorios", "error");
         return;
     }
 
-    const payload = { telefono, nombre, origen, destino };
-
+    // Usaremos un bucle para enviar la cantidad de autos solicitada
     try {
-        const result = await apiFetch("/cola_despachos/", {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
+        let errores = 0;
+        
+        for (let i = 0; i < cantidad; i++) {
+            // Si son varios, añadimos una nota automática para el despachador
+            const notaGrupo = cantidad > 1 ? ` (Auto ${i + 1} de ${cantidad})` : "";
+            
+            const payload = { 
+                telefono, 
+                nombre, 
+                origen, 
+                destino: destino + notaGrupo 
+            };
 
-        if (result.error) {
-            mostrarToast("❌ Error: " + result.error, "error");
-            return;
+            const result = await apiFetch("/cola_despachos/", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            if (result.error) errores++;
         }
 
-        mostrarToast("✅ Cliente en espera", "success");
+        if (errores > 0) {
+            mostrarToast(`❌ Hubo errores en ${errores} registros`, "error");
+        } else {
+            mostrarToast(cantidad > 1 ? `✅ ${cantidad} unidades en espera` : "✅ Cliente en espera", "success");
+        }
 
-        // 2. LIMPIEZA TOTAL
+        // LIMPIEZA Y REINICIO (Igual que antes)
         document.getElementById("formDespacho").reset();
-        
-        // Deshabilitar campos y quitar colores de "activo"
         activarCamposDespacho(false);
-        
-        // 3. FOCO AUTOMÁTICO
-        // Fundamental para que el operador atienda la siguiente llamada de inmediato
         document.getElementById("desTelefono").focus();
         
-        // 4. ACTUALIZACIÓN SILENCIOSA
-        // Si el modal de la cola está abierto en otra pantalla o al fondo, se actualiza
         await cargarColaClientes();
 
     } catch (err) {
-        console.error("Error en crearCola:", err);
+        console.error("Error en crearCola múltiple:", err);
         mostrarToast("❌ Error de conexión al crear cola", "error");
     }
 }
 
 // ==================== Cola de Clientes (Modal Editable) ====================
-
+// Memoria temporal para no perder lo que el operador escribe en la tabla
+let memoriaEdicionCola = {
+    origenes: {},
+    destinos: {},
+    tarifas: {}
+};
 async function cargarColaClientes() {
     const tbodyCola = document.getElementById("tablaColaClientes");
     if (!tbodyCola) return;
@@ -134,32 +165,75 @@ async function cargarColaClientes() {
         }
 
         tbodyCola.innerHTML = data.map((c, index) => {
-            // AJUSTE DE MAPEO: Leemos directamente del objeto 'c'
-            // Si tu backend usa una relación, c.cliente?.telefono funcionará como respaldo
+           const id = c.id_cola;
             const telefono = c.telefono || (c.cliente ? c.cliente.telefono : "---");
             const nombre   = c.nombre   || (c.cliente ? c.cliente.nombre : "Cliente");
             const origen   = c.origen   || (c.cliente ? c.cliente.direccion : "");
             const destino  = c.destino  || "";
+            // --- LÓGICA DE PLACEHOLDER DINÁMICO ---
+            // --- LÓGICA DE CONTEO ---
+            const grupo = data.filter(item => {
+                // Limpiamos ambos teléfonos para comparar solo números
+                const telItem = (item.telefono || item.cliente?.telefono || "").toString().trim();
+                const telActual = telefono.toString().trim();
+                return telItem === telActual && telActual !== "";
+            });
 
+            const totalAutos = grupo.length;
+            let placeholderTexto = "Hacia...";
+
+            if (totalAutos > 1) {
+                const posicion = grupo.findIndex(item => item.id_cola === id) + 1;
+                placeholderTexto = `Auto ${posicion} de ${totalAutos}...`;
+            }
+    // --------------------------------------------
+
+            // 2. Buscar en memoria (Usando el nombre que definiste: memoriaEdicionCola1)
+            const valOrigen  = memoriaEdicionCola1.origenes[id]  || origen;
+            const valDestino = memoriaEdicionCola1.destinos[id] || destino;
+            const valTarifa  = memoriaEdicionCola1.tarifas[id]  || "";
+
+            // 3. RETORNAR EL HTML (Importante: Todo lo que usa ${} debe estar definido arriba)
+           // --- LÓGICA DE LIMPIEZA ---
+            // 1. Limpiamos el destino que viene de la base de datos
+            // Si trae "(Auto" o está vacío, lo forzamos a "" (vacío real)
+            const destinoLimpio = (destino.includes("(Auto") || !destino.trim()) ? "" : destino.trim();
+
+            // 2. Limpiamos lo que hay en memoria temporal
+            // Si la memoria tiene "(Auto" o solo espacios, usamos el destinoLimpio
+            let valorFinalDestino = (valDestino.includes("(Auto") || !valDestino.trim()) 
+                ? destinoLimpio 
+                : valDestino.trim();
+
+            // 3. SEGURO FINAL: Si después de todo sigue teniendo el texto de Auto, lo vaciamos
+            if (valorFinalDestino.includes("Auto")) {
+                valorFinalDestino = "";
+            }
             return `
             <tr class="hover:bg-gray-50 text-sm">
                 <td class="border px-2 py-1 text-center">${index + 1}</td> 
                 <td class="border px-2 py-1 font-bold">${telefono}</td>
                 <td class="border px-2 py-1">${nombre}</td>
                 <td class="border px-2 py-1">
-                    <input type="text" id="editOrigen_${c.id_cola}" 
-                           class="w-full border p-1 rounded bg-yellow-50 focus:bg-white" 
-                           value="${origen}">
+                    <input type="text" id="editOrigen_${id}" 
+                        class="w-full border p-1 rounded bg-yellow-50 focus:bg-white" 
+                        value="${valOrigen}"
+                        oninput="memoriaEdicionCola1.origenes[${id}] = this.value">
                 </td>
                 <td class="border px-2 py-1">
-                    <input type="text" id="editDestino_${c.id_cola}" 
-                           class="w-full border p-1 rounded bg-blue-50 focus:bg-white" 
-                           placeholder="Hacia..." value="${destino}">
+                    <input type="text" id="editDestino_${id}" 
+                        class="w-full border p-1 rounded bg-blue-50 focus:bg-white" 
+                        placeholder="Hacia..." 
+                        value="${valorFinalDestino || placeholderTexto}" 
+                        onfocus="this.select()"
+                        oninput="memoriaEdicionCola1.destinos[${id}] = this.value">
                 </td>
                 <td class="border px-2 py-1">
-                    <input type="number" id="tarifaCliente_${c.id_cola}"
-                           class="border p-1 w-20 rounded font-bold text-green-700"
-                           placeholder="Bs.">
+                    <input type="number" id="tarifaCliente_${id}"
+                        class="border p-1 w-20 rounded font-bold text-green-700"
+                        placeholder="Bs."
+                        value="${valTarifa}"
+                        oninput="memoriaEdicionCola1.tarifas[${id}] = this.value">
                 </td>
                 <td class="border px-2 py-1 text-center">
                     <span class="px-2 py-1 rounded bg-orange-100 text-xs text-orange-700 font-semibold">${c.estado}</span>
@@ -179,6 +253,7 @@ async function cargarColaClientes() {
         console.error("Error al cargar la cola:", err);
         tbodyCola.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">Error de conexión</td></tr>`;
     }
+    actualizarContadorConductores(); // Actualiza el número al abrir
 }
 // ==================== Modal de Asignación Final ====================
 function prepararAsignacion(idCola, idCliente) {
@@ -210,59 +285,62 @@ async function abrirModalDespacho(idCola, idCliente, direccion, destino, tarifa)
             return;
         }
 
-        // Guardamos en variables globales para el botón confirmar
-        colaSeleccionada = idCola;
-        clienteSeleccionado = idCliente;
-
-        // Llenar selects de conductores y autos
         const selectC = document.getElementById("selectConductor");
         const selectA = document.getElementById("selectAuto");
         selectC.innerHTML = "";
         selectA.innerHTML = "";
 
+        // 1. Llenamos los selects
         data.forEach(item => {
             const c = item.conductor || item;
             const a = item.auto || item;
             const idCond = c.id_conductor || item.id_conductor;
+            const idAuto = a.id_auto || idCond;
+
             if (idCond) {
-                selectC.innerHTML += `<option value="${idCond}">${c.codigo || 'S/C'} - ${c.nombre || item.nombre}</option>`;
-                selectA.innerHTML += `<option value="${a.id_auto || idCond}">${a.nro_placa || "S/P"} (${c.nombre || item.nombre})</option>`;
+                // El value del conductor será su ID
+                selectC.innerHTML += `<option value="${idCond}">${c.codigo || 'S/C'} - ${c.nombre}</option>`;
+                // El value del auto será su ID
+                selectA.innerHTML += `<option value="${idAuto}">${a.nro_placa || "S/P"} (${c.nombre})</option>`;
             }
         });
 
-        // POBLAR EL MODAL CON LOS NUEVOS IDs ÚNICOS (o los que definas)
-        const modal = document.getElementById("modalCrearDespacho");
-       // 4. Poblar los inputs del modal usando los nuevos IDs de tu HTML
-        const inputO = document.getElementById("modalOrigenDespacho");
-        const inputD = document.getElementById("modalDestinoDespacho");
-        const inputT = document.getElementById("modalTarifaDespacho");
-        const inputC = document.getElementById("modalClienteIdDespacho");
+        // 2. ⚡ VINCULACIÓN AUTOMÁTICA
+        selectC.onchange = function() {
+            const idSeleccionado = parseInt(this.value);
+            // Buscamos en 'data' el objeto que coincida con el conductor elegido
+            const relacion = data.find(item => (item.conductor?.id_conductor || item.id_conductor) === idSeleccionado);
+            
+            if (relacion) {
+                const auto = relacion.auto || relacion;
+                selectA.value = auto.id_auto || idSeleccionado;
+                
+                // Feedback visual: resaltar el auto seleccionado
+                selectA.classList.add("bg-green-100");
+                setTimeout(() => selectA.classList.remove("bg-green-100"), 500);
+            }
+        };
 
-        // Asignamos con seguridad
-        if (inputO) inputO.value = direccion || "";
-        if (inputD) inputD.value = destino || ""; // 'destino' ahora sí llegará aquí
-        if (inputT) inputT.value = tarifa || "";
-        if (inputC) inputC.value = idCliente || "";
-        
+        // ... resto de tu lógica de poblar inputs y mostrar modal ...
+        const modal = document.getElementById("modalCrearDespacho");
         modal.classList.remove("hidden");
 
     } catch (err) {
         console.error("❌ Error:", err);
-        mostrarToast("❌ Error al conectar con el servidor", "error");
     }
 }
+// Confirmar Despacho Final (Elimina de cola y crea despacho)
 // Confirmar Despacho Final (Elimina de cola y crea despacho)
 document.getElementById("btnConfirmarDespacho").onclick = async () => {
     const btnConfirmar = document.getElementById("btnConfirmarDespacho");
     const modal = document.getElementById("modalCrearDespacho");
 
-    // Capturamos desde los nuevos IDs
+    // Capturamos valores
     const origenVal  = document.getElementById("modalOrigenDespacho")?.value.trim() || "";
     const destinoVal = document.getElementById("modalDestinoDespacho")?.value.trim() || "";
     const tarifaVal  = document.getElementById("modalTarifaDespacho")?.value.trim() || "";
     const clienteId  = document.getElementById("modalClienteIdDespacho")?.value || "";
     
-    // Capturamos selects (estos no cambiaron de ID)
     const conductorId = document.getElementById("selectConductor").value;
     const autoId      = document.getElementById("selectAuto").value;
 
@@ -274,21 +352,13 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
     }
 
     const payload = {
-        // 1. IDs: Convertimos a entero por seguridad
         cliente_id: parseInt(clienteId),
         conductor_id: parseInt(conductorId),
         auto_id: parseInt(autoId),
-        
-        // 2. Nombres exactos según tu clase Despacho(db.Model)
-        origen_despacho: origenVal,    // Antes era 'origen'
-        destino_despacho: destinoVal,  // Antes era 'destino'
-        
-        // 3. Tipos de datos correctos
-        tarifa: parseFloat(tarifaVal), // El modelo dice db.Float
-        estado_despacho: "en curso",   // El modelo dice db.String(50)
-        
-        // Si tu servidor procesa la cola_id manualmente, déjalo, 
-        // pero recuerda que no está definido en el modelo que pasaste
+        origen_despacho: origenVal,
+        destino_despacho: destinoVal,
+        tarifa: parseFloat(tarifaVal),
+        estado_despacho: "en curso",
         cola_id: parseInt(colaSeleccionada) 
     };
 
@@ -296,27 +366,40 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
         btnConfirmar.disabled = true;
         btnConfirmar.innerText = "Procesando...";
 
-        const response = await apiFetch("/despachos/", {
+        const result = await apiFetch("/despachos/", {
             method: "POST",
             body: JSON.stringify(payload)
         });
 
-        if (response.ok) {
+        // Verificamos si el resultado es exitoso (ajustado a tu apiFetch)
+        if (result && !result.error) {
             mostrarToast(`✅ Despacho creado con éxito`, "success");
             modal.classList.add("hidden");
+            // LIMPIAR MEMORIA DE ESTA FILA
+            delete memoriaEdicionCola1.origenes[colaSeleccionada];
+            delete memoriaEdicionCola1.destinos[colaSeleccionada];
+            delete memoriaEdicionCola1.tarifas[colaSeleccionada];
+            // Refrescar todo el sistema
             await cargarColaClientes(); 
+            actualizarContadorConductores();
+            if (typeof cargarTurnos === 'function') await cargarTurnos();
+            if (typeof cargarConductores === 'function') await cargarConductores();
+            
+            //cerrarModalCola();
         } else {
-            const errorData = await response.json();
-            mostrarToast("❌ Error: " + (errorData.error || "Datos incompletos"), "error");
+            mostrarToast("❌ Error: " + (result.error || "No se pudo crear el despacho"), "error");
         }
     } catch (err) {
-        console.error("Error en Despacho:", err);
-        mostrarToast("❌ Error de conexión", "error");
+        // AQUÍ ESTABA EL ERROR: Faltaba este bloque catch
+        console.error("❌ Error en Despacho:", err);
+        mostrarToast("❌ Error de conexión o del servidor", "error");
     } finally {
+        // Y este bloque asegura que el botón se reactive siempre
         btnConfirmar.disabled = false;
         btnConfirmar.innerText = "Confirmar Despacho";
     }
-};/**
+};
+/**
  * Función mejorada para validar y mover foco al botón Enviar
  */
 async function validarClientePorTelefono() {
@@ -324,19 +407,22 @@ async function validarClientePorTelefono() {
     const tel = telInput.value.trim();
     if (!tel) return;
 
-    const res = await apiFetch(`/clientes/buscar?telefono=${tel}`);
-    const cliente = (res && res.length > 0) ? res[0] : null;
+    // USAMOS fetchDefensivo para que maneje los errores y el log de "📡 Datos recibidos"
+    const data = await fetchDefensivo(`/clientes/buscar?telefono=${tel}`);
+    
+    // fetchDefensivo siempre devuelve un Array, así que esto es seguro:
+    const cliente = (data.length > 0) ? data[0] : null;
 
     if (cliente) {
         document.getElementById('desNombre').value = cliente.nombre;
-        document.getElementById('desOrigen').value = cliente.direccion;
+        // Según tu nota [2026-01-13], traemos la dirección de la BD
+        document.getElementById('desOrigen').value = cliente.direccion || ""; 
         activarCamposDespacho(true);
         
-        // FOCO RÁPIDO: Salto al botón enviar para procesar con un segundo Enter
         setTimeout(() => document.getElementById("btnEnviarDespacho").focus(), 100);
     } else {
         activarCamposDespacho(false);
-        abrirModalCliente(tel, null); // Abrir modal para crear cliente nuevo
+        abrirModalCliente(tel, null);
     }
 }
 
@@ -373,5 +459,25 @@ async function cancelarCliente(idCola) {
     } catch (err) {
         console.error("Error al cancelar cliente:", err);
         mostrarToast("❌ Error de conexión al intentar cancelar", "error");
+    }
+}
+
+async function actualizarContadorConductores() {
+    try {
+        const res = await apiFetch("/conductores/en_turno_disponibles");
+        const data = (res && typeof res.json === 'function') ? await res.json() : res;
+        
+        const totalDisponibles = Array.isArray(data) ? data.length : 0;
+        const badge = document.getElementById("contadorConductores");
+        
+        if (badge) {
+            badge.innerText = `Conductores disponibles: ${totalDisponibles}`;
+            // Cambia color según disponibilidad
+            badge.className = totalDisponibles > 0 
+                ? "bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded border border-green-500"
+                : "bg-red-100 text-red-800 text-xs font-bold px-2.5 py-1 rounded border border-red-500";
+        }
+    } catch (error) {
+        console.error("Error al contar conductores:", error);
     }
 }

@@ -259,7 +259,7 @@ def reporte_por_cliente():
                 Conductor.codigo,
                 Conductor.nombre,
                 Despacho.origen_despacho,
-                #Despacho.destino_despacho,
+                Despacho.destino_despacho,
                 Despacho.fecha_hora_fin
             )
             .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
@@ -277,7 +277,7 @@ def reporte_por_cliente():
             data.append({
                 "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
                 "origen": r.origen_despacho,
-                # "destino": r.destino_despacho,
+                "destino": r.destino_despacho,
                 "ultima_fecha": ultima
             })
 

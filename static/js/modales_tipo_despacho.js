@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Listener de teléfono en modalReserva
   // -------------------------------
-  const telefonoInput = document.getElementById("resTelefono");
+ const telefonoInput = document.getElementById("resTelefono");
   if (telefonoInput) {
     telefonoInput.addEventListener("keydown", async (event) => {
       if (event.key === "Enter") {
@@ -71,10 +71,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-          const resCliente = await apiFetch(`/clientes/telefono/${telefono}`);
-          const dataCliente = await resCliente.json();
+          // 1. apiFetch ya nos devuelve el objeto con los datos del cliente
+          const dataCliente = await apiFetch(`/clientes/telefono/${telefono}`);
 
-          if (resCliente.ok && dataCliente.existe) {
+          // 2. Validamos directamente dataCliente (asumiendo que apiFetch maneja el éxito/error)
+          if (dataCliente && dataCliente.existe) {
             document.getElementById("resCliente").value = dataCliente.nombre || "";
             document.getElementById("resOrigen").value = dataCliente.direccion || "";
             document.getElementById("resCliente").setAttribute("readonly", true);
@@ -98,86 +99,110 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Función crearReserva
   // -------------------------------
-  async function crearReserva() {
-    const telefono = document.getElementById("resTelefono").value.trim();
-    const clienteNombre = document.getElementById("resCliente").value.trim();
-    const origen = document.getElementById("resOrigen").value.trim();
-    const destino = document.getElementById("resDestino").value.trim();
-    const fecha = document.getElementById("resFecha").value;
-    const hora = document.getElementById("resHora").value;
+    async function crearReserva() {
+      const telefono = document.getElementById("resTelefono").value.trim();
+      const clienteNombre = document.getElementById("resCliente").value.trim();
+      const origen = document.getElementById("resOrigen").value.trim();
+      const destino = document.getElementById("resDestino").value.trim();
+      const fecha = document.getElementById("resFecha").value;
+      const hora = document.getElementById("resHora").value;
 
-    if (!telefono || !clienteNombre || !origen || !destino || !fecha || !hora) {
-      mostrarToast("⚠️ Debes completar todos los campos de la reserva", "error");
-      return;
-    }
+      if (!telefono || !clienteNombre || !origen || !destino || !fecha || !hora) {
+        mostrarToast("⚠️ Debes completar todos los campos de la reserva", "error");
+        return;
+      }
 
-    const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
-    if (!regexTelefono.test(telefono)) {
-      mostrarToast("⚠️ Número de teléfono inválido.", "error");
-      return;
-    }
+      const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
+      if (!regexTelefono.test(telefono)) {
+        mostrarToast("⚠️ Número de teléfono inválido.", "error");
+        return;
+      }
 
-    let clienteId;
-    try {
-      const resCliente = await apiFetch(`/clientes/telefono/${telefono}`);
-      const dataCliente = await resCliente.json();
+      let clienteId;
+      try {
+        // 1. Buscar cliente (apiFetch ya devuelve el JSON)
+        const dataCliente = await apiFetch(`/clientes/telefono/${telefono}`);
 
-      if (resCliente.ok && dataCliente.existe) {
-        clienteId = dataCliente.id_cliente;
-      } else {
-        const nuevoClienteRes = await apiFetch("/clientes", {
+        if (dataCliente && dataCliente.existe) {
+          clienteId = dataCliente.id_cliente;
+        } else {
+          // 2. Registrar nuevo cliente si no existe
+          const nuevoClienteData = await apiFetch("/clientes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ telefono, nombre: clienteNombre, direccion: origen })
+          });
+
+          if (nuevoClienteData && !nuevoClienteData.error) {
+            clienteId = nuevoClienteData.id_cliente;
+          } else {
+            mostrarToast(nuevoClienteData?.error || "❌ Error al registrar cliente", "error");
+            return;
+          }
+        }
+
+        // 3. Crear la reserva
+        const dataReserva = await apiFetch("/reservas", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ telefono, nombre: clienteNombre, direccion: origen })
+          body: JSON.stringify({ cliente_id: clienteId, origen, destino, fecha, hora, estado: "activo" })
         });
-        const nuevoClienteData = await nuevoClienteRes.json();
-        if (nuevoClienteRes.ok) {
-          clienteId = nuevoClienteData.id_cliente;
+
+        if (dataReserva && !dataReserva.error) {
+          mostrarToast(`✅ Reserva creada con ID: ${dataReserva.reserva.id_reserva}`, "success");
+          
+          const modalElement = document.getElementById('modalReserva'); // Asegúrate que el ID coincida
+          const instance = bootstrap.Modal.getInstance(modalElement);
+          bootstrap.Modal.getInstance(modalReserva).hide();
+          if (instance) instance.hide();
+
+          programarAlerta(dataReserva.reserva);
+                  
         } else {
-          mostrarToast(nuevoClienteData.error || "❌ Error al registrar cliente", "error");
-          return;
+          mostrarToast(dataReserva?.error || "❌ Error al crear la reserva", "error");
         }
+      } catch (err) {
+        console.error("Error creando reserva:", err);
+        mostrarToast("❌ No se pudo conectar al servidor", "error");
       }
-
-      const resReserva = await apiFetch("/reservas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cliente_id: clienteId, origen, destino, fecha, hora, estado: "activo" })
-      });
-      const dataReserva = await resReserva.json();
-
-      if (resReserva.ok) {
-        mostrarToast(`✅ Reserva creada con ID: ${dataReserva.reserva.id_reserva}`, "success");
-        bootstrap.Modal.getInstance(modalReserva).hide();
-        programarAlerta(dataReserva.reserva);
-                
-      } else {
-        mostrarToast(dataReserva.error || "❌ Error al crear la reserva", "error");
-      }
-    } catch (err) {
-      console.error("Error creando reserva:", err);
-      mostrarToast("❌ No se pudo conectar al servidor", "error");
     }
-  }
 
   // -------------------------------
   // 📌 Programar alerta de reserva
   // -------------------------------
+  // --- Lógica Local (Sigue funcionando para el operador actual) ---
   function programarAlerta(reserva) {
-    const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
-    const ahora = new Date();
-    const msHastaReserva = fechaHoraReserva - ahora;
-    const msHastaAlerta = msHastaReserva - (15 * 60 * 1000);
+      const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}`);
+      const ahora = new Date();
+      const msHastaReserva = fechaHoraReserva - ahora;
+      const msHastaAlerta = msHastaReserva - (15 * 60 * 1000);
 
-    if (msHastaReserva <= 0) return;
-    if (msHastaAlerta > 0) {
-      setTimeout(() => {
-        mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en 15 minutos`, "info");
-      }, msHastaAlerta);
-    } else {
-      mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en menos de 15 minutos`, "warning");
-    }
+      if (msHastaReserva <= 0) return;
+
+      if (msHastaAlerta > 0) {
+          // En lugar de un setTimeout que se puede borrar, 
+          // confiamos en que el Scheduler de Python avisará a todos por Socket.
+          console.log(`Reserva #${reserva.id_reserva} programada. El servidor avisará a los 15 min.`);
+      } else {
+          // Si falta menos de 15 min justo cuando cargamos la lista, avisamos de una vez
+          mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en menos de 15 min`, "warning");
+      }
   }
+
+  // --- Lógica Global (Para todas las PCs de la oficina vía Socket) ---
+  // Este evento debe coincidir con el nombre que emitas en scheduler.py
+  socket.on("reserva_activa", (data) => {
+      // IMPORTANTE: Aquí aplicamos tu misma lógica de los 15 minutos 
+      // pero validada desde el servidor
+      mostrarToast(
+          `🚗 ALERTA: Reserva #${data.id_reserva} de ${data.cliente} está próxima (a las ${data.hora})`,
+          "info"
+      );
+      
+      // Sonido de alerta para la oficina
+      const beep = new Audio('/static/sounds/notification.mp3');
+      beep.play().catch(() => console.log("Permiso de audio requerido"));
+  });
 
   // -------------------------------
   // 📌 Enganchar botones
@@ -186,43 +211,47 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnCrearReserva) btnCrearReserva.addEventListener("click", crearReserva);
   
   ////Función cargar reservas en modal (por implementar)/////
- async function cargarReservasPorVencer() {
-    try {
-      const res = await apiFetch("/reservas/por_vencer"); // 👈 usar el endpoint correcto
-      const data = await res.json();
-      console.log("📡 Datos recibidos en reservas:", JSON.stringify(data, null, 2));
+  async function cargarReservasPorVencer() {
+      try {
+        // 1. apiFetch ya procesa el JSON. 'data' ya contiene el objeto con las reservas.
+        const data = await apiFetch("/reservas/por_vencer"); 
+        
+        console.log("📡 Datos recibidos en reservas:", JSON.stringify(data, null, 2));
 
-      const tbody = document.querySelector("#tablaReservas tbody");
-      tbody.innerHTML = "";
+        const tbody = document.querySelector("#tablaReservas tbody");
+        if (!tbody) return; // Seguridad por si el elemento no existe en el DOM
+        
+        tbody.innerHTML = "";
 
-      // 👇 filtrar solo las activas
-      const activas = Array.isArray(data.reservas) 
-        ? data.reservas.filter(r => r.estado === "activo") 
-        : [];
+        // 2. Accedemos directamente a data.reservas (que es lo que envía tu Flask)
+        const activas = (data && Array.isArray(data.reservas)) 
+          ? data.reservas.filter(r => r.estado === "activo") 
+          : [];
 
-      if (activas.length > 0) {
-        activas.forEach(r => {
+        if (activas.length > 0) {
+          activas.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${r.id_reserva}</td>
+              <td>${r.cliente_nombre || r.cliente?.nombre || "—"}</td>
+              <td>${r.origen}</td>
+              <td>${r.destino}</td>
+              <td>${r.fecha}</td>
+              <td>${r.hora}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
           const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${r.id_reserva}</td>
-            <td>${r.cliente?.nombre || "—"}</td>
-            <td>${r.origen}</td>
-            <td>${r.destino}</td>
-            <td>${r.fecha}</td>
-            <td>${r.hora}</td>
-          `;
+          tr.innerHTML = `<td colspan="6" class="text-center">No hay reservas próximas a vencerse</td>`;
           tbody.appendChild(tr);
-        });
-      } else {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="6" class="text-center">No hay reservas próximas a vencerse</td>`;
-        tbody.appendChild(tr);
+        }
+      } catch (err) {
+        console.error("❌ Error cargando reservas:", err);
+        // Evitamos mostrar el toast cada vez que falle el polling para no molestar al usuario, 
+        // a menos que sea una carga manual.
       }
-    } catch (err) {
-      console.error("❌ Error cargando reservas:", err);
-      mostrarToast("❌ No se pudo cargar la lista de reservas", "error");
     }
-  }
 
 
 });

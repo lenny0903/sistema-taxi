@@ -10,7 +10,7 @@ class Reserva(db.Model):
     fecha = db.Column(db.Date, nullable=False)
     hora = db.Column(db.Time, nullable=False)
     estado = db.Column(db.String(20), default="activo")
-
+    notificada = db.Column(db.Boolean, default=False)
     cliente = db.relationship("Cliente", backref="reservas")
 
     def to_dict(self):
@@ -22,11 +22,12 @@ class Reserva(db.Model):
             "fecha": self.fecha.isoformat() if self.fecha else None,
             "hora": self.hora.strftime("%H:%M:%S") if self.hora else None,
             "estado": self.estado,
+            "notificada": self.notificada,
             "cliente": {
                 "id_cliente": self.cliente.id_cliente if self.cliente else None,
                 "nombre": self.cliente.nombre if self.cliente else None,
                 "telefono": self.cliente.telefono if self.cliente else None,
                 "direccion": self.cliente.direccion if self.cliente else None,
-                "punto_referencia": self.cliente.punto_referencia if self.cliente else None,
+                #"punto_referencia": self.cliente.punto_referencia if self.cliente else None,
             }
         }

@@ -1,4 +1,5 @@
-from app import db
+from app_taxis import db
+
 
 class Rol(db.Model):
     __tablename__ = 'roles'

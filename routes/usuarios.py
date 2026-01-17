@@ -160,3 +160,30 @@ def ver_perfil():
     print(f"[BITÁCORA] Acceso a perfil: {usuario.usuario} ({usuario.rol.nombre_rol})")
     return jsonify(perfil), 200
 
+@usuarios_bp.route("/log-acceso", methods=["POST"])
+def registrar_log_acceso():
+    data = request.get_json()
+    usuario = data.get("usuario")
+    evento = data.get("evento") # 'LOGIN' o 'LOGOUT'
+    
+    if not usuario or not evento:
+        return jsonify({"error": "Datos de auditoría incompletos"}), 400
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO auditoria_accesos (usuario, evento, ip_address, user_agent)
+            VALUES (?, ?, ?, ?)
+        """, (
+            usuario, 
+            evento, 
+            request.remote_addr, 
+            request.headers.get('User-Agent')
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({"mensaje": "Auditoría registrada"}), 201
+    except Exception as e:
+        print(f"Error en auditoría: {e}")
+        return jsonify({"error": "No se pudo registrar la auditoría"}), 500

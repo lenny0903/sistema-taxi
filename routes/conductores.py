@@ -50,16 +50,19 @@ def buscar_conductor_por_cedula():
 def crear_conductor():
     data = request.get_json()
 
-    # Validar duplicados
+    # --- BLOQUE DE SEGURIDAD TOTAL ---
     if Conductor.query.filter_by(nro_cedula=data.get("nro_cedula")).first():
         return jsonify({"error": "La cédula ya está registrada"}), 400
+        
+    if Conductor.query.filter_by(codigo=data.get("codigo")).first():
+        return jsonify({"error": "Este código ya está asignado a otro conductor"}), 400
+        
     if Conductor.query.filter_by(nro_telefono=data.get("nro_telefono")).first():
         return jsonify({"error": "El teléfono ya está registrado"}), 400
-    if Conductor.query.filter_by(codigo=data.get("codigo")).first():
-        return jsonify({"error": "El código ya está registrado"}), 400
+    # ---------------------------------
 
     nuevo = Conductor(
-        codigo=data.get("codigo"),          # 👈 asignado por el operador
+        codigo=data.get("codigo"),
         nro_cedula=data.get("nro_cedula"),
         nombre=data.get("nombre"),
         nro_telefono=data.get("nro_telefono"),
@@ -68,11 +71,7 @@ def crear_conductor():
     db.session.add(nuevo)
     db.session.commit()
 
-    return jsonify({
-        "msg": "Conductor creado",
-        "id_conductor": nuevo.id_conductor,
-        "codigo": nuevo.codigo
-    }), 201
+    return jsonify({"msg": "Conductor creado", "id": nuevo.id_conductor}), 201
 
 
 @conductores_bp.route("/<int:id>", methods=["PUT"])
@@ -80,19 +79,23 @@ def modificar_conductor(id):
     data = request.get_json()
     conductor = Conductor.query.get_or_404(id)
 
-    # Validar duplicado de teléfono si cambia
-    if "nro_telefono" in data and data["nro_telefono"] != conductor.nro_telefono:
-        if Conductor.query.filter_by(nro_telefono=data["nro_telefono"]).first():
-            return jsonify({"error": "El teléfono ya está registrado"}), 400
-        conductor.nro_telefono = data["nro_telefono"]
+    # Validar Cédula: Si cambia, que no exista en OTRO id
+    if "nro_cedula" in data and data["nro_cedula"] != conductor.nro_cedula:
+        if Conductor.query.filter(Conductor.nro_cedula == data["nro_cedula"], Conductor.id_conductor != id).first():
+            return jsonify({"error": "La cédula ya pertenece a otro conductor"}), 400
+        conductor.nro_cedula = data["nro_cedula"]
 
-    # Actualizar nombre si se envía
-    if "nombre" in data:
-        conductor.nombre = data["nombre"]
+    # Validar Código: ¡Aquí está la clave!
+    if "codigo" in data and data["codigo"] != conductor.codigo:
+        # Buscamos si el nuevo código lo tiene alguien que NO sea este 'id'
+        if Conductor.query.filter(Conductor.codigo == data["codigo"], Conductor.id_conductor != id).first():
+            return jsonify({"error": "Este código ya está en uso por otro conductor"}), 400
+        conductor.codigo = data["codigo"]
 
+    # ... resto de campos (nombre, teléfono) ...
+    
     db.session.commit()
-    return jsonify({"msg": "Conductor actualizado", "conductor": conductor.to_dict()}), 200
-
+    return jsonify({"msg": "Conductor actualizado con éxito"}), 200
 
 @conductores_bp.route("/en_turno_disponibles", methods=["GET"])
 def listar_conductores_en_turno_disponibles():

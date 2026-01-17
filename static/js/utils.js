@@ -1,37 +1,29 @@
 // utils.js
 async function apiFetch(endpoint, options = {}) {
-  // 🔗 URL base del backend centralizada aquí
   const baseUrl = "http://127.0.0.1:5000";
-
-  // 🔑 Token JWT almacenado en localStorage
   const token = localStorage.getItem("token");
 
-  // 📝 Headers comunes + token si existe
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-    ...(options.headers || {})
+    ...options.headers
   };
 
   try {
-    // 🚀 Llamada al backend con URL completa y headers
     const res = await fetch(baseUrl + endpoint, { ...options, headers });
 
-    // ⚠️ Manejo de errores HTTP con detalle del backend
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Error ${res.status}: ${text}`);
     }
 
-    // 📡 Devuelve siempre JSON parseado
-    return await res.json();
+    // 🔥 VITAL: Debes retornar el JSON ya resuelto
+    return await res.json(); 
   } catch (err) {
-    // ❌ Log de error centralizado
     console.error("❌ Error en apiFetch:", err);
     throw err;
   }
 }
-
 
 
 function validarNombre(nombre) {
@@ -40,13 +32,13 @@ function validarNombre(nombre) {
 // ==================== Fetch defensivo ====================
 async function fetchDefensivo(url, options = {}) {
   try {
-    let data = await apiFetch(url, options);
+    // 1. Confiamos en que apiFetch ya devuelve el JSON parseado
+    const data = await apiFetch(url, options);
 
-    if (data instanceof Response) {
-      console.warn("⚠️ apiFetch devolvió Response en vez de JSON, aplicando fallback .json()");
-      data = await data.json();
-    }
+    // 2. Si apiFetch falló catastróficamente, vendrá null/undefined
+    if (!data) return [];
 
+    // 3. Manejo de errores que vienen dentro del JSON
     if (data.error) {
       console.error("❌ Error en respuesta:", data.error);
       return [];
@@ -54,22 +46,21 @@ async function fetchDefensivo(url, options = {}) {
 
     console.log("📡 Datos recibidos:", data);
 
-    if (Array.isArray(data)) {
-      return data;
-    } else if (data && typeof data === "object") {
+    // 4. Mapeo inteligente de datos
+    if (Array.isArray(data)) return data;
+    
+    if (typeof data === "object") {
       if (data.cliente) return [data.cliente];
       if (data.clientes) return data.clientes;
       if (data.despachos) return data.despachos;
       return [data];
-    } else {
-      return [];
     }
+    
+    return [];
   } catch (err) {
     console.error("❌ Error en fetchDefensivo:", err);
     return [];
   }
 }
-
-
 
 

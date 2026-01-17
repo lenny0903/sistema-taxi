@@ -24,8 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const res = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
-        const data = await res.json();
+        const data = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
+        //const data = await res.json();
         const contenedor = document.getElementById("reporteResultado");
         contenedor.innerHTML = Array.isArray(data) && data.length > 0
           ? generarTablaGeneral(data)
@@ -56,8 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const res = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
-        const data = await res.json();
+        const data = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
+        //const data = await res.json();
         const contenedor = document.getElementById("reporteConductoresResultado");
         contenedor.innerHTML = Array.isArray(data) && data.length > 0
           ? generarTablaConductores(data)
@@ -164,30 +164,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
- function generarTablaConductores(data) {
-    return `
-      <div class="tabla-dinamica mb-4">
-        <table class="border-collapse border w-full min-w-max">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Total Servicios</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Total Tarifa</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(r => `
+  function generarTablaConductores(data) {
+      // 1. Calculamos los totales recorriendo la data
+      let totalServicios = 0;
+      let totalMonto = 0;
+
+      data.forEach(r => {
+          totalServicios += parseInt(r.total_servicios) || 0;
+          totalMonto += parseFloat(r.total_tarifa) || 0;
+      });
+
+      return `
+        <div class="tabla-dinamica mb-4 shadow-sm border rounded-lg overflow-hidden">
+          <table class="border-collapse border w-full min-w-max">
+            <thead class="bg-gray-100 text-gray-700">
               <tr>
-                <td class="border px-2 py-1">${r.conductor}</td>
-                <td class="border px-2 py-1 text-center">${r.total_servicios}</td>
-                <td class="border px-2 py-1 text-right">${r.total_tarifa.toFixed(2)}</td>
+                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-left">Conductor</th>
+                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-center">Total Servicios</th>
+                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-right">Total Tarifa</th>
               </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
+            </thead>
+            <tbody class="text-gray-600">
+              ${data.map(r => `
+                <tr class="hover:bg-gray-50">
+                  <td class="border px-4 py-1">${r.conductor}</td>
+                  <td class="border px-4 py-1 text-center">${r.total_servicios}</td>
+                  <td class="border px-4 py-1 text-right font-mono">${parseFloat(r.total_tarifa).toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+            <tfoot class="bg-gray-800 text-white font-bold">
+              <tr>
+                <td class="border px-4 py-2 text-right uppercase">Total General:</td>
+                <td class="border px-4 py-2 text-center text-lg">${totalServicios}</td>
+                <td class="border px-4 py-2 text-right text-lg font-mono">
+                  ${totalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `;
+    }
 
    // -------------------------------
   // 📌 Sección: Reportes por Cliente
@@ -225,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <tr>
                 <td>${item.nombre_conductor}</td>
                 <td>${item.origen}</td>
+                <td>${item.destino}</td>
                 <td>${item.ultima_fecha}</td>
               </tr>
             `;
@@ -280,8 +299,8 @@ document.getElementById("btnNext").onclick = () => {
   async function cargarClientesTel(page = 1) {
       paginaActual = page;
       try {
-          const res = await apiFetch(`/clientes?page=${page}`);
-          const data = await res.json();
+          const data = await apiFetch(`/clientes?page=${page}`);
+          //const data = await res.json();
           
           renderTablaClientesTel(data.clientes);
           
@@ -346,10 +365,22 @@ document.getElementById("btnNext").onclick = () => {
       tdTelefono.style.padding = "8px";
       tdTelefono.textContent = cliente.nro_telefono || cliente.telefono;
 
+      const tdDireccion = document.createElement("td");
+      tdDireccion.style.padding = "8px";
+      // Aplicamos las clases de Tailwind: 
+      // truncate: corta el texto con "..." 
+      // max-w-xs: limita el ancho (aprox 320px)
+      // cursor-help: para que el usuario sepa que hay más texto
+      tdDireccion.className = "truncate max-w-xs cursor-help";
+      // Guardamos la dirección completa en el atributo 'title' 
+      // Así, cuando el operador ponga el mouse encima, verá la dirección completa en un globito
+      tdDireccion.title = cliente.direccion || "Sin dirección";
+      tdDireccion.textContent = cliente.direccion || "Sin dirección";
+
       tr.appendChild(tdNum);
       tr.appendChild(tdNombre);
       tr.appendChild(tdTelefono);
-
+      tr.appendChild(tdDireccion);
       // Evento de selección
       tr.addEventListener("click", () => {
         seleccionarClienteTel(cliente);
@@ -482,3 +513,19 @@ function abrirVista(idVista) {
   }
 }
 
+async function registrarAuditoriaAcceso(evento) {
+    const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
+
+    try {
+        // CAMBIO DE RUTA: ahora es /usuarios/log-acceso
+        await apiFetch('/usuarios/log-acceso', {
+            method: 'POST',
+            body: JSON.stringify({
+                usuario: usuarioActivo,
+                evento: evento
+            })
+        });
+    } catch (error) {
+        console.error("Error de auditoría:", error);
+    }
+}

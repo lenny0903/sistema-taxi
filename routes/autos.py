@@ -7,29 +7,35 @@ autos_bp = Blueprint("autos", __name__, url_prefix="/autos")
 
 @autos_bp.route("/", methods=["POST"])
 def crear_auto():
-    data = request.get_json()
-    #print("Datos recibidos:", data)
-    nuevo = Auto(
-        nro_placa=data.get("nro_placa"),
-        tipo_auto=data.get("tipo_auto"),
-        marca=data.get("marca"),
-        modelo=data.get("modelo"),
-        estado="disponible"   # 👈 nuevo campo inicializado
-    )
-    #print("Placa asignada:", nuevo.nro_placa)
+    try:
+        data = request.get_json()
+        # Normalizamos la placa a mayúsculas para comparar
+        placa = data.get("nro_placa", "").strip().upper()
 
-    db.session.add(nuevo)
-    db.session.commit()
-    return jsonify({"msg": "Auto creado", "id_auto": nuevo.id_auto}), 201
+        # VALIDACIÓN MANUAL ANTES DE INSERTAR
+        existente = Auto.query.filter_by(nro_placa=placa).first()
+        if existente:
+            # Aquí devolvemos 400, que es un error "esperado" y no un colapso del servidor
+            return jsonify({"error": f"La placa {placa} ya existe en el sistema"}), 400
+
+        nuevo = Auto(
+            nro_placa=placa,
+            tipo_auto=data.get("tipo_auto"),
+            marca=data.get("marca"),
+            modelo=data.get("modelo"),
+            estado="disponible"
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        return jsonify(nuevo.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error inesperado: " + str(e)}), 500
 
 @autos_bp.route("/", methods=["GET"])
 def listar_autos():
     autos = Auto.query.all()
-    resultado = [
-        {"id_auto": a.id_auto, "placa": a.nro_placa, "tipo_auto": a.tipo_auto, "marca": a.marca, "modelo": a.modelo}
-        for a in autos
-    ]
-    return jsonify(resultado), 200
+    return jsonify([a.to_dict() for a in autos])
 
 @autos_bp.route("/<int:id>", methods=["GET"])
 def obtener_auto(id):
@@ -54,15 +60,16 @@ def listar_autos_activos():
 
 @autos_bp.route("/buscar", methods=["GET"])
 def buscar_auto_por_placa():
-    placa = request.args.get("placa")
+    placa = request.args.get("placa", "").strip() # Limpiamos espacios
     if not placa:
         return jsonify([]), 200
 
     auto = Auto.query.filter_by(nro_placa=placa).first()
     if auto:
+        # IMPORTANTE: Usamos los nombres que el JS buscará
         return jsonify([{
             "id_auto": auto.id_auto,
-            "placa": auto.nro_placa,
+            "nro_placa": auto.nro_placa, # Cambiado de "placa" a "nro_placa"
             "tipo_auto": auto.tipo_auto,
             "marca": auto.marca,
             "modelo": auto.modelo
@@ -72,18 +79,34 @@ def buscar_auto_por_placa():
 
 @autos_bp.route("/<int:id>", methods=["PUT"])
 def modificar_auto(id):
-    data = request.get_json()
-    auto = Auto.query.get_or_404(id)
+    try:
+        data = request.get_json()
+        auto = Auto.query.get_or_404(id)
 
-    if "tipo_auto" in data:
-        auto.tipo_auto = data["tipo_auto"]
-    if "marca" in data:
-        auto.marca = data["marca"]
-    if "modelo" in data:
-        auto.modelo = data["modelo"]
+        # 1. Validación de Placa (Si se envía una nueva placa)
+        if "nro_placa" in data:
+            nueva_placa = data["nro_placa"].strip().upper()
+            
+            # Verificar que la placa no la tenga OTRO auto
+            existente = Auto.query.filter(Auto.nro_placa == nueva_placa, Auto.id_auto != id).first()
+            if existente:
+                return jsonify({"error": f"La placa {nueva_placa} ya está registrada en otro vehículo"}), 400
+            
+            auto.nro_placa = nueva_placa
 
-    db.session.commit()
-    return jsonify(auto.to_dict()), 200
+        # 2. Actualización de los demás campos
+        if "tipo_auto" in data: auto.tipo_auto = data["tipo_auto"]
+        if "marca" in data: auto.marca = data["marca"]
+        if "modelo" in data: auto.modelo = data["modelo"]
+
+        db.session.commit()
+        return jsonify(auto.to_dict()), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al modificar: {e}")
+        return jsonify({"error": "No se pudo actualizar el vehículo"}), 500
+
 @autos_bp.route("/disponibles", methods=["GET"])
 def listar_autos_disponibles():
      try:

@@ -173,37 +173,42 @@
     <section id="conductores" class="seccion hidden">
       <h2 class="text-2xl font-bold mb-4">Gestión de Conductores</h2>
 
-      <!-- Formulario de creación -->
-      <form id="formConductor" class="space-y-2 flex gap-2">
-        <div class="flex-1">
-          <label class="block">Nro de Cédula:</label>
-          <input type="text" id="conCedula" name="nro_cedula" class="border p-2 w-full" required>
+      <form id="formConductor" class="space-y-2 border p-4 bg-white rounded shadow">
+        <input type="hidden" id="conId" value="">
 
-          <label class="block">Nombre:</label>
-          <input type="text" id="conNombre" name="nombre" class="border p-2 w-full" required>
-          <label class="block">Código:</label>
-          <input type="text" id="conCodigo" name="codigo"
-                pattern="^B[0-9]{2,}$"
-                title="Debe comenzar con B seguido de números (ej. B01, B02...)"
-                class="border p-2 w-full" required>
-          <label class="block">Teléfono:</label>
-          <input type="text" id="conTelefono" name="nro_telefono"
-                maxlength="11"
-                pattern="^(0276[0-9]{7}|04[0-9]{9})$"
-                title="Debe comenzar con 0276, 0412, 0414, 0416, 0424 o 0426 y tener 11 dígitos en total"
-                class="border p-2 w-full" required>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold">Nro de Cédula:</label>
+           <input type="text" id="conCedula" name="nro_cedula" class="border p-2 w-full" required>
+          </div>
+          <div>
+            <label class="block font-semibold">Código:</label>
+            <input type="text" id="conCodigo" name="codigo" pattern="^B[0-9]{2,}$" class="border p-2 w-full" required>
+          </div>
+          <div>
+            <label class="block font-semibold">Nombre:</label>
+            <input type="text" id="conNombre" name="nombre" class="border p-2 w-full" required>
+          </div>
+          <div>
+            <label class="block font-semibold">Teléfono:</label>
+            <input type="text" id="conTelefono" name="nro_telefono" maxlength="11" class="border p-2 w-full" required>
+          </div>
+          
         </div>
 
-        <div class="flex gap-2 items-end">
-          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
-          
+        <div class="flex gap-2 mt-4">
+          <button type="submit" id="btnGuardarConductor" class="bg-green-500 text-white px-6 py-2 rounded font-bold">
+            Guardar
+          </button>
+          <button type="button" id="btnLimpiarConductor" onclick="resetearFormConductor(true)" class="bg-gray-400 text-white px-4 py-2 rounded">
+            Limpiar
+          </button>
         </div>
       </form>
 
-      <!-- Tabla de conductores -->
-      <table id="tablaConductores" class="mt-4">
+      <table id="tablaConductores" class="mt-4 w-full">
         <thead>
-          <tr>
+          <tr class="bg-gray-200">
             <th>Código</th>
             <th>Nro de Cédula</th>
             <th>Nombre</th>
@@ -212,19 +217,6 @@
         </thead>
         <tbody></tbody>
       </table>
-      <!-- Formulario de edición oculto -->
-      <div id="formConductorEditContainer" class="hidden mt-6">
-        <h3 class="text-xl font-bold">Editar Conductor</h3>
-        <form id="formConductorEdit" class="space-y-2">
-          <label class="block">Nombre:</label>
-          <input type="text" id="conNombreEdit" class="border p-2 w-full">
-
-          <label class="block">Teléfono:</label>
-          <input type="text" id="conTelefonoEdit" class="border p-2 w-full">
-
-          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
-        </form>
-      </div>
     </section>
     <!--Gestión de Usuarios-->
     <section id="usuarios" class="seccion hidden">
@@ -270,59 +262,55 @@
       </table>
     </section>
 
-     <!-- Sección: Autos -->
     <section id="autos" class="seccion hidden">
       <h2 class="text-2xl font-bold mb-4">Gestión de Autos</h2>
 
-      <!-- Formulario de creación -->
-      <form id="formAuto" class="space-y-2">
-        <label class="block">Placa:</label>
-        <input type="text" id="autoPlaca" class="border p-2 w-full" required>
+      <form id="formAuto" class="space-y-2 border p-4 bg-white rounded shadow">
+        <input type="hidden" id="autoId" value="">
 
-        <label class="block">Tipo:</label>
-        <input type="text" id="autoTipo" class="border p-2 w-full" required>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold">Placa:</label>
+            <input type="text" id="autoPlaca" 
+                  class="border p-2 w-full" 
+                  placeholder="Presiona Enter para buscar" 
+                  required>
+          </div>
+          <div>
+            <label class="block font-semibold">Tipo:</label>
+            <input type="text" id="autoTipo" class="border p-2 w-full" required>
+          </div>
+          <div>
+            <label class="block font-semibold">Marca:</label>
+            <input type="text" id="autoMarca" class="border p-2 w-full" required>
+          </div>
+          <div>
+            <label class="block font-semibold">Modelo:</label>
+            <input type="text" id="autoModelo" class="border p-2 w-full" required>
+          </div>
+        </div>
 
-        <label class="block">Marca:</label>
-        <input type="text" id="autoMarca" class="border p-2 w-full" required>
-
-        <label class="block">Modelo:</label>
-        <input type="text" id="autoModelo" class="border p-2 w-full" required>
-
-        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+        <div class="flex gap-2 mt-4">
+         <button type="submit" id="btnGuardarAuto" class="bg-green-500 text-white px-4 py-2 rounded">
+            Guardar
+        </button>
+          <button type="button" onclick="resetearFormAuto(true)" class="bg-gray-400 text-white px-4 py-2 rounded">
+            Limpiar
+          </button>
+        </div>
       </form>
 
-      <!-- Tabla de autos -->
-      <table id="tablaAutos" class="mt-4 w-full border">
+      <table id="tablaAutos" class="mt-6 w-full border text-left">
         <thead>
           <tr class="bg-gray-200">
-            <th>Placa</th>
-            <th>Tipo</th>
-            <th>Marca</th>
-            <th>Modelo</th>
+            <th class="p-2">Placa</th>
+            <th class="p-2">Tipo</th>
+            <th class="p-2">Marca</th>
+            <th class="p-2">Modelo</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-
-      <!-- Formulario de edición oculto -->
-      <div id="formAutoEditContainer" class="hidden mt-6">
-        <h3 class="text-xl font-bold">Editar Auto</h3>
-        <form id="formAutoEdit" class="space-y-2">
-          <label class="block">Placa:</label>
-          <input type="text" id="autoPlacaEdit" class="border p-2 w-full" readonly>
-
-          <label class="block">Tipo:</label>
-          <input type="text" id="autoTipoEdit" class="border p-2 w-full">
-          
-          <label class="block">Marca:</label>
-          <input type="text" id="autoMarcaEdit" class="border p-2 w-full">
-
-          <label class="block">Modelo:</label>
-          <input type="text" id="autoModeloEdit" class="border p-2 w-full">
-
-          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Confirmar cambios</button>
-        </form>
-      </div>
     </section>
 
 <!-- Sección: Despachos -->
@@ -435,30 +423,8 @@
                 Asignar al despacho seleccionado
               </button>
             </div>
-            <!-- Cola de clientes en espera -->
-            <div class="mt-8">
-              <h2 class="text-xl font-bold mb-2">Clientes en Espera</h2>
-              <div class="tabla-dinamica mb-4">
-                <table id="tablaClientesEspera" class="w-full border-collapse border border-gray-300">
-                  <thead class="bg-gray-100">
-                    <tr>
-                      <th class="border px-2 py-1">#</th>
-                      <th class="border px-2 py-1">Teléfono Cliente</th>
-                      <th class="border px-2 py-1">Nombre</th>
-                      <th class="border px-2 py-1">Origen</th>
-                      <th class="border px-2 py-1">Destino</th>
-                      <th class="border px-2 py-1">Hora Solicitud</th>
-                      <th class="border px-2 py-1">Tarifa</th>
-                      <th class="border px-2 py-1">Estado</th>
-                      <th class="border px-2 py-1">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- Aquí se llenan los clientes en espera con JS -->
-                  </tbody>
-                </table>
-              </div>  
-            </div>
+           
+            
       </section>
 
       <!-- Sección: Reportes -->
@@ -528,6 +494,7 @@
               <tr>
                 <th>Conductor</th>
                 <th>Origen</th>
+                <th>Destino</th>
                 <th>Fecha</th>
               </tr>
             </thead>
@@ -607,25 +574,33 @@
         return;
       }
 
-      const res = await fetch("/usuarios/usuarios", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario, nombre_completo: nombre, rol_id, clave })
-      });
+      try {
+        // Cambiamos 'fetch' por 'apiFetch'
+        const data = await apiFetch("/usuarios/usuarios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, nombre_completo: nombre, rol_id, clave })
+        });
 
-      const data = await res.json();
-      if (res.ok) {
-        alert("Usuario creado correctamente");
-        cargarUsuarios();
-      } else {
-        alert("Error: " + (data.error || "No se pudo crear el usuario"));
+        // YA NO USAMOS res.json() ni res.ok
+        if (data && !data.error) {
+          alert("Usuario creado correctamente");
+          cargarUsuarios();
+          // Sugerencia: Limpia los campos después de crear
+          document.getElementById("usuario").value = "";
+          document.getElementById("clave").value = "";
+        } else {
+          alert("Error: " + (data?.error || "No se pudo crear el usuario"));
+        }
+      } catch (err) {
+        console.error("Error creando usuario:", err);
+        alert("Error de conexión con el servidor");
       }
     }
     //////cargar usuarios
     async function cargarUsuarios() {
       console.log("Entrando a cargarUsuarios()");
       
-      // 🔒 Solo cargar si la sección está visible
       const seccion = document.getElementById('usuarios');
       if (!seccion || seccion.classList.contains('hidden')) {
         console.log("⏸ Sección usuarios oculta, no cargo datos");
@@ -633,53 +608,62 @@
       }
 
       try {
-        const res = await fetch("/usuarios/usuarios"); // ruta correcta
-        if (!res.ok) throw new Error("Error HTTP " + res.status);
+        // 1. Usamos apiFetch (ya hace el json() y valida errores básicos)
+        const usuarios = await apiFetch("/usuarios/usuarios");
 
-        const usuarios = await res.json();
         const tbody = document.querySelector("#tablaUsuarios tbody");
+        if (!tbody) return;
+        
         tbody.innerHTML = "";
         console.log("Usuarios recibidos:", usuarios);
 
-        usuarios.forEach(u => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${u.id_usuario}</td>
-            <td>${u.usuario}</td>
-            <td>${u.nombre_completo}</td>
-            <td>${u.nombre_rol}</td>
-            <td>${u.activo ? "Sí" : "No"}</td>
-            <td>
-              <button class="btn btn-sm btn-warning" onclick="toggleUsuario(${u.id_usuario}, ${u.activo})">
-                ${u.activo ? "Desactivar" : "Activar"}
-              </button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+        // 2. Verificamos que 'usuarios' sea un array
+        if (Array.isArray(usuarios)) {
+          usuarios.forEach(u => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${u.id_usuario}</td>
+              <td>${u.usuario}</td>
+              <td>${u.nombre_completo}</td>
+              <td>${u.nombre_rol}</td>
+              <td>${u.activo ? "Sí" : "No"}</td>
+              <td>
+                <button class="btn btn-sm btn-warning" onclick="toggleUsuario(${u.id_usuario}, ${u.activo})">
+                  ${u.activo ? "Desactivar" : "Activar"}
+                </button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
       } catch (err) {
         console.error("Error cargando usuarios:", err);
-        alert("No se pudo cargar la lista de usuarios");
+        // En lugar de alert, podrías usar un console.warn para no interrumpir al usuario
       }
     }
-
 
     //////activar/desactivar usuario
     async function toggleUsuario(id, activo) {
-      const res = await fetch(`/usuarios/${id}/estado`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activo: !activo })
-      });
+      try {
+        // Cambiamos 'fetch' por 'apiFetch'
+        const data = await apiFetch(`/usuarios/${id}/estado`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activo: !activo })
+        });
 
-      if (res.ok) {
-        alert("Estado actualizado");
-        cargarUsuarios();
-      } else {
-        alert("Error al actualizar estado");
+        // Validamos usando el objeto 'data'
+        if (data && !data.error) {
+          alert("Estado actualizado con éxito");
+          cargarUsuarios(); // Refresca la tabla
+        } else {
+          alert("Error: " + (data?.error || "No se pudo actualizar el estado"));
+        }
+      } catch (err) {
+        console.error("Error en toggleUsuario:", err);
+        alert("Error de conexión con el servidor");
       }
     }
-
     //// Función para cambiar la contraseña
     async function cambiarPassword() {
       const usuario = document.getElementById("usuarioCambio").value.trim();
@@ -786,17 +770,32 @@
     }
 
     // apiFetch con token y merge de opciones
-    window.apiFetch = (url, options = {}) => {
+    // apiFetch con token y MANEJO DE JSON (Corregido)
+    window.apiFetch = async (url, options = {}) => {
       const token = localStorage.getItem('token');
       const baseHeaders = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': 'Bearer ' + token } : {})
       };
 
-      return fetch(url, {
-        ...options,
-        headers: { ...baseHeaders, ...(options.headers || {}) }
-      });
+      try {
+        const res = await fetch(url, {
+          ...options,
+          headers: { ...baseHeaders, ...(options.headers || {}) }
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Error ${res.status}: ${errorText}`);
+        }
+
+        // 🔥 ESTO ES LO QUE FALTABA:
+        return await res.json(); 
+        
+      } catch (err) {
+        console.error("❌ Error en apiFetch (Dashboard):", err);
+        throw err;
+      }
     };
     
   });
@@ -827,8 +826,8 @@
     // Listar clientes en la tabla dinámica
     async function listarClientes() {
       try {
-        const res = await apiFetch("/clientes"); // tu endpoint Flask
-        const data = await res.json();
+        const data = await apiFetch("/clientes"); // tu endpoint Flask
+        //const data = await res.json();
 
         const tbody = document.getElementById("clientesTabla");
         tbody.innerHTML = Array.isArray(data) && data.length > 0
@@ -856,8 +855,8 @@
       
     // Conductores
     async function cargarConductores() {
-      const res = await apiFetch('/conductores');
-      const data = await res.json();
+      const data = await apiFetch('/conductores');
+      //const data = await res.json();
 
       const tbody = document.querySelector('#tablaConductores tbody');
       tbody.innerHTML = ""; // limpiar tabla
@@ -884,42 +883,7 @@
       }
     }
 
-    
-    
-  
-  document.getElementById('formConductor').addEventListener('submit', async e => {
-    e.preventDefault();
-
-    const conductor = {
-      codigo: document.getElementById('conCodigo').value.trim(), 
-      nro_cedula: document.getElementById('conCedula').value.trim(),
-      nombre: document.getElementById('conNombre').value.trim(),
-      nro_telefono: document.getElementById('conTelefono').value.trim()
-    };
-
-    try {
-      const res = await apiFetch('/conductores', {
-        method: 'POST',
-        body: JSON.stringify(conductor)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("Conductor creado correctamente");
-        e.target.reset();
-        cargarConductores();
-        //cargarConductoresActivosSelect();
-      } else {
-        alert(data.error || "Error al crear conductor");
-      }
-    } catch (err) {
-      console.error("Error en creación de conductor:", err);
-      alert("Error inesperado al crear conductor");
-    }
-  });
-
-
-   
+     
 
    
 // Modificar campo específico de cliente con token
@@ -961,8 +925,8 @@
   //////////Función para poblar select de conductores disponibles al crear turno//////////
   async function cargarConductoresEnTurnoCrear() {
     try {
-      const res = await apiFetch('/conductores/disponibles_conductores');
-      const data = await res.json();
+      const data = await apiFetch('/conductores/disponibles_conductores');
+      //const data = await res.json();
 
       console.log("Conductores disponibles recibidos:", data);
 
@@ -997,8 +961,8 @@
     console.trace("▶️ cargarTurnos disparado");
 
     try {
-      const res = await apiFetch('/turnos/activos'); // solo activos
-      const data = await res.json();
+      const data = await apiFetch('/turnos/activos'); // solo activos
+      //const data = await res.json();
       const contenedor = document.getElementById('turnosActivosLista');
       console.log("▶️ Ejecutando cargarTurnos()", data);
 
@@ -1053,43 +1017,67 @@
   }
 
 
-  function mostrarSeccion(id) {
-    document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-    const target = document.getElementById(id.trim());
-    if (target) {
-      target.classList.remove('hidden');
-      console.log("✅ Mostrando sección:", id);
+    function mostrarSeccion(id) {
+        const rol = localStorage.getItem("rol"); // "Administrador" u "Operador"
+        const idLimpio = id.trim();
 
-      switch (id) {
-        case 'usuarios':
-          cargarUsuarios();
-          break;
-        case 'turnosActivos':
-          cargarTurnos(); // solo turnos
-          cargarConductoresEnTurnoCrear();
-          cargarAutosDisponiblesSelect();
-          cargarPuntos();
-          break;
-        case 'despachos':
-          //cargarConductoresEnTurnoDespacho();
-          //cargarAutosActivosSelect();
-          break;
-        case 'despachosActivos':
-          cargarDespachosActivos();
-          //cargarListaEspera();
-          break;
+        // 1. SEGURIDAD: Secciones que el Operador NO puede ver
+        const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
+        
+        if (rol === "Operador" && seccionesAdmin.includes(idLimpio)) {
+            console.warn(`🚫 Acceso denegado: El rol ${rol} no tiene permiso para ${idLimpio}`);
+            return; // Salimos de la función y no mostramos nada
+        }
+
+        // 2. BLOQUEO UNIVERSAL: Sección Clientes (mencionaste que nadie debe verla)
+        if (idLimpio === 'clientes' || idLimpio === 'clientesSection') {
+            console.warn("🚫 La sección de Clientes está deshabilitada para todos.");
+            return;
+        }
+
+        // 3. LÓGICA DE VISUALIZACIÓN
+        document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
+        const target = document.getElementById(idLimpio);
+        
+        if (target) {
+            target.classList.remove('hidden');
+            console.log("✅ Mostrando sección:", idLimpio);
+
+            // 4. CARGA DE DATOS SEGÚN LA SECCIÓN
+            switch (idLimpio) {
+                case 'usuarios':
+                    cargarUsuarios();
+                    break;
+                case 'autos': 
+                    cargarAutosTabla(); 
+                    break;
+                case 'conductores':
+                    console.log("👤 Cargando lista de conductores...");
+                    cargarConductores(); 
+                    break;
+                case 'turnosActivos':
+                    cargarTurnos();
+                    cargarConductoresEnTurnoCrear();
+                    cargarAutosDisponiblesSelect();
+                    cargarPuntos();
+                    break;
+                case 'despachosActivos':
+                    cargarDespachosActivos();
+                    break;
+                case 'despachos':
+                    // Aquí puedes cargar datos iniciales para crear despacho si es necesario
+                    break;
+            }
+        } else {
+            console.error(`⚠️ Sección ${idLimpio} no encontrada en el HTML`);
+        }
       }
-    } else {
-      console.error(`⚠️ Sección ${id} no encontrada`);
-    }
-  }
-
   
    
     //Actualizar autos disponibles para el select de crear turno
     async function cargarAutosDisponiblesSelect() {
-      const res = await apiFetch('/autos/disponibles');
-      const data = await res.json();
+      const data = await apiFetch('/autos/disponibles');
+      //const data = await res.json();
       const sel = document.getElementById('nuevoAuto');
       sel.innerHTML = Array.isArray(data) && data.length > 0
         ? data.map(a => `<option value="${a.id_auto}">${a.nro_placa || a.placa || '—'}</option>`).join('')
@@ -1123,41 +1111,7 @@
     }
 
    
-    // Validar cédula de conductor al presionar Enter
-    document.getElementById("conCedula").addEventListener("keydown", async (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const cedula = event.target.value.trim();
-        if (!cedula) {
-          alert("Debe ingresar un número de cédula");
-          return;
-        }
-
-        const res = await fetch(`/conductores/buscar?nro_cedula=${cedula}`);
-        const data = await res.json();
-
-        const tbody = document.querySelector("#tablaConductores tbody");
-
-        if (data.length > 0) {
-          alert("La cédula ya está registrada");
-          // Mostrar en la tabla
-          tbody.innerHTML = `
-            <tr>
-              <td>${data[0].nro_cedula}</td>
-              <td>${data[0].nombre}</td>
-              <td>${data[0].nro_telefono}</td>
-            </tr>
-          `;
-        } else {
-          alert("Cédula válida, puede continuar con el registro");
-          document.getElementById("conNombre").focus();
-          // Limpiar tabla si estaba mostrando algo
-          tbody.innerHTML = "";
-        }
-      }
-    });
-
-
+   
     //document.getElementById('desCliente').addEventListener('change', verificarDespachoListo);
     //document.getElementById('desConductor').addEventListener('change', verificarDespachoListo);
     //document.getElementById('desAuto').addEventListener('change', verificarDespachoListo);
@@ -1185,8 +1139,8 @@
   // Cargar despachos activos
   async function cargarDespachosActivos() {
   try {
-    const res = await apiFetch('/despachos/activos');
-    const data = await res.json();
+    const data = await apiFetch('/despachos/activos');
+    //const data = await res.json();
     const tbody = document.querySelector('#tablaDespachosActivos tbody');
 
     if (!tbody) return;
@@ -1242,37 +1196,7 @@
   }
 }
 
-  // Conductores - Editar para modificar datos
-  let conductorSeleccionado = null; // se define al hacer clic en la fila de la tabla
-
-  function seleccionarConductor(c) {
-    conductorSeleccionado = c;
-    document.getElementById("formConductorEditContainer").classList.remove("hidden");
-    document.getElementById("conNombreEdit").value = c.nombre;
-    document.getElementById("conTelefonoEdit").value = c.nro_telefono;
-  }
-  document.getElementById("formConductorEdit").addEventListener("submit", async e => {
-    e.preventDefault();
-
-    const conductor = {
-      nombre: document.getElementById("conNombreEdit").value.trim(),
-      nro_telefono: document.getElementById("conTelefonoEdit").value.trim()
-    };
-
-    const res = await apiFetch(`/conductores/${conductorSeleccionado.id_conductor}`, {
-      method: "PUT",
-      body: JSON.stringify(conductor)
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("Conductor actualizado correctamente");
-      cargarConductores();
-      document.getElementById("formConductorEditContainer").classList.add("hidden");
-    } else {
-      alert(data.error || "Error al actualizar conductor");
-    }
-  });
+ 
   
    // Conectar el botón con la función
   document.getElementById("btnReporteEmbarque").addEventListener("click", () => {
@@ -1324,100 +1248,7 @@
   }
 }
 
-    // Validar placa con Enter
-  document.addEventListener("DOMContentLoaded", () => {  
-    document.getElementById("autoPlaca").addEventListener("keydown", async (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const placa = event.target.value.trim();
-        if (!placa) {
-          alert("Debe ingresar una placa");
-          return;
-        }
-
-        const res = await fetch(`/autos/buscar?placa=${placa}`);
-        const data = await res.json();
-
-        const tbody = document.querySelector("#tablaAutos tbody");
-
-        if (data.length > 0) {
-          alert("La placa ya está registrada");
-          tbody.innerHTML = `
-            <tr>
-              <td>${data[0].placa}</td>
-              <td>${data[0].tipo}</td>
-              <td>${data[0].marca}</td>
-              <td>${data[0].modelo}</td>
-            </tr>
-          `;
-        } else {
-          alert("Placa válida, puede continuar con el registro");
-          document.getElementById("autoTipo").focus();
-          tbody.innerHTML = "";
-        }
-      }
-    });
-
-    // Crear auto
-    document.getElementById("formAuto").addEventListener("submit", async e => {
-      e.preventDefault();
-      const auto = {
-        nro_placa: document.getElementById("autoPlaca").value.trim(),
-        tipo_auto: document.getElementById("autoTipo").value.trim(),
-        marca: document.getElementById("autoMarca").value.trim(),
-        modelo: document.getElementById("autoModelo").value.trim()
-      };
-      if (!auto.nro_placa || !auto.tipo_auto || !auto.marca || !auto.modelo) {
-        alert("Todos los campos son obligatorios");
-        return;
-      }
-      const res = await apiFetch("/autos", {
-        method: "POST",
-        body: JSON.stringify(auto)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("Auto creado correctamente");
-        e.target.reset();
-        cargarAutosTabla();
-        //cargarAutosActivosSelect();
-        //cargarAutosDisponiblesSelect();
-      } else {
-        alert(data.error || "Error al crear auto");
-      }
-    });
-
-    // Cargar autos en tabla
-    async function cargarAutosTablaLegacy() {
-      const res = await apiFetch("/autos");
-      const data = await res.json();
-
-      const tbody = document.querySelector("#tablaAutos tbody");
-      tbody.innerHTML = "";
-
-      data.forEach(a => {
-        const tr = document.createElement("tr");
-        tr.classList.add("cursor-pointer", "hover:bg-gray-100");
-        tr.innerHTML = `<td>${a.placa}</td><td>${a.tipo}</td><td>${a.marca}</td><td>${a.modelo}</td>`;
-        tr.addEventListener("click", () => seleccionarAuto(a));
-        tbody.appendChild(tr);
-      });
-    }
-    
-    // Seleccionar auto para edición
-    function seleccionarAuto(a) {
-      autoSeleccionado = a;
-      document.getElementById("formAutoEditContainer").classList.remove("hidden");
-      document.getElementById("autoTipoEdit").value = a.tipo_auto;
-      document.getElementById("autoMarcaEdit").value = a.marca;
-      document.getElementById("autoModeloEdit").value = a.modelo;
-      document.getElementById("autoPlacaEdit").value = a.nro_placa || a.placa;
-    }
-    window.seleccionarAuto = seleccionarAuto;
- 
-
-  });
+  
   // Abrir modal para editar cliente desde despacho
   async function guardarCambiosCliente() {
     const telefono = document.getElementById('cliTelefonoEdit').value.trim();
@@ -1465,13 +1296,15 @@
   }
  
 
- // Registrar embarque
+  // Registrar embarque
   async function registrarEmbarque(idDespacho) {
     try {
-      const res = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });
-      const data = await res.json();
+      // 1. Aquí guardamos el resultado de la API
+      const data = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });
 
-      if (res.ok) {
+      // 2. En lugar de res.ok, verificamos si data existe o tiene éxito
+      // (Depende de cómo responda tu Flask, pero usualmente si no hay error, es exitoso)
+      if (data && !data.error) {
         alert("Embarque registrado correctamente");
         cargarDespachosActivos(); // refresca la tabla
       } else {
@@ -1538,24 +1371,51 @@
   });
   // cargar autos en tabla
   async function cargarAutosTabla() {
-    const res = await apiFetch("/autos");
-    const data = await res.json();
+      console.log("1. La función cargarAutosTabla se ha iniciado");
+      
+      const tbody = document.querySelector("#tablaAutos tbody");
+      
+      if (!tbody) {
+          console.error("2. ERROR: No se encontró el tbody. Revisa si el script se carga antes que el HTML.");
+          return;
+      }
 
-    const tbody = document.querySelector("#tablaAutos tbody");
-    tbody.innerHTML = "";
+      try {
+          const data = await apiFetch("/autos");
+          console.log("3. Datos recibidos del servidor:", data);
+          
+          //const data = await res.json();
+          console.log("4. Datos convertidos a JSON:", data);
 
-    data.forEach(a => {
-      const tr = document.createElement("tr");
-      tr.classList.add("cursor-pointer", "hover:bg-gray-100");
-      tr.innerHTML = `
-        <td>${a.placa}</td>
-        <td>${a.tipo_auto}</td>
-        <td>${a.marca}</td>
-        <td>${a.modelo}</td>
-      `;
-      tr.addEventListener("click", () => seleccionarAuto(a));  // <- clic abre edición
-      tbody.appendChild(tr);
-    });
+          tbody.innerHTML = ""; // Limpiamos la tabla
+
+          if (!Array.isArray(data) || data.length === 0) {
+              console.warn("5. La base de datos no devolvió autos o el formato no es un array.");
+              tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">No hay autos disponibles</td></tr>';
+              return;
+          }
+
+          data.forEach((a, index) => {
+              const tr = document.createElement("tr");
+              tr.className = "border-b hover:bg-gray-50 cursor-pointer";
+              
+              // Usamos nro_placa porque así está en tu to_dict del modelo
+              tr.innerHTML = `
+                  <td class="p-2 text-center">${a.nro_placa || 'S/N'}</td>
+                  <td class="p-2 text-center">${a.tipo_auto || '---'}</td>
+                  <td class="p-2 text-center">${a.marca || '---'}</td>
+                  <td class="p-2 text-center">${a.modelo || '---'}</td>
+              `;
+              
+              tr.onclick = () => seleccionarAuto(a);
+              tbody.appendChild(tr);
+          });
+          
+          console.log("6. Tabla poblada con éxito");
+
+      } catch (error) {
+          console.error("❌ Error crítico en cargarAutosTabla:", error);
+      }
   }
     // =======================
   // Turnos Activos
@@ -1565,37 +1425,36 @@
 
   async function finalizarTurno(id_turno) {
     try {
-      const res = await apiFetch(`/turnos/${id_turno}/finalizar`, { method: "PUT" });
-      const data = await res.json();
+      // 1. apiFetch ya maneja el error internamente si el status no es 2xx
+      const data = await apiFetch(`/turnos/${id_turno}/finalizar`, { method: "PUT" });
 
-      if (res.ok) {
-        console.log("✅ Turno finalizado:", data);
+      // 2. Si llegamos aquí, es porque TODO SALIÓ BIEN (Status 200)
+      console.log("✅ Turno finalizado:", data);
 
-        // Feedback claro al operador
-        alert(
-          `Turno #${data.id_turno} finalizado correctamente\n` +
-          `Estado turno: ${data.estado_turno}\n` +
-          `Conductor: ${data.conductor_estado}\n` +
-          `Auto: ${data.auto_estado}`
-        );
+      alert(
+        `Turno #${data.id_turno} finalizado correctamente\n` +
+        `Estado turno: ${data.estado_turno}\n` +
+        `Conductor: ${data.conductor_estado}\n` +
+        `Auto: ${data.auto_estado}`
+      );
 
-        // Refrescar dashboard
-        cargarTurnos();                     // 🔹 lista de turnos activos
-        cargarConductores();                // 🔹 conductores disponibles
-        cargarAutosTabla();                 // 🔹 autos en tabla
-        //cargarConductoresEnTurnoDespacho(); // 🔹 sincronizar despachos
-        //cargarAutosActivosSelect();         // 🔹 autos activos
-        cargarConductoresEnTurnoCrear();    // 🔹 conductores disponibles para crear turno
-        //cargarAutosDisponiblesSelect();     // 🔹 autos disponibles
-      } else {
-        console.warn("⚠️ Falló el backend:", data);
-        alert(data.error || data.msg || "Error al finalizar turno");
-      }
+      // Refrescar dashboard (Todas estas ahora deben ser limpias también)
+      cargarTurnos();
+      cargarConductores();
+      cargarAutosTabla();
+      cargarConductoresEnTurnoCrear();
+      cargarAutosDisponiblesSelect();
+
     } catch (err) {
-      console.error("❌ Error de red o inesperado:", err);
-      alert("Error de conexión o inesperado al finalizar turno.");
+      // 3. AQUÍ CAPTURAMOS EL MENSAJE DE FLASK (Ej: "Conductor con despacho activo")
+      console.error("❌ Fallo de validación:", err.message);
+      
+      // Limpiamos el mensaje para que no veas código, solo el texto
+      let msg = err.message.includes("Error") ? err.message.split(": ").pop() : err.message;
+      
+      alert("📍 ATENCIÓN: " + msg);
     }
-  }
+}
 
 
   // Reportes  
@@ -1639,7 +1498,7 @@
     }
   }
   // Generar respaldo de la base de datos
-  async function generarRespaldo() {
+    async function generarRespaldo() {
       try {
         const res = await fetch("/respaldo/respaldar", {
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
@@ -1663,57 +1522,70 @@
     }
 
  
-// --- funciones de acción ---
-  async function finalizarDespacho(id) {
-    try {
-      const res = await apiFetch(`/despachos/${id}/finalizar`, { method: 'PUT' });
-      const data = await res.json();
+  // --- funciones de acción ---
+    async function finalizarDespacho(id) {
+      try {
+        // 1. apiFetch hace el trabajo pesado y nos da los datos ya procesados
+        const data = await apiFetch(`/despachos/${id}/finalizar`, { method: 'PUT' });
 
-      if (res.ok) {
-        alert("✅ Despacho finalizado correctamente");
+        // 2. Verificamos 'data' directamente. 
+        // Si apiFetch lanzó error, caerá en el catch. Si devolvió algo con error, lo validamos aquí:
+        if (data && !data.error) {
+          alert("✅ Despacho finalizado correctamente");
 
-        // 🔑 refrescar tablas
-        cargarDespachosActivos(); // tabla de activos
-        // cargarDespachos();      // tabla general
-        // cargarConductoresEnTurnoDespacho(); // actualizar conductores disponibles
-        // cargarAutosActivosSelect();         // actualizar autos disponibles
-
-        // ✅ usar datos del backend en vez de un select inexistente
-        console.log("Despacho finalizado:", {
-          id_despacho: data.id_despacho,
-          conductor: data.conductor_nombre,
-          auto: data.auto_placa
-        });
-      } else {
-        alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
+          // Refrescar tablas y componentes
+          cargarDespachosActivos(); 
+          
+          // Log de seguridad
+          console.log("Despacho finalizado con éxito:", {
+            id_despacho: data.id_despacho,
+            conductor: data.conductor_nombre,
+            auto: data.auto_placa
+          });
+        } else {
+          // Si el backend envió un mensaje de error específico
+          alert("❌ Error al finalizar despacho: " + (data.error || "verifica datos"));
+        }
+      } catch (err) {
+        // Este bloque captura errores de red o errores lanzados por apiFetch
+        console.error("Error finalizando despacho:", err);
+        alert("❌ Error inesperado al finalizar despacho");
       }
-    } catch (err) {
-      console.error("Error finalizando despacho:", err);
-      alert("❌ Error inesperado al finalizar despacho");
     }
-  }
 
    
     // Cancelar despacho 
     async function cancelarDespacho(id) {
       try {
-        const res = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
-        const data = await res.json();
-        if (res.ok) {
-          alert("⚠️ Despacho cancelado");
-          cargarDespachosActivos(); // refresca la tabla
-          //cargarConductoresEnTurnoDespacho();
-          //cargarAutosActivosSelect(); // actualizar autos disponibles para despachos
-        } else {
-          alert("❌ Error al cancelar despacho: " + (data.error || "verifica datos"));
-        }
+        // 1. Ejecutamos la petición. 
+        // Si el servidor responde con error (400, 500, etc), saltará directamente al catch.
+        const data = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
+
+        // 2. Si el código llega aquí, es porque fue EXITOSO (Status 200)
+        console.log("✅ Despacho cancelado:", data);
+        alert("⚠️ Despacho cancelado correctamente");
+
+        // 3. Refrescar la tabla
+        await cargarDespachosActivos(); 
+
       } catch (err) {
-        console.error("Error cancelando despacho:", err);
-        alert("❌ Error inesperado al cancelar despacho");
+        // 4. MANEJO DE PÁNICO: Aquí capturamos el mensaje real del servidor
+        console.error("❌ Error al cancelar:", err.message);
+
+        // Intentamos limpiar el mensaje para mostrar solo el texto humano
+        let mensajeLimpio = err.message;
+        if (err.message.includes('{')) {
+          try {
+            const jsonError = JSON.parse(err.message.substring(err.message.indexOf('{')));
+            mensajeLimpio = jsonError.error || jsonError.msg;
+          } catch (e) { /* usar mensaje original */ }
+        }
+
+        alert("📍 Nota del sistema: " + mensajeLimpio);
       }
     }
     // Login y manejo de roles
-    async function login(username, password) {
+      async function login(username, password) {
         const res = await fetch("/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1755,48 +1627,6 @@
       selConductor.addEventListener("change", verificarDespachoListo);
       console.log("✅ Listener enganchado a #desConductor");
     }
-
-
-   
-  //document.addEventListener("DOMContentLoaded", testConductoresActivos);
-  ////////Lógica para despachos con lista de espera////////////////////////
-  // Array para manejar clientes en espera
-  let clientesEspera = [];
-
-  // Renderizar tabla de clientes en espera
-  function renderClientesEspera() {
-    const tbody = document.querySelector("#tablaClientesEspera tbody");
-    console.log("clientesEspera:", clientesEspera);
-
-    tbody.innerHTML = clientesEspera.map((c, idx) => {
-      // Aquí sí existe c
-      console.log("Fila lista_espera:", c.id, "Cliente:", c.cliente_id);
-
-      return `
-        <tr>
-          <td class="border px-2 py-1">${idx + 1}</td>
-          <td class="border px-2 py-1">${c.cliente}</td>
-          <td class="border px-2 py-1">
-            ${(c.origen || '')}${c.punto_referencia ? ' - ' + c.punto_referencia : ''}
-          </td>
-          <td class="border px-2 py-1">${c.destino}</td>
-          <td class="border px-2 py-1">${c.hora}</td>
-          <td class="border px-2 py-1">${c.tarifa}</td>
-          <td class="border px-2 py-1">${c.estado}</td>
-          <td class="border px-2 py-1">
-            <button onclick="cancelarCliente(${c.id})"
-                    class="bg-red-500 text-white px-2 py-1 rounded">
-              Cancelar
-            </button>
-            <button class="bg-green-500 text-white px-2 py-1 rounded"
-                    onclick="crearDespachoDesdeEspera(${c.id})">
-              Crear despacho
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join("");
-  }
 
 
   // Habilitación de botones en creación de despacho
@@ -1854,35 +1684,41 @@
 
         const conductor_id = document.getElementById("nuevoConductor").value;
         const auto_id = document.getElementById("nuevoAuto").value;
-        const punto_id = document.getElementById("nuevoPunto").value;  // 🔹 nuevo campo
+        const punto_id = document.getElementById("nuevoPunto").value;
 
         if (!conductor_id || !auto_id || !punto_id) {
           alert("Selecciona conductor, auto y punto de espera para iniciar turno.");
           return;
         }
 
-        const res = await apiFetch("/turnos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conductor_id, auto_id, punto_id })  // 🔹 enviar también punto_id
-        });
-        const data = await res.json();
+        try {
+          // 1. apiFetch ya procesa el JSON y lanza error si el status es malo (400, 500, etc.)
+          const data = await apiFetch("/turnos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conductor_id, auto_id, punto_id })
+          });
 
-        if (res.ok) {
+          // 2. Si llegamos aquí, es ÉXITO total (Status 200/201)
           alert("✅ Turno iniciado correctamente: " + data.id_turno);
+
+          // Refrescar solo lo necesario
           cargarTurnos();
-          //cargarConductores();
-          //cargarAutosTabla();
-          //cargarConductoresEnTurnoDespacho();
-          //cargarAutosActivosSelect();
           cargarConductoresEnTurnoCrear();
           cargarAutosDisponiblesSelect();
-        } else {
-          alert("❌ Error al iniciar turno: " + (data.error || "verifica datos"));
+
+        } catch (err) {
+          // 3. AQUÍ CAPTURAMOS EL "PÁNICO" (Ej: "El auto ya está asignado")
+          console.error("❌ Error al iniciar turno:", err.message);
+          
+          // Limpiamos el mensaje para mostrar solo lo que Flask envió
+          const msg = err.message.includes('{') 
+                      ? JSON.parse(err.message.substring(err.message.indexOf('{'))).error 
+                      : err.message;
+
+          alert("📍 No se pudo iniciar: " + msg);
         }
       });
-    } else {
-      console.error("❌ No existe #btnIniciarTurno en el DOM");
     }
   });
 ////Lógica modal conductores en punto de espera///////
@@ -1914,7 +1750,28 @@
       console.error("Error cargando conductores en espera:", err);
     }
   }
+  ////Para controlar acceso de roles a la secció despacho////
+  document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    const rol = localStorage.getItem('rol');
 
+    // 1. Verificación de seguridad
+    if (!token) {
+        window.location.href = '/index.html'; // O tu página de login
+        return;
+    }
+
+    // 2. Aplicar filtros visuales de menú según el rol
+    if (rol === 'operador') {
+        document.querySelectorAll('.menu-admin').forEach(el => {
+            el.style.display = 'none';
+        });
+    }
+
+    // 3. ENTRADA DIRECTA A DESPACHOS (Para todos)
+    console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
+    mostrarSeccion('despachos'); 
+});
    
 </script>
     <!-- Modal Editar Cliente -->
@@ -2217,6 +2074,7 @@
                     <th style="position:sticky; top:0; background:#f0f0f0;">#</th>
                     <th style="position:sticky; top:0; background:#f0f0f0;">Nombre</th>
                     <th style="position:sticky; top:0; background:#f0f0f0;">Teléfono</th>
+                    <th style="position:sticky; top:0; background:#f0f0f0;">Dirección</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2358,7 +2216,12 @@
         class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg shadow-xl w-[800px] max-h-[90vh] overflow-y-auto">
         <h3 class="text-xl font-bold mb-4">Cola de clientes en espera</h3>
-
+         <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-xl font-bold">Cola de Despachos</h3>
+                <span id="contadorConductores" class="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded-full border border-green-400">
+                    Conductores: 0
+                </span>
+            </div>
        <div class="max-h-96 overflow-y-auto border border-gray-300 rounded">
           <table class="table-auto w-full border-collapse">
             <thead class="bg-gray-100 sticky top-0">
@@ -2373,6 +2236,7 @@
                 <th class="border px-2 py-1">Acciones</th>
               </tr>
             </thead>
+           
             <tbody id="tablaColaClientes">
               <!-- Filas dinámicas generadas por JS -->
             </tbody>
@@ -2440,26 +2304,54 @@
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/conductores.js') }}"></script>
+<script>
+    // Conectar el formulario a la función del archivo externo
+    document.getElementById('formConductor').addEventListener('submit', guardarConductor);
+</script>
+<script src="{{ url_for('static', filename='js/autos.js') }}"></script>
 
+<script>
+    // Conexión para Conductores (la que ya tienes)
+    document.getElementById('formConductor').addEventListener('submit', guardarConductor);
+
+    // CONEXIÓN PARA AUTOS (Añade esto ahora)
+    const formAuto = document.getElementById('formAuto');
+    if (formAuto) {
+        formAuto.addEventListener('submit', guardarAuto);
+    }
+</script>
 <!-- Archivos de modales -->
-<script src="{{ url_for('static', filename='js/modales.js') }}"></script>
+<!--<script src="{{ url_for('static', filename='js/modales.js') }}"></script>-->
 <script src="{{ url_for('static', filename='js/modales_tipo_despacho.js') }}"></script>
-<script src="{{ url_for('static', filename='js/lista_espera_multiple.js') }}"></script>
+<!--<script src="{{ url_for('static', filename='js/lista_espera_multiple.js') }}"></script>-->
 <script src="{{ url_for('static', filename='js/despacho_express.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modales_cliente.js') }}"></script>
 <script src="{{ url_for('static', filename='js/cola_despachos.js') }}"></script>
 
   <script>
-    const socket = io("http://localhost:5000");
+    // Conexión automática (funciona en LMDE y en cualquier PC de la oficina)
+    const socket = io(); 
 
-    socket.on("alerta_reserva", (data) => {
+    // El nombre del evento debe coincidir con el de scheduler.py ("reserva_activa")
+    socket.on("reserva_activa", (data) => {
+      console.log("Reserva recibida del scheduler:", data);
+      
       mostrarToast(
         `🚗 Reserva #${data.id_reserva} de ${data.cliente} está próxima a despacho (${data.origen} → ${data.destino} a las ${data.hora})`,
         "info"
       );
+
+      // Opcional: Sonido de alerta
+      const beep = new Audio('/static/sounds/notification.mp3');
+      beep.play().catch(e => console.log("Interacción requerida para audio"));
     });
-  </script>
+
+    socket.on("connect", () => {
+        console.log("✅ Conectado al sistema de alertas en tiempo real");
+    });
+ </script>
 
 </body>
 </html>
