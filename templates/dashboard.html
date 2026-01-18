@@ -206,17 +206,25 @@
         </div>
       </form>
 
-      <table id="tablaConductores" class="mt-4 w-full">
-        <thead>
-          <tr class="bg-gray-200">
-            <th>Código</th>
-            <th>Nro de Cédula</th>
-            <th>Nombre</th>
-            <th>Teléfono</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+     <div class="mt-4 border border-gray-300 rounded shadow-sm">
+        <div class="overflow-y-auto" style="max-height: 400px;">
+           <div class="tabla-dinamica">     
+              <table id="tablaConductores" class="w-full table-auto border-collapse">
+                <thead>
+                  <tr class="bg-gray-200">
+                    <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">#</th>
+                    <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Código</th>
+                    <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Nro de Cédula</th>
+                    <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Nombre</th>
+                    <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Teléfono</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  </tbody>
+              </table>
+            </div>  
+          </div>
+      </div>
     </section>
     <!--Gestión de Usuarios-->
     <section id="usuarios" class="seccion hidden">
@@ -299,18 +307,26 @@
           </button>
         </div>
       </form>
-
-      <table id="tablaAutos" class="mt-6 w-full border text-left">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="p-2">Placa</th>
-            <th class="p-2">Tipo</th>
-            <th class="p-2">Marca</th>
-            <th class="p-2">Modelo</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="mt-6 border border-gray-300 rounded shadow-sm overflow-hidden">
+        
+        <div class="overflow-y-auto" style="max-height: 350px;">
+          <div class="tabla-dinamica">
+            <table id="tablaAutos" class="w-full border-collapse text-left">
+              <thead>
+                <tr class="bg-gray-200">
+                  <th class="sticky top-0 bg-gray-200 p-2 border-b z-10 text-center">#</th>
+                  <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Placa</th>
+                  <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Tipo</th>
+                  <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Marca</th>
+                  <th class="sticky top-0 bg-gray-200 p-2 border-b z-10">Modelo</th>
+                </tr>
+              </thead>
+                <tbody class="divide-y divide-gray-100">
+                  </tbody>
+            </table>
+          </div>    
+        </div>
+      </div>
     </section>
 
 <!-- Sección: Despachos -->
@@ -856,17 +872,18 @@
     // Conductores
     async function cargarConductores() {
       const data = await apiFetch('/conductores');
-      //const data = await res.json();
 
       const tbody = document.querySelector('#tablaConductores tbody');
       tbody.innerHTML = ""; // limpiar tabla
 
       if (Array.isArray(data) && data.length > 0) {
-        data.forEach(c => {
+        // Usamos (c, index) para obtener la posición actual
+        data.forEach((c, index) => {
           const tr = document.createElement("tr");
           tr.classList.add("cursor-pointer", "hover:bg-gray-100");
 
           tr.innerHTML = `
+            <td class="text-center font-bold">${index + 1}</td> 
             <td>${c.codigo}</td>
             <td>${c.nro_cedula}</td>
             <td>${c.nombre}</td>
@@ -879,7 +896,8 @@
           tbody.appendChild(tr);
         });
       } else {
-        tbody.innerHTML = "<tr><td colspan='3'>No hay conductores registrados</td></tr>";
+        // Ajusté el colspan a 5 para cubrir todas las columnas nuevas
+        tbody.innerHTML = "<tr><td colspan='5' class='text-center'>No hay conductores registrados</td></tr>";
       }
     }
 
@@ -1401,6 +1419,7 @@
               
               // Usamos nro_placa porque así está en tu to_dict del modelo
               tr.innerHTML = `
+                  <td class="p-2 text-center font-bold">${index + 1}</td>
                   <td class="p-2 text-center">${a.nro_placa || 'S/N'}</td>
                   <td class="p-2 text-center">${a.tipo_auto || '---'}</td>
                   <td class="p-2 text-center">${a.marca || '---'}</td>

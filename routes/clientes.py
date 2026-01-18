@@ -3,9 +3,11 @@ from flask import Blueprint, request, jsonify
 from psycopg2 import IntegrityError
 from extensions import db
 from models.clientes import Cliente
+from models.despachos import Despacho
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError 
 from datetime import datetime
+from sqlalchemy import text
 # Definición del Blueprint
 clientes_bp = Blueprint('clientes', __name__, url_prefix="/clientes")
 
@@ -28,33 +30,41 @@ def validar_telefono(telefono: str) -> bool:
 def crear_cliente():
     data = request.get_json()
     telefono = data.get("nro_telefono") or data.get("telefono")
-    if not telefono:
-        return jsonify({"error": "Teléfono es obligatorio"}), 400
-
-    # 🔹 Validación de formato
-    if not validar_telefono(telefono):
-        return jsonify({"error": "Teléfono inválido. Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos"}), 400
-
-    if Cliente.query.filter_by(telefono=telefono).first():
-        return jsonify({"error": "Teléfono ya registrado"}), 400
+    
+    if not telefono or not validar_telefono(telefono):
+        return jsonify({"error": "Teléfono inválido o ausente"}), 400
 
     nombre = (data.get('nombre') or "").strip()
     if not validar_nombre(nombre):
         return jsonify({"error": "Nombre inválido"}), 400
 
-    cliente = Cliente(
+    # 🔍 Buscamos si ya existe físicamente
+    cliente_existente = Cliente.query.filter_by(telefono=telefono).first()
+
+    if cliente_existente:
+        if cliente_existente.estado == 1:
+            return jsonify({"error": "Teléfono ya registrado y activo"}), 400
+        
+        # 🔄 RECTIVACIÓN: Si estaba en 0, lo tratamos como "limpieza de datos"
+        # Sobrescribimos todo para cumplir la regla del 2026-01-13
+        cliente_existente.nombre = nombre
+        cliente_existente.direccion = data.get('direccion')
+        cliente_existente.punto_referencia = (data.get('punto_referencia') or "").strip() or None
+        cliente_existente.estado = 1 
+        db.session.commit()
+        return jsonify({"message": "Cliente reactivado con nueva información", "id_cliente": cliente_existente.id_cliente}), 200
+
+    # ✨ CREACIÓN DESDE CERO
+    nuevo_cliente = Cliente(
         nombre=nombre,
         telefono=telefono,
         direccion=data.get('direccion'),
-        punto_referencia=(data.get('punto_referencia') or "").strip() or None
+        punto_referencia=(data.get('punto_referencia') or "").strip() or None,
+        estado=1
     )
-    db.session.add(cliente)
+    db.session.add(nuevo_cliente)
     db.session.commit()
-    return jsonify({
-        "message": "Cliente creado",
-        "id_cliente": cliente.id_cliente,
-        "punto_referencia": cliente.punto_referencia
-    }), 201
+    return jsonify({"message": "Cliente creado", "id_cliente": nuevo_cliente.id_cliente}), 201
 
 
 # 🔹 Modificar cliente por teléfono
@@ -93,7 +103,7 @@ def listar_clientes():
     per_page = 50 # Registros por vista
     
     # paginate hace todo: cuenta el total, calcula los saltos, etc.
-    p = Cliente.query.order_by(Cliente.id_cliente.desc()).paginate(page=page, per_page=per_page)
+    p = Cliente.query.filter_by(estado=1).order_by(Cliente.id_cliente.desc()).paginate(page=page, per_page=per_page)
     
     return jsonify({
         "clientes": [
@@ -121,7 +131,11 @@ def obtener_cliente(id):
 def buscar_cliente():
     telefono = request.args.get('telefono')
     if telefono:
-        cliente = Cliente.query.filter(Cliente.telefono == telefono).all()
+        # 🔥 AGREGAMOS EL FILTRO DE ESTADO ACTIVO
+        cliente = Cliente.query.filter(
+            Cliente.telefono == telefono, 
+            Cliente.estado == 1
+        ).all()
         return jsonify([c.to_dict() for c in cliente])
     return jsonify([])
 
@@ -165,29 +179,46 @@ def cliente_por_telefono(telefono):
             **actualizado
         }), 200
 
-@clientes_bp.route('/api/clientes/<int:id_cliente>/desactivar', methods=['PATCH'])
+@clientes_bp.route('/<int:id_cliente>', methods=['DELETE'])
 @jwt_required()
-def desactivar_cliente(id_cliente):
-    # 1. Obtener ID del usuario desde el Token JWT (Trazabilidad)
-    usuario_id_responsable = get_jwt_identity()
-    
-    # 2. Buscar al cliente
+def eliminar_o_desactivar(id_cliente):
     cliente = Cliente.query.get_or_404(id_cliente)
-    
-    # 3. Cambio de estado (Borrado Lógico)
-    cliente.estado = 0
-    cliente.usuario_id_auditoria = usuario_id_responsable
-    cliente.fecha_modificacion = datetime.utcnow()
+    responsable_id = get_jwt_identity()
     
     try:
-        db.session.commit()
-        return jsonify({
-            "msg": f"Cliente {cliente.nombre} desactivado correctamente",
-            "responsable_id": usuario_id_responsable
-        }), 200
+        # 🔍 Contamos cuántos despachos tiene para informar al operador
+        sql_count = text("SELECT COUNT(*) FROM despachos WHERE cliente_id = :id")
+        cantidad_pedidos = db.session.execute(sql_count, {"id": id_cliente}).scalar()
+        
+        tiene_historial = cantidad_pedidos > 0
+
+        if not tiene_historial:
+            # 🗑️ ES BASURA: Borrado físico real
+            try:
+                nombre_cliente = cliente.nombre
+                db.session.delete(cliente)
+                db.session.commit()
+                return jsonify({
+                    "mensaje": f"El cliente '{nombre_cliente}' no tenía historial y ha sido ELIMINADO permanentemente del sistema."
+                }), 200
+            except Exception:
+                db.session.rollback()
+                tiene_historial = True # Fallo técnico, procedemos a desactivar
+
+        if tiene_historial:
+            # 👁️‍🗨️ ES HISTÓRICO: Borrado lógico
+            cliente.estado = 0
+            cliente.usuario_id_auditoria = responsable_id
+            cliente.fecha_modificacion = datetime.utcnow()
+            db.session.commit()
+            return jsonify({
+                "mensaje": f"El cliente '{cliente.nombre}' tiene {cantidad_pedidos} despachos asociados. Se ha DESACTIVADO para proteger el historial contable."
+            }), 200
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"Error crítico en eliminación: {str(e)}")
+        return jsonify({"error": "Error interno al procesar la eliminación."}), 500
 @clientes_bp.route('/updateTelefono', methods=['POST'])
 def update_telefono():
     data = request.get_json()
@@ -227,9 +258,9 @@ def buscar_clientes_full():
     # El SSD del i5 hará que este filtro sea instantáneo
     # Buscamos coincidencias en nombre O en teléfono
     resultados = Cliente.query.filter(
-        (Cliente.nombre.ilike(f"%{query}%")) | 
-        (Cliente.telefono.ilike(f"%{query}%"))
-    ).limit(20).all() # Solo devolvemos los mejores 20 resultados
+        Cliente.estado == 1, # <--- Esta es la llave de seguridad
+        (Cliente.nombre.ilike(f"%{query}%") | Cliente.telefono.ilike(f"%{query}%"))
+    ).limit(20).all()
 
     return jsonify([
         {

@@ -56,36 +56,56 @@ function abrirModalCliente(telefono, cliente = null) {
 async function validarClientePorTelefono() {
     const telefonoInput = document.getElementById('desTelefono');
     const btnModificar = document.getElementById('btnModificarCliente');
-    const btnEnviar = document.getElementById('btnEnviarDespacho'); // Capturamos el botón enviar
+    const btnEnviar = document.getElementById('btnEnviarDespacho');
 
     if (!telefonoInput) return;
 
+    // 1. Validar formato antes de ir al servidor
+    // Usamos la misma lógica que tu HTML: 0276... o 04...
+    const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
     const telefono = telefonoInput.value.trim();
+
     if (!telefono) return;
 
-    const resultado = await fetchDefensivo(`/clientes/buscar?telefono=${telefono}`);
-    const cliente = (resultado && resultado.length > 0) ? resultado[0] : null;
-
-    if (cliente) {
-        document.getElementById('desNombre').value = cliente.nombre;
-        document.getElementById('desOrigen').value = cliente.direccion;
-        
-        if (btnModificar) {
-            btnModificar.disabled = false;
-            btnModificar.onclick = () => abrirModalCliente(telefono, cliente);
+    if (!regexTelefono.test(telefono)) {
+        // En lugar de ir al servidor, avisamos al usuario
+        if (typeof mostrarToast === 'function') {
+            mostrarToast("⚠️ Formato inválido. Use 11 dígitos (0276... o 04...)", "error");
         }
-        
-        if (window.activarCamposDespacho) activarCamposDespacho(true);
-
-        // 🔥 LA CLAVE: Si el cliente existe, mandamos el foco al botón ENVIAR
-        if (btnEnviar) {
-            setTimeout(() => btnEnviar.focus(), 100); 
-        }
-        
+        telefonoInput.classList.add("border-red-500"); // Feedback visual
+        return; // Salimos de la función, no gastamos recursos del servidor
     } else {
-        if (btnModificar) btnModificar.disabled = true;
-        if (window.activarCamposDespacho) activarCamposDespacho(false);
-        abrirModalCliente(telefono, null); 
+        telefonoInput.classList.remove("border-red-500");
+    }
+
+    // 2. Si pasó la validación, procedemos con el fetch
+    try {
+        const resultado = await fetchDefensivo(`/clientes/buscar?telefono=${telefono}`);
+        const cliente = (resultado && resultado.length > 0) ? resultado[0] : null;
+
+        if (cliente) {
+            document.getElementById('desNombre').value = cliente.nombre;
+            document.getElementById('desOrigen').value = cliente.direccion;
+            
+            if (btnModificar) {
+                btnModificar.disabled = false;
+                btnModificar.onclick = () => abrirModalCliente(telefono, cliente);
+            }
+            
+            if (window.activarCamposDespacho) activarCamposDespacho(true);
+
+            if (btnEnviar) {
+                setTimeout(() => btnEnviar.focus(), 100); 
+            }
+            
+        } else {
+            if (btnModificar) btnModificar.disabled = true;
+            if (window.activarCamposDespacho) activarCamposDespacho(false);
+            abrirModalCliente(telefono, null); 
+        }
+    } catch (err) {
+        console.error("Error al buscar cliente:", err);
+        // Aquí podrías mostrar un toast si el servidor falla por otra razón
     }
 }
 

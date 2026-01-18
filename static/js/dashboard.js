@@ -278,6 +278,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
   }
+  // -------------------------------
+  // 📌 Atajo de teclado Alt+T (solo admins)
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey && e.key.toLowerCase() === "t") {
+      e.preventDefault(); // evita cualquier acción por defecto
+      const rol = localStorage.getItem('rol');
+      if (rol && rol.toLowerCase() === 'admin') {
+        abrirModalTelefonosClientes();
+      } else {
+        alert("⚠️ Solo los administradores pueden acceder a la gestión de teléfonos de clientes.");
+      }
+    }
+  });
   
 });
 
@@ -348,7 +361,9 @@ document.querySelector("#buscarNombreTel").addEventListener("input", async (e) =
   function renderTablaClientesTel(clientes) {
     const tbody = document.querySelector('#tablaClientesTel tbody');
     tbody.innerHTML = ""; // Limpiar tabla anterior
-
+    // 🔥 FILTRO DE SEGURIDAD:
+    // Solo procesamos clientes cuyo campo 'activo' sea distinto de 0
+    //const clientesVisibles = clientes.filter(cliente => cliente.activo !== 0);
     clientes.forEach((cliente, index) => {
       const tr = document.createElement("tr");
       tr.className = "cursor-pointer hover:bg-gray-100 border-b"; // Opcional: mejora visual
@@ -487,48 +502,50 @@ document.querySelector("#buscarNombreTel").addEventListener("input", async (e) =
 });
 
   async function eliminarClienteTel() {
-    // 1. Usar ID en lugar de nombre para precisión
     const idCliente = document.querySelector("#cliIdTel").value; 
     const nombre = document.querySelector("#cliNombreTel").value;
 
     if (!idCliente) {
-      alert("⚠️ Selecciona un cliente primero.");
+      alert("⚠️ Selecciona un cliente de la tabla primero.");
       return;
     }
 
-    if (!confirm(`¿Seguro que deseas desactivar al cliente "${nombre}"?`)) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar/desactivar a "${nombre}"?`)) {
       return;
     }
 
     try {
-      // Cambiamos el concepto de 'delete' a 'desactivar'
-      await apiFetch(`/clientes/api/clientes/${idCliente}/desactivar`, {
-        method: "PATCH", // PATCH es mejor para actualizaciones parciales
-        headers: { "Content-Type": "application/json" }
+      const response = await apiFetch(`/clientes/${idCliente}`, {
+          method: "DELETE"
       });
       
-      alert("✅ Cliente desactivado (se mantiene en el historial)");
-      cargarClientesTel();
+      // Informamos según la lógica de historial que hicimos
+      alert(response.mensaje || "✅ Operación realizada con éxito.");
+
+      // LIMPIEZA CORRECTA SEGÚN TU HTML:
+      document.querySelector("#cliIdTel").value = "";
+      document.querySelector("#cliNombreTel").value = "";
+      document.querySelector("#cliTelefonoActualTel").value = "";
+      document.querySelector("#cliTelefonoNuevoTel").value = "";
+      
+      // Opcional: Limpiar también el buscador de arriba
+      if (document.querySelector("#buscarNombreTel")) {
+          document.querySelector("#buscarNombreTel").value = "";
+      }
+
+      // Recargar la tabla para que el cliente desaparezca de la lista
+      if (typeof cargarClientesTel === 'function') {
+          cargarClientesTel(); 
+      }
+      
     } catch (err) {
       console.error("❌ Error al procesar:", err);
-      alert("No se pudo desactivar el cliente.");
+      alert("No se pudo completar la operación.");
     }
-  }
+}
   window.eliminarClienteTel = eliminarClienteTel;
   
-  // -------------------------------
-  // 📌 Atajo de teclado Alt+T (solo admins)
-  document.addEventListener("keydown", (e) => {
-    if (e.altKey && e.key.toLowerCase() === "t") {
-      e.preventDefault(); // evita cualquier acción por defecto
-      const rol = localStorage.getItem('rol');
-      if (rol && rol.toLowerCase() === 'admin') {
-        abrirModalTelefonosClientes();
-      } else {
-        alert("⚠️ Solo los administradores pueden acceder a la gestión de teléfonos de clientes.");
-      }
-    }
-  });
+  
   
 
   function abrirVista(idVista) {
