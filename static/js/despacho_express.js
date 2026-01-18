@@ -392,8 +392,9 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
             // Refrescar todo el sistema
             await cargarColaClientes(); 
             actualizarContadorConductores();
-            if (typeof cargarTurnos === 'function') await cargarTurnos();
-            if (typeof cargarConductores === 'function') await cargarConductores();
+            if (typeof refrescarConductoresDisponibles === 'function') {
+                await refrescarConductoresDisponibles();
+            }
             
             //cerrarModalCola();
         } else {
