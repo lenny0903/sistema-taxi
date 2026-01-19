@@ -26,6 +26,6 @@ __all__ = [
     "ListaEspera",
     "Reserva",
     "PuntoEspera",
-    "ColaDespacho"
+    "ColaDespacho",
     "AuditoriaAcceso"
 ]

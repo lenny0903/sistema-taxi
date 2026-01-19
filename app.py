@@ -70,6 +70,7 @@ def create_app():
     from routes.lista_espera_multiple import lista_espera_multiple_bp
     from routes.cola_despachos import cola_despachos_bp
     
+    
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(usuarios_bp, url_prefix="/usuarios")

@@ -10,6 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app import db
 import os, sqlite3
 from utils.db import get_db
+from utils.time import hora_local
 
 usuarios_bp = Blueprint('usuarios', __name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -164,22 +165,27 @@ def ver_perfil():
 def registrar_log_acceso():
     data = request.get_json()
     usuario = data.get("usuario")
-    evento = data.get("evento") # 'LOGIN' o 'LOGOUT'
+    evento = data.get("evento")
     
     if not usuario or not evento:
         return jsonify({"error": "Datos de auditoría incompletos"}), 400
 
     try:
+        # Obtenemos la hora de Caracas y le quitamos la zona horaria para SQLite
+        ahora = hora_local().replace(tzinfo=None)
+        
         conn = get_db()
         cur = conn.cursor()
+        # Agregamos 'fecha_hora' al INSERT y al VALUES
         cur.execute("""
-            INSERT INTO auditoria_accesos (usuario, evento, ip_address, user_agent)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO auditoria_accesos (usuario, evento, ip_address, user_agent, fecha_hora)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             usuario, 
             evento, 
             request.remote_addr, 
-            request.headers.get('User-Agent')
+            request.headers.get('User-Agent'),
+            ahora  # <--- Enviamos la hora de Caracas aquí
         ))
         conn.commit()
         conn.close()
