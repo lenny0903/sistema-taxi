@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalCola = document.getElementById("modalColaClientes");
         modalCola.classList.remove("hidden");
         cargarColaClientes(); // refresca tabla al abrir
+        refrescarConductoresDisponibles();
     }
 
     function cerrarModalCola() {
@@ -391,8 +392,10 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
             delete memoriaEdicionCola1.tarifas[colaSeleccionada];
             // Refrescar todo el sistema
             await cargarColaClientes(); 
-            actualizarContadorConductores();
+            // Solo necesitamos refrescar la disponibilidad UNA vez.
             if (typeof refrescarConductoresDisponibles === 'function') {
+                // Esta función ya debería actualizar window.conductoresGlobales 
+                // y llamar a actualizarContadorConductores(data.length)
                 await refrescarConductoresDisponibles();
             }
             

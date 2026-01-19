@@ -1771,27 +1771,28 @@
     }
   }
   ////Para controlar acceso de roles a la secció despacho////
-  document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    const rol = localStorage.getItem('rol');
+    document.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('token');
+      const rol = localStorage.getItem('rol');
 
-    // 1. Verificación de seguridad
-    if (!token) {
-        window.location.href = '/index.html'; // O tu página de login
-        return;
-    }
+      if (!token) {
+          window.location.href = '/index.html';
+          return;
+      }
 
-    // 2. Aplicar filtros visuales de menú según el rol
-    if (rol === 'operador') {
-        document.querySelectorAll('.menu-admin').forEach(el => {
-            el.style.display = 'none';
-        });
-    }
+      // 2. Filtros de menú (Optimizado con clases)
+      if (rol === 'operador') {
+          document.querySelectorAll('.menu-admin').forEach(el => el.classList.add('hidden'));
+      }
 
-    // 3. ENTRADA DIRECTA A DESPACHOS (Para todos)
-    console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
-    mostrarSeccion('despachos'); 
-});
+      // 3. ENTRADA DIRECTA (Controlada)
+      // Usamos un pequeño delay o simplemente verificamos que no estemos ya en la sección
+      const seccionActual = document.getElementById('seccion-despachos'); // Ajusta al ID de tu div
+      if (seccionActual && seccionActual.classList.contains('hidden')) {
+          console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
+          mostrarSeccion('despachos');
+      }
+  });
    
 </script>
     <!-- Modal Editar Cliente -->
