@@ -2,14 +2,15 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from models import Despacho, Conductor
-from app import db
+from extensions import db
+#from app import db
 from sqlalchemy import func
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from flask import send_file
 from models.clientes import Cliente
 
-reporte_bp = Blueprint('reportes', __name__, url_prefix='/reportes')
+reporte_bp = Blueprint('reportes', __name__)
 
 @reporte_bp.route("/conductores", methods=["GET"])
 def reportes_por_conductor():
@@ -85,16 +86,19 @@ def reportes():
         {
             "id_despacho": d.id_despacho,
             "cliente_nombre": d.cliente.nombre if d.cliente else "-",
+           
+            "cliente_telefono": d.cliente.telefono if d.cliente else "-", 
             "conductor_codigo": d.conductor.codigo if d.conductor else "-",
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
-            #"origen": d.origen_despacho or "-",
-            #"destino": d.destino_despacho or "-",
+            "origen": d.origen_despacho or "-",
+            "destino": d.destino_despacho or "-",
             "fecha": d.fecha_hora_fin.strftime("%Y-%m-%d %H:%M") if d.fecha_hora_fin else "-",
             "tarifa": d.tarifa or 0.0
         }
         for d in despachos
     ]
+
 
     return jsonify(resultado)
 
@@ -229,7 +233,7 @@ def reporte_embarque_desembarque():
             "conductor_nombre": d.conductor.nombre if d.conductor else "-",
             "auto_placa": d.auto.nro_placa if d.auto else "-",
             #"origen": d.origen_despacho or "-",
-            "embarque": d.fecha_hora_embarque.strftime("%H:%M") if d.fecha_hora_embarque else "-",
+           "embarque": d.fecha_hora_inicio.strftime("%H:%M") if d.fecha_hora_inicio else "-",
             #"destino": d.destino_despacho or "-",
             "desembarque": d.fecha_hora_fin.strftime("%H:%M") if d.fecha_hora_fin else "-"
         }

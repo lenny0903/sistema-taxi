@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models import ColaDespacho, Cliente
 from datetime import datetime
+from flask import current_app 
 
 cola_despachos_bp = Blueprint("cola_despachos", __name__)
 
@@ -69,3 +70,57 @@ def listar_cola():
         print(f"❌ Error al leer la cola: {e}")
         # Si falla por las fechas, devolvemos una lista vacía para que la app no muera
         return jsonify([]), 200
+
+
+
+@cola_despachos_bp.route("/webhook_wa", methods=["POST"])
+def webhook_wa():
+    try:
+        data = request.get_json(force=True)
+        telefono = data.get("telefono")
+        mensaje = data.get("mensaje") # El texto que el cliente escribió
+        nombre_wa = data.get("nombre", "Cliente WhatsApp")
+
+        if not telefono:
+            return jsonify({"error": "Teléfono es obligatorio"}), 400
+
+        # 1. Buscar o crear cliente (Misma lógica que ya tienes)
+        cliente = Cliente.query.filter_by(telefono=telefono).first()
+        if not cliente:
+            cliente = Cliente(
+                nombre=nombre_wa,
+                telefono=telefono,
+                direccion=mensaje # Usamos el primer mensaje como dirección base
+            )
+            db.session.add(cliente)
+            db.session.commit()
+
+        # 2. Determinar el origen (Regla 2026-01-13)
+        # Si el cliente escribió algo, ese es su origen hoy. 
+        # Si mandó un mensaje vacío (solo un hola), traemos su dirección de la base de datos.
+        origen_final = mensaje if (mensaje and len(mensaje) > 3) else cliente.direccion
+
+        # 3. Crear entrada en la cola
+        nueva_cola = ColaDespacho(
+            id_cliente=cliente.id_cliente,
+            origen=origen_final,
+            destino="", # El operador lo llenará en el modal
+            estado="En espera",
+            fecha_creacion=datetime.utcnow()
+        )
+        
+        db.session.add(nueva_cola)
+        db.session.commit()
+
+        # 4. 🔥 NOTIFICACIÓN EN TIEMPO REAL
+        # Esto le avisa a tu front-end que debe ejecutar cargarColaClientes()
+        if 'socketio' in current_app.extensions:
+            socketio = current_app.extensions['socketio']
+            socketio.emit('cola_actualizada', {'msj': 'Nuevo pedido de WA'}, namespace='/')
+
+        return jsonify({"status": "success", "id": nueva_cola.id_cola}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error en Webhook WA: {e}")
+        return jsonify({"error": str(e)}), 500    

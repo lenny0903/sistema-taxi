@@ -42,6 +42,7 @@ class Despacho(db.Model):
         return f"<Despacho {self.id_despacho} - {self.origen_despacho} ({self.estado_despacho})>"
     
     TZ_CARACAS = pytz.timezone("America/Caracas")
+    
     def to_dict(self):
         return {
             "id_despacho": self.id_despacho,

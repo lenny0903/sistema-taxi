@@ -38,6 +38,7 @@ def crear_despacho():
         # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
         with db.session.no_autoflush:
             # 2. Crear el objeto Despacho
+            ahora = hora_local()
             nuevo_despacho = Despacho(
                 origen_despacho=origen,
                 destino_despacho=data.get("destino_despacho"),
@@ -46,7 +47,8 @@ def crear_despacho():
                 auto_id=data.get("auto_id"),
                 tarifa=tarifa_val,
                 estado_despacho=data.get("estado_despacho", "en curso"),
-                fecha_hora_inicio=datetime.now(),
+                fecha_hora_inicio=ahora,
+                fecha_hora_embarque=ahora,
                 grupo_id=data.get("grupo_id")
             )
             db.session.add(nuevo_despacho)
@@ -212,12 +214,12 @@ def listar_despachos_activos():
 def finalizar_despacho(id):
     try:
         despacho = Despacho.query.get_or_404(id)
-
-        # 🚨 Validar que tenga hora de embarque
+        print(f"DEBUG: Despacho {id} - Embarque original: {despacho.fecha_hora_embarque}")
+        # ✅ Si no tiene hora de embarque, la asignamos ahora mismo (automático)
         if not despacho.fecha_hora_embarque:
-            return jsonify({"error": "No se puede finalizar un despacho sin hora de embarque"}), 400
+            despacho.fecha_hora_embarque = hora_local()
 
-        # 🚨 Validar que tenga auto asignado
+        # 🚨 Validar que tenga auto asignado (Esta sí la dejamos por seguridad)
         if not despacho.auto_id:
             return jsonify({"error": "No se puede finalizar un despacho sin auto asignado"}), 400
 
@@ -229,7 +231,7 @@ def finalizar_despacho(id):
         return jsonify({
             "msg": "Despacho finalizado correctamente",
             "id_despacho": despacho.id_despacho,
-            "auto_id": despacho.auto_id,   # 👈 confirmación
+            "auto_id": despacho.auto_id,
             "fecha_hora_embarque": despacho.fecha_hora_embarque.isoformat(),
             "fecha_hora_fin": despacho.fecha_hora_fin.isoformat()
         }), 200

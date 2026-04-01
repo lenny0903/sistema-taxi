@@ -7,7 +7,8 @@ from models.roles import Rol
 from utils.auth_middleware import rol_requerido, token_requerido
 from flask_jwt_extended import get_jwt_identity
 from werkzeug.security import check_password_hash, generate_password_hash
-from app import db
+from extensions import db
+#from app import db
 import os, sqlite3
 from utils.db import get_db
 from utils.time import hora_local

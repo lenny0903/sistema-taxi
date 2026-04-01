@@ -14,57 +14,44 @@ from flask import Blueprint, request, jsonify
 from flask import Blueprint
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
-SECRET_KEY = "clave_secreta_demo"  # cámbiala en producción
+#SECRET_KEY = "clave_secreta_demo"  # cámbiala en producción
+
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    u_input = data.get('username')
+    p_input = data.get('password')
 
-    user = Usuario.query.filter_by(username=username).first()
+    # Usamos los nombres que confirmamos en tu modelo
+    user = Usuario.query.filter_by(username=u_input).first()
 
-    if user and check_password_hash(user.password_hash, password):
-        # Token con claims adicionales
+    if user and check_password_hash(user.password_hash, p_input):
+        # 🔑 LA CLAVE: Metemos el rol dentro del token de flask_jwt_extended
         access_token = create_access_token(
             identity=str(user.id_usuario),
             additional_claims={
-                "rol_id": user.rol_id,
-                "rol_nombre": user.rol.nombre_rol,
-                "rol_descripcion": user.rol.descripcion
+                "rol_nombre": user.rol.nombre_rol if user.rol else "Sin Rol"
             }
         )
 
         return jsonify({
             "access_token": access_token,
-            "user_id": user.id_usuario,
             "username": user.username,
-            "rol_id": user.rol_id,
-            "rol_nombre": user.rol.nombre_rol,
-            "rol_descripcion": user.rol.descripcion
+            "rol_nombre": user.rol.nombre_rol if user.rol else "Sin Rol"
         }), 200
-    else:
-        return jsonify({"msg": "Credenciales inválidas"}), 401
+    return jsonify({"msg": "Credenciales inválidas"}), 401
 
-
+# 🛡️ EL DECORADOR COMPATIBLE
 def rol_requerido(roles_permitidos):
     def decorator(f):
         @wraps(f)
+        @jwt_required() # Esto valida el token automáticamente
         def wrapper(*args, **kwargs):
-            token = None
-            if "Authorization" in request.headers:
-                token = request.headers["Authorization"].split(" ")[1]
-
-            if not token:
-                return jsonify({"msg": "Token requerido"}), 401
-
-            try:
-                data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-                if data["rol"] not in roles_permitidos:
-                    return jsonify({"msg": "Acceso denegado"}), 403
-            except Exception as e:
-                return jsonify({"msg": "Token inválido"}), 401
-
+            claims = get_jwt() # Lee los datos extra que metimos arriba
+            if claims.get("rol_nombre") not in roles_permitidos:
+                return jsonify({"msg": "Acceso denegado: nivel insuficiente"}), 403
             return f(*args, **kwargs)
         return wrapper
     return decorator

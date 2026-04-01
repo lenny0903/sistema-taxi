@@ -18,7 +18,7 @@ class Cliente(db.Model):
         return (
             f"<Cliente id={self.id_cliente}, "
             f"nombre={self.nombre}, "
-            f"telefono={self.telefono}>",
+            f"telefono={self.telefono}, "
             f"estado={self.estado}>"
         )
     def to_dict(self):

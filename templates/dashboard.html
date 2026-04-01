@@ -70,7 +70,7 @@
         <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button></li>
         <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho(F1)</button></li>
         <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos(F2)</button></li>
-        <li class="menu-admin"><button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
+        <li></li> <button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
         <li>
             <button onclick="generarRespaldo()" class="w-full text-left">
               Respaldo
@@ -463,6 +463,10 @@
         <button id="btnReporteConductores" class="bg-green-500 text-white px-4 py-2 rounded">
           Reporte por Conductor
         </button>
+         <button id="btnPrintConductores" class="bg-gray-700 text-white px-4 py-2 rounded mt-4">
+          🖨️ Imprimir Reporte
+         </button>
+
         <div id="reporteConductoresResultado" class="mt-4"></div>
          <!-- Botón para reporte embarque/desembarque -->
         <button id="btnReporteEmbarque" class="bg-purple-500 text-white px-4 py-2 rounded mt-4">
@@ -944,34 +948,53 @@
   async function cargarConductoresEnTurnoCrear() {
     try {
       const data = await apiFetch('/conductores/disponibles_conductores');
-      //const data = await res.json();
-
-      console.log("Conductores disponibles recibidos:", data);
-
       const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = "";
+      sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
 
       if (Array.isArray(data) && data.length > 0) {
         data.forEach(c => {
           const opt = document.createElement("option");
           opt.value = c.id_conductor;
-           opt.textContent = `${c.codigo} - ${c.nombre}`; // 👈 aquí concatenas código + nombre
-          console.log("Conductor:", c);   // 👈 correcto para depurar
-          sel.appendChild(opt);           // 👈 usa 'sel', no 'selec'
+          // 🔑 GUARDAMOS EL CÓDIGO AQUÍ
+          opt.dataset.codigo = c.codigo; 
+          opt.textContent = `${c.codigo} - ${c.nombre}`;
+          sel.appendChild(opt);
         });
       } else {
-        const opt = document.createElement("option");
-        opt.disabled = true;
-        opt.textContent = "No hay conductores disponibles";
-        sel.appendChild(opt);
+        sel.innerHTML = '<option disabled>No hay conductores disponibles</option>';
       }
     } catch (err) {
-      console.error("Error cargando conductores disponibles:", err);
-      const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = '<option disabled>Error al cargar conductores</option>';
+      console.error("Error:", err);
     }
   }
+  //Para auto-seleccionar el auto al elegir un conductor//////
+    document.getElementById('nuevoConductor').addEventListener('change', function() {
+      // 1. Obtener el código del conductor desde el data-attribute (ej: "b10")
+      const selectedOption = this.options[this.selectedIndex];
+      const codigoBusqueda = selectedOption.dataset.codigo ? selectedOption.dataset.codigo.toLowerCase() : "";
 
+      if (!codigoBusqueda) return;
+
+      const selAuto = document.getElementById('nuevoAuto');
+      const opcionesAuto = selAuto.options;
+
+      // 2. Recorrer los autos para encontrar la placa que termina en el código
+      let encontrado = false;
+      for (let i = 0; i < opcionesAuto.length; i++) {
+          // Obtenemos el texto de la placa (ej: "AD123b10")
+          const textoPlaca = opcionesAuto[i].textContent.toLowerCase();
+          
+          if (textoPlaca.endsWith(codigoBusqueda)) {
+              selAuto.selectedIndex = i;
+              encontrado = true;
+              break;
+          }
+      }
+
+      if (!encontrado) {
+          console.warn(`No se encontró auto con placa terminada en: ${codigoBusqueda}`);
+      }
+    });
  
 
    // Tabla para desplegar turnos activos
@@ -1182,11 +1205,7 @@
 
           <td class="border px-2 py-1 text-center">
             <div class="flex flex-wrap gap-1 justify-center">
-              <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs shadow-sm" 
-                      onclick="registrarEmbarque(${t.id_despacho})" title="Reportar embarque">
-                🚖 Embarque
-              </button>
-
+              
               <button class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs shadow-sm"
                       onclick="finalizarDespacho(${t.id_despacho})">
                 Finalizar
@@ -1444,36 +1463,34 @@
 
   async function finalizarTurno(id_turno) {
     try {
-      // 1. apiFetch ya maneja el error internamente si el status no es 2xx
-      const data = await apiFetch(`/turnos/${id_turno}/finalizar`, { method: "PUT" });
+        // 1. Llamada al servidor
+        const data = await apiFetch(`/turnos/${id_turno}/finalizar`, { method: "PUT" });
 
-      // 2. Si llegamos aquí, es porque TODO SALIÓ BIEN (Status 200)
-      console.log("✅ Turno finalizado:", data);
+        console.log("✅ Turno finalizado:", data);
 
-      alert(
-        `Turno #${data.id_turno} finalizado correctamente\n` +
-        `Estado turno: ${data.estado_turno}\n` +
-        `Conductor: ${data.conductor_estado}\n` +
-        `Auto: ${data.auto_estado}`
-      );
+        // 2. Notificación fluida (Toast)
+        mostrarToast(`Turno #${data.id_turno} finalizado. Auto y conductor disponibles.`, "success");
 
-      // Refrescar dashboard (Todas estas ahora deben ser limpias también)
-      cargarTurnos();
-      cargarConductores();
-      cargarAutosTabla();
-      cargarConductoresEnTurnoCrear();
-      cargarAutosDisponiblesSelect();
+        // 3. El "Respiro" para la base de datos (500ms)
+        // Esto soluciona que el auto aparezca "activo" cuando ya debería estar "disponible"
+        setTimeout(() => {
+            cargarTurnos();
+            cargarConductores();
+            cargarAutosTabla();
+            cargarConductoresEnTurnoCrear();
+            cargarAutosDisponiblesSelect();
+            console.log("🔄 Dashboard sincronizado");
+        }, 500);
 
     } catch (err) {
-      // 3. AQUÍ CAPTURAMOS EL MENSAJE DE FLASK (Ej: "Conductor con despacho activo")
-      console.error("❌ Fallo de validación:", err.message);
-      
-      // Limpiamos el mensaje para que no veas código, solo el texto
-      let msg = err.message.includes("Error") ? err.message.split(": ").pop() : err.message;
-      
-      alert("📍 ATENCIÓN: " + msg);
+        console.error("❌ Fallo de validación:", err.message);
+        
+        // Limpiar mensaje de error para el operador
+        let msg = err.message.includes("Error") ? err.message.split(": ").pop() : err.message;
+        
+        mostrarToast("📍 ATENCIÓN: " + msg, "error");
     }
-}
+  }
 
 
   // Reportes  
@@ -1573,6 +1590,7 @@
         alert("❌ Error inesperado al finalizar despacho");
       }
     }
+
    
     // Cancelar despacho 
     async function cancelarDespacho(id) {
@@ -1692,54 +1710,86 @@
     
 
 
-  /////// Habilitar/deshabilitar botones según selección
-  //document.getElementById("desCliente").addEventListener("change", actualizarBotones);
-  //document.getElementById("desConductor").addEventListener("change", actualizarBotones);
- ///// Iniciar turno
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("btnIniciarTurno");
-    if (btn) {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
+  //Lógica para iniciar turno /////////
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("btnIniciarTurno");
+        if (btn) {
+            btn.onclick = async (e) => {
+              e.preventDefault();
 
-        const conductor_id = document.getElementById("nuevoConductor").value;
-        const auto_id = document.getElementById("nuevoAuto").value;
-        const punto_id = document.getElementById("nuevoPunto").value;
+              // 1. Referencias a los elementos
+              const cSel = document.getElementById("nuevoConductor");
+              const aSel = document.getElementById("nuevoAuto");
+              const pSel = document.getElementById("nuevoPunto");
 
-        if (!conductor_id || !auto_id || !punto_id) {
-          alert("Selecciona conductor, auto y punto de espera para iniciar turno.");
-          return;
+              // 2. Validación de valores
+              if (!cSel.value || !aSel.value || !pSel.value) {
+                mostrarToast("⚠️ Selecciona conductor, auto y punto de espera.", "error");
+                return;
+              }
+
+              // 3. Guardamos el punto ACTUAL antes de enviar nada
+              const puntoParaMantener = pSel.value;
+
+              try {
+                  // Desactivamos el botón para evitar ráfagas accidentales
+                  btn.style.pointerEvents = "none";
+                  btn.style.opacity = "0.5";
+
+                  const data = await apiFetch("/turnos", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ 
+                          conductor_id: cSel.value, 
+                          auto_id: aSel.value, 
+                          punto_id: pSel.value 
+                      })
+                  });
+
+                  mostrarToast(`✅ Turno #${data.id_turno} iniciado`, "success");
+
+                  // 4. El "Respiro" para la base de datos
+                    setTimeout(async () => {
+                      // 1. Refrescamos los datos básicos primero
+                      await cargarTurnos();
+                      
+                      // 2. Refrescamos los conductores
+                      await cargarConductoresEnTurnoCrear();
+                      
+                      // 3. Refrescamos los autos (Crucial: esperamos a que termine)
+                      await cargarAutosDisponiblesSelect();
+                      
+                      // 4. Si existe la tabla general, la actualizamos
+                      if (typeof cargarAutosTabla === "function") {
+                          await cargarAutosTabla();
+                      }
+
+                      // 5. AHORA SÍ: Restauramos el punto de espera
+                      // Lo hacemos al final para que nada lo pise
+                      if (puntoParaMantener) {
+                          const pSelFinal = document.getElementById("nuevoPunto");
+                          pSelFinal.value = puntoParaMantener;
+                      }
+
+                      // 6. Limpiamos solo los campos de identidad
+                      document.getElementById("nuevoConductor").value = "";
+                      document.getElementById("nuevoAuto").value = "";
+
+                      // 7. Devolvemos el control al operador
+                      btn.style.pointerEvents = "auto";
+                      btn.style.opacity = "1";
+                      
+                      console.log("✅ Refresco secuencial completado");
+                    }, 600); // Subimos a 600ms para dar margen a la base de datos
+
+              } catch (err) {
+                  btn.style.pointerEvents = "auto";
+                  btn.style.opacity = "1";
+                  console.error("❌ Error:", err.message);
+                  mostrarToast("📍 Error: " + err.message, "error");
+              }
+            };
         }
-
-        try {
-          // 1. apiFetch ya procesa el JSON y lanza error si el status es malo (400, 500, etc.)
-          const data = await apiFetch("/turnos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ conductor_id, auto_id, punto_id })
-          });
-
-          // 2. Si llegamos aquí, es ÉXITO total (Status 200/201)
-          alert("✅ Turno iniciado correctamente: " + data.id_turno);
-
-          // Refrescar solo lo necesario
-          cargarTurnos();
-          cargarConductoresEnTurnoCrear();
-          cargarAutosDisponiblesSelect();
-
-        } catch (err) {
-          // 3. AQUÍ CAPTURAMOS EL "PÁNICO" (Ej: "El auto ya está asignado")
-          console.error("❌ Error al iniciar turno:", err.message);
-          
-          // Limpiamos el mensaje para mostrar solo lo que Flask envió
-          const msg = err.message.includes('{') 
-                      ? JSON.parse(err.message.substring(err.message.indexOf('{'))).error 
-                      : err.message;
-
-          alert("📍 No se pudo iniciar: " + msg);
-        }
-      });
-    }
   });
 ////Lógica modal conductores en punto de espera///////
   // Capturar Ctrl+P y abrir modal

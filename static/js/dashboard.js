@@ -59,35 +59,52 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Sección: Reportes por Conductor
   // -------------------------------
-  const btnConductores = document.getElementById("btnReporteConductores");
-  if (btnConductores) {
+const btnConductores = document.getElementById("btnReporteConductores");
+
+if (btnConductores) {
     btnConductores.addEventListener("click", async () => {
-      const inicio = document.getElementById("fechaInicio").value;
-      const fin = document.getElementById("fechaFin").value;
+        // --- 1. CAPTURA DE VARIABLES (Esto es lo que faltaba) ---
+        const inicio = document.getElementById("fechaInicio").value;
+        const fin = document.getElementById("fechaFin").value;
 
-      if (!inicio || !fin) {
-        alert("Debes seleccionar fecha de inicio y fecha de fin");
-        return;
-      }
-      if (inicio > fin) {
-        alert("La fecha inicio no puede ser mayor que la fecha fin");
-        return;
-      }
+        // --- 2. VALIDACIONES ---
+        if (!inicio || !fin) {
+            alert("Debes seleccionar fecha de inicio y fecha de fin");
+            return;
+        }
+        if (inicio > fin) {
+            alert("La fecha inicio no puede ser mayor que la fecha fin");
+            return;
+        }
 
-      try {
-        const data = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
-        //const data = await res.json();
-        const contenedor = document.getElementById("reporteConductoresResultado");
-        contenedor.innerHTML = Array.isArray(data) && data.length > 0
-          ? generarTablaConductores(data)
-          : "<p>No hay resultados en el rango seleccionado</p>";
-      } catch (err) {
-        console.error("❌ Error generando reporte por conductor:", err);
-        alert("Error al generar reporte por conductor");
-      }
+        try {
+            // Ahora 'inicio' y 'fin' ya existen y se pueden usar aquí
+            const data = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
+            
+            // Limpiamos otros contenedores
+            if(document.getElementById("reporteResultado")) document.getElementById("reporteResultado").innerHTML = "";
+            if(document.getElementById("tabla-reporte")) document.getElementById("tabla-reporte").innerHTML = "";
+            if(document.getElementById("tabla-reporte-cliente")) document.getElementById("tabla-reporte-cliente").innerHTML = "";
+            
+            const contenedor = document.getElementById("reporteConductoresResultado");
+
+            if (Array.isArray(data) && data.length > 0) {
+                // Inyectamos la tabla generada
+                contenedor.innerHTML = generarTablaConductores(data);
+                
+                // Scroll automático
+                contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                console.log("✅ Tabla de conductores visualizada");
+            } else {
+                contenedor.innerHTML = "<p class='p-4 text-orange-600 bg-orange-50 rounded text-center'>No se encontraron servicios en este rango de fechas.</p>";
+            }
+        } catch (err) {
+            console.error("❌ Error generando reporte por conductor:", err);
+            alert("Error al generar reporte por conductor");
+        }
     });
-  }
-
+}
   // -------------------------------
   // 📌 Sección: Impresión de Reportes
   // -------------------------------
@@ -127,7 +144,67 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-  
+   ///// Botón de impresión específico para reporte por conductores
+  const btnPrintConductores = document.getElementById("btnPrintConductores");
+
+    if (btnPrintConductores) {
+      btnPrintConductores.addEventListener("click", () => {
+        const reporteConductores = document.getElementById("reporteConductoresResultado");
+
+        if (reporteConductores && reporteConductores.innerHTML.trim() !== "") {
+          const contenido = reporteConductores.innerHTML;
+          const ventana = window.open("", "_blank");
+
+          ventana.document.write(`
+            <html>
+              <head>
+                <title>Reporte de Servicios por Conductor</title>
+                <style>
+                  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 1cm; color: #333; }
+                  h2 { text-align: center; text-transform: uppercase; margin-bottom: 5px; }
+                  .fecha { text-align: center; font-size: 11px; color: #666; margin-bottom: 20px; }
+                  
+                  /* Estilos para la tabla en la impresión */
+                  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                  th, td { border: 1px solid #333; padding: 8px; font-size: 12px; }
+                  
+                  /* Alineaciones */
+                  .text-center { text-align: center; }
+                  .text-right { text-align: right; }
+                  .text-left { text-align: left; }
+                  .font-mono { font-family: monospace; }
+                  
+                  /* Colores para el PDF/Impresión */
+                  thead { background-color: #f3f4f6; }
+                  tfoot { background-color: #333; color: white; }
+                  tr:nth-child(even) { background-color: #f9fafb; }
+                </style>
+              </head>
+              <body>
+                <h2>Línea de Taxis "Los Patriotas"</h2>
+                <p class="fecha">Reporte de Servicios por Conductor<br>Generado el: ${new Date().toLocaleString()}</p>
+                
+                ${contenido}
+                
+                <div style="margin-top: 40px; border-top: 1px solid #ccc; pt-10px; font-size: 10px; text-align: center;">
+                  Control Administrativo - San Cristóbal, Táchira
+                </div>
+              </body>
+            </html>
+          `);
+
+          ventana.document.close();
+          
+          setTimeout(() => {
+            ventana.print();
+            ventana.close();
+          }, 500);
+        } else {
+          alert("No hay datos en el reporte para imprimir.");
+        }
+      });
+    }
+
   
   // -------------------------------
   // 📌 Sección: Atajos de Teclado F1–F7
@@ -152,27 +229,43 @@ document.addEventListener("DOMContentLoaded", () => {
     if (vista) vista.classList.remove("hidden");
   }
 
-  function generarTablaGeneral(data) {
+ function generarTablaGeneral(data) {
     return `
       <div class="tabla-dinamica mb-4">
         <table class="border-collapse border w-full min-w-max">
           <thead class="bg-gray-100">
             <tr>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">#</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
+              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
               <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Tarifa</th>
+              
             </tr>
           </thead>
           <tbody>
-            ${data.map(r => `
+           ${data.map((r, index) => `
               <tr>
                 <td class="border px-2 py-1">${r.id_despacho}</td>
-                <td class="border px-2 py-1">${r.cliente_nombre}</td>
-                <td class="border px-2 py-1">${r.conductor_codigo} - ${r.conductor_nombre} - ${r.auto_placa}</td>
-                <td class="border px-2 py-1">${r.fecha}</td>
-                <td class="border px-2 py-1">${r.tarifa}</td>
+                <td class="border px-2 py-1 font-bold text-center">${index + 1}</td>
+                <td class="border px-2 py-1 text-sm">
+                    <div class="font-semibold text-gray-900">${r.cliente_nombre}</div>
+                    <div class="text-xs text-gray-500">${r.cliente_telefono}</div> 
+                </td>
+                <td class="border px-2 py-1 text-xs">
+                    ${r.conductor_codigo} - ${r.conductor_nombre} <br>
+                    <span class="text-[10px] font-mono bg-gray-200 px-1 rounded">${r.auto_placa}</span>
+                </td>
+
+                <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
+                    ${r.origen}
+                </td>
+                <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
+                    ${r.destino}
+                </td>
+                <td class="border px-2 py-1 text-[10px] leading-tight">${r.fecha}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -183,101 +276,125 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-  function generarTablaConductores(data) {
-      // 1. Calculamos los totales recorriendo la data
-      let totalServicios = 0;
-      let totalMonto = 0;
 
-      data.forEach(r => {
-          totalServicios += parseInt(r.total_servicios) || 0;
-          totalMonto += parseFloat(r.total_tarifa) || 0;
-      });
 
-      return `
-        <div class="tabla-dinamica mb-4 shadow-sm border rounded-lg overflow-hidden">
-          <table class="border-collapse border w-full min-w-max">
-            <thead class="bg-gray-100 text-gray-700">
-              <tr>
-                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-left">Conductor</th>
-                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-center">Total Servicios</th>
-                <th class="border px-4 py-2 sticky top-0 bg-gray-100 text-right">Total Tarifa</th>
-              </tr>
-            </thead>
-            <tbody class="text-gray-600">
-              ${data.map(r => `
-                <tr class="hover:bg-gray-50">
-                  <td class="border px-4 py-1">${r.conductor}</td>
-                  <td class="border px-4 py-1 text-center">${r.total_servicios}</td>
-                  <td class="border px-4 py-1 text-right font-mono">${parseFloat(r.total_tarifa).toFixed(2)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-            <tfoot class="bg-gray-800 text-white font-bold">
-              <tr>
-                <td class="border px-4 py-2 text-right uppercase">Total General:</td>
-                <td class="border px-4 py-2 text-center text-lg">${totalServicios}</td>
-                <td class="border px-4 py-2 text-right text-lg font-mono">
-                  ${totalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+function generarTablaConductores(data) {
+    let totalServicios = 0;
+    let totalMonto = 0;
+
+    // 1. Calculamos totales
+    data.forEach(r => {
+        totalServicios += parseInt(r.total_servicios) || 0;
+        totalMonto += parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
+    });
+
+    // 2. Generamos las filas de los conductores
+    let filas = data.map(r => {
+        const vTarifa = parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
+        return `
+            <tr style="border-bottom: 1px solid #dee2e6;">
+                <td style="padding: 8px; text-align: left;">${r.conductor}</td>
+                <td style="padding: 8px; text-align: center;">${r.total_servicios}</td>
+                <td style="padding: 8px; text-align: right; font-family: monospace;">
+                    ${vTarifa.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                 </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      `;
-    }
+            </tr>
+        `;
+    }).join("");
 
-   // -------------------------------
-  // 📌 Sección: Reportes por Cliente
-  // -------------------------------
-  const btnCliente = document.getElementById("btnReporteCliente");
+    // 3. AGREGAMOS LA FILA DE TOTALES COMO UNA FILA MÁS (Sin usar TFOOT)
+    const filaTotal = `
+        <tr style="background-color: #1f2937; color: white; font-weight: bold;">
+            <td style="padding: 10px; text-align: right;">TOTAL GENERAL:</td>
+            <td style="padding: 10px; text-align: center; font-size: 1.1em;">${totalServicios}</td>
+            <td style="padding: 10px; text-align: right; font-size: 1.1em; font-family: monospace;">
+                ${totalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+        </tr>
+    `;
+
+    return `
+        <div style="width: 100%; overflow-x: auto; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; background-color: white;">
+                <thead>
+                    <tr style="background-color: #f3f4f6; border-bottom: 2px solid #ccc;">
+                        <th style="padding: 10px; text-align: left;">Conductor</th>
+                        <th style="padding: 10px; text-align: center;">Total Servicios</th>
+                        <th style="padding: 10px; text-align: right;">Total Tarifa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas}
+                    ${filaTotal}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+// -------------------------------
+// 📌 Sección: Reportes por Cliente 
+// -------------------------------
+const btnCliente = document.getElementById("btnReporteCliente");
   if (btnCliente) {
     btnCliente.addEventListener("click", async () => {
-      const telefono = document.getElementById("telefonoCliente").value;
+      const telefonoInput = document.getElementById("telefonoCliente");
+      if (!telefonoInput) return;
+      const telefono = document.getElementById("telefonoCliente").value.trim();
       const token = localStorage.getItem("token");
-      if (!telefono) {
-        alert("Debes ingresar un número de teléfono");
-        return;
-      }
 
-      try {
-        const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,   // 👈 enviar token JWT
-            "Content-Type": "application/json"
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
+        if (!token) {
+          alert("Sesión expirada. Por favor, vuelve a iniciar sesión.");
+          window.location.href = "/login"; // O tu ruta de login
+          return;
         }
 
-        const data = await response.json();
+        if (!telefono) {
+          alert("Debes ingresar un número de teléfono");
+          return;
+        }
 
-        const tbody = document.getElementById("tabla-reporte-cliente");
-        tbody.innerHTML = "";
-
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(item => {
-            const row = `
-              <tr>
-                <td>${item.nombre_conductor}</td>
-                <td>${item.origen}</td>
-                <td>${item.destino}</td>
-                <td>${item.ultima_fecha}</td>
-              </tr>
-            `;
-            tbody.innerHTML += row;
+        try {
+          const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
           });
-        } else {
-          tbody.innerHTML = `<tr><td colspan="3">No se encontraron registros</td></tr>`;
-        }
-      } catch (err) {
-        console.error("❌ Error generando reporte por cliente:", err);
-        alert("Error al generar reporte por cliente");
-      }
 
-    });
-  }
+          if (response.status === 401) {
+            throw new Error("No autorizado: Tu sesión ha caducado.");
+          }
+
+          if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const tbody = document.getElementById("tabla-reporte-cliente");
+          
+          // Usamos una variable temporal para no tocar el DOM muchas veces
+          let filas = ""; 
+
+          if (Array.isArray(data) && data.length > 0) {
+            data.forEach(item => {
+              filas += `
+                <tr>
+                  <td>${item.nombre_conductor}</td>
+                  <td>${item.origen}</td>
+                  <td>${item.destino}</td>
+                  <td>${item.ultima_fecha}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = filas;
+          } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+          }
+        } catch (err) {
+          console.error("❌ Error:", err);
+          alert(err.message);
+        }
+      });
+    }  
   // -------------------------------
   // 📌 Atajo de teclado Alt+T (solo admins)
   document.addEventListener("keydown", (e) => {
