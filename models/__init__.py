@@ -12,6 +12,10 @@ from .reserva import Reserva
 from .puntos_espera import PuntoEspera
 from .cola_despachos import ColaDespacho 
 from .auditoria_acceso import AuditoriaAcceso  
+from .pago_cuotas import PagoCuota
+from .cuota_semanal import CuotaSemanal
+from .incidencias import Incidencia
+from .bloqueo_afinidad import BloqueoAfinidad
 
 __all__ = [
     "Usuario",
@@ -27,5 +31,9 @@ __all__ = [
     "Reserva",
     "PuntoEspera",
     "ColaDespacho",
-    "AuditoriaAcceso"
+    "AuditoriaAcceso",
+    "PagoCuota",
+    "CuotaSemanal",
+    "Incidencia",
+    "BloqueoAfinidad"
 ]

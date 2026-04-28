@@ -111,5 +111,4 @@ async function validarClientePorTelefono() {
 
 // Exponer globalmente
 window.validarClientePorTelefono = validarClientePorTelefono;
-window.abrirModalCliente = abrirModalCliente;127.0.0.1 - - [19/Jan/2026 00:23:26] "POST /reservas HTTP/1.1" 201 687 0.047459
-📢 Avisando reserva #9
+window.abrirModalCliente = abrirModalCliente;

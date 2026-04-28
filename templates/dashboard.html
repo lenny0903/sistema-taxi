@@ -63,32 +63,42 @@
     <!-- Menú lateral -->
    <nav class="w-64 bg-white shadow-md h-screen p-4">
       <ul class="space-y-2">
-        <!--<li><button onclick="mostrarSeccion('clientesSection')" class="w-full text-left">Clientes</button></li>-->
-        <!--<li><button onclick="mostrarSeccion('clientes')" class="w-full text-left">Clientes</button></li>-->
-        <li class="menu-admin"><button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button></li>
-        <li class="menu-admin"><button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button></li>
-        <li><button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button></li>
-        <li><button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho(F1)</button></li>
-        <li><button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos(F2)</button></li>
-        <li></li> <button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button></li>
-        <li>
-            <button onclick="generarRespaldo()" class="w-full text-left">
-              Respaldo
-            </button>
+        <li class="menu-admin">
+          <button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button>
         </li>
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('usuarios')" class="w-full text-left">
-            Usuarios
-          </button>
+          <button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button>
         </li>
+        
         <li class="menu-admin">
-          <button class="w-full text-left" onclick="abrirModalCambio()">
-            Cambiar contraseña
+          <button onclick="mostrarSeccion('pagos')" class="w-full text-left font-semibold text-blue-700">
+            Pagos Semanales(F8)
           </button>
         </li>
 
+        <li>
+          <button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button>
+        </li>
+        <li>
+          <button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho(F1)</button>
+        </li>
+        <li>
+          <button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos(F2)</button>
+        </li>
+        <li>
+          <button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button>
+        </li>
+        <li>
+          <button onclick="generarRespaldo()" class="w-full text-left">Respaldo</button>
+        </li>
+        <li class="menu-admin">
+          <button onclick="mostrarSeccion('usuarios')" class="w-full text-left">Usuarios</button>
+        </li>
+        <li class="menu-admin">
+          <button class="w-full text-left" onclick="abrirModalCambio()">Cambiar contraseña</button>
+        </li>
       </ul>
-   </nav>
+    </nav>
 
     
     <!-- Contenido principal -->
@@ -328,7 +338,96 @@
         </div>
       </div>
     </section>
+    <section id="pagos" class="seccion-contenido hidden p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Gestión de Cuotas Semanales</h2>
+        <span class="badge bg-green-500 text-white px-3 py-1 rounded">Semana Actual</span>
+      </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-4 shadow rounded-lg border-t-4 border-blue-500">
+          <h3 class="font-bold mb-4">Registrar Nuevo Pago</h3>
+          <form id="formRegistrarPago">
+            <div class="mb-3">
+              <label class="block text-sm font-medium">Unidad / Conductor</label>
+              <select id="pago_conductor_id" name="conductor_id" class="w-full border rounded p-2" required>
+                <option value="">Cargando conductores...</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700">Monto Fijo de Cuota (COP)</label>
+              <div class="relative">
+                <input type="text" value="40.000" readonly 
+                      class="w-full border rounded p-2 bg-gray-100 font-bold text-blue-600 cursor-not-allowed">
+                <input type="hidden" name="monto_pagado" value="40000">
+              </div>
+              <p class="text-[10px] text-gray-500 mt-1 italic">* Valor preestablecido por la administración.</p>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-sm font-medium">Método</label>
+              <select name="metodo_pago" class="w-full border rounded p-2">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Pago Móvil">Pago Móvil</option>
+                <option value="Transferencia">Transferencia</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-sm font-medium">Referencia</label>
+              <input type="text" name="referencia" class="w-full border rounded p-2" placeholder="Nro de comprobante">
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
+              Procesar Pago (40.000 COP)
+            </button>
+          </form>
+        </div>
+
+        <div class="md:col-span-2 space-y-6">
+          <div class="bg-white p-4 shadow rounded-lg">
+            <h3 class="font-bold mb-4">Estado de la Semana (Corte Jueves)</h3>
+            <div class="overflow-x-auto">
+                <div class="tabla-dinamica">  
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="border-b bg-gray-50">
+                        <th class="p-2">Unidad</th>
+                        <th class="p-2">Conductor</th>
+                        <th class="p-2">Saldo</th>
+                        <th class="p-2">Estado</th>
+                        <th class="p-2">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaEstadoPagos">
+                      </tbody>
+                  </table>
+                </div>  
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
+            <h3 class="text-xl font-bold mb-4 text-gray-700">Historial Reciente de Cuotas</h3>
+            <div class="overflow-x-auto">
+              <table class="min-w-full table-auto">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs">Fecha</th>
+                    <th class="px-4 py-2 text-left text-xs">Conductor</th>
+                    <th class="px-4 py-2 text-left text-xs">Semana</th>
+                    <th class="px-4 py-2 text-left text-xs">Monto</th>
+                    <th class="px-4 py-2 text-left text-xs">Ref.</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla_historial_pagos">
+                  </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 <!-- Sección: Despachos -->
     <section id="despachos" class="seccion hidden">
       <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
@@ -1102,6 +1201,24 @@
                     cargarAutosDisponiblesSelect();
                     cargarPuntos();
                     break;
+                case 'pagos': 
+                    console.log("💰 Detectada sección de pagos. Cargando datos completos...");
+                    // 1. Carga el select de conductores (el que ya tenías)
+                    cargarConductoresSelect(); 
+                    
+                    // 2. 🚀 EL GATILLO QUE FALTA: Carga la tabla de solvencia semanal
+                    if (typeof window.cargarEstadoSemana === 'function') {
+                        window.cargarEstadoSemana();
+                    } else {
+                        console.error("❌ La función cargarEstadoSemana no está disponible globalmente");
+                    }
+
+                    // 3. Opcional: Carga el historial de pagos de abajo
+                    if (typeof window.cargarHistorialPagos === 'function') {
+                        window.cargarHistorialPagos();
+                    }
+                    break;
+                // 👆 HASTA AQUÍ    
                 case 'despachosActivos':
                     cargarDespachosActivos();
                     break;

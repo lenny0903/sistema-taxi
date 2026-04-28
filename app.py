@@ -16,7 +16,7 @@ import config
 import sqlite3
 
 from flask_socketio import SocketIO
-
+MONTO_CUOTA_SEMANAL = 40000
 
 socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
 def create_app():
@@ -69,7 +69,7 @@ def create_app():
     from routes.puntos_espera import puntos_bp
     from routes.lista_espera_multiple import lista_espera_multiple_bp
     from routes.cola_despachos import cola_despachos_bp
-    
+    from routes.registrar_pagos import pagos_bp
     
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -89,6 +89,7 @@ def create_app():
     app.register_blueprint(puntos_bp)
     app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
+    app.register_blueprint(pagos_bp, url_prefix="/pagos")
     print(app.url_map)
 
     @app.route("/")

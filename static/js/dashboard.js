@@ -19,11 +19,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (rol && rol.toLowerCase() === 'admin') {
-    mostrarSeccion('despachos'); // ✅ usa la función unificada
+    abrirVista('despachos') // ✅ usa la función unificada
   } else {
-    mostrarSeccion('clientesSection'); // ✅ usa la función unificada
+    abrirVista('clientesSection'); // ✅ usa la función unificada
     document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
   }
+  // Modifica tu listener de teclado para que cargue los datos
+  document.addEventListener("keydown", (e) => {
+      // ... otros atajos ...
+      if (e.key === "F6") { 
+        e.preventDefault(); 
+        abrirVista("pagos"); 
+        
+        // 1. Cargamos el select de conductores
+        cargarConductoresSelect(); 
+        
+        // 2. Cargamos el historial de pagos (la tabla de la derecha)
+        if (window.cargarHistorialPagos) {
+            cargarHistorialPagos();
+        }
+      }
+  });
   // -------------------------------
   // 📌 Sección: Reportes Generales
   // -------------------------------
@@ -59,52 +75,52 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Sección: Reportes por Conductor
   // -------------------------------
-const btnConductores = document.getElementById("btnReporteConductores");
+  const btnConductores = document.getElementById("btnReporteConductores");
 
-if (btnConductores) {
-    btnConductores.addEventListener("click", async () => {
-        // --- 1. CAPTURA DE VARIABLES (Esto es lo que faltaba) ---
-        const inicio = document.getElementById("fechaInicio").value;
-        const fin = document.getElementById("fechaFin").value;
+  if (btnConductores) {
+      btnConductores.addEventListener("click", async () => {
+          // --- 1. CAPTURA DE VARIABLES (Esto es lo que faltaba) ---
+          const inicio = document.getElementById("fechaInicio").value;
+          const fin = document.getElementById("fechaFin").value;
 
-        // --- 2. VALIDACIONES ---
-        if (!inicio || !fin) {
-            alert("Debes seleccionar fecha de inicio y fecha de fin");
-            return;
-        }
-        if (inicio > fin) {
-            alert("La fecha inicio no puede ser mayor que la fecha fin");
-            return;
-        }
+          // --- 2. VALIDACIONES ---
+          if (!inicio || !fin) {
+              alert("Debes seleccionar fecha de inicio y fecha de fin");
+              return;
+          }
+          if (inicio > fin) {
+              alert("La fecha inicio no puede ser mayor que la fecha fin");
+              return;
+          }
 
-        try {
-            // Ahora 'inicio' y 'fin' ya existen y se pueden usar aquí
-            const data = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
-            
-            // Limpiamos otros contenedores
-            if(document.getElementById("reporteResultado")) document.getElementById("reporteResultado").innerHTML = "";
-            if(document.getElementById("tabla-reporte")) document.getElementById("tabla-reporte").innerHTML = "";
-            if(document.getElementById("tabla-reporte-cliente")) document.getElementById("tabla-reporte-cliente").innerHTML = "";
-            
-            const contenedor = document.getElementById("reporteConductoresResultado");
+          try {
+              // Ahora 'inicio' y 'fin' ya existen y se pueden usar aquí
+              const data = await apiFetch(`/reportes/conductores?inicio=${inicio}&fin=${fin}`);
+              
+              // Limpiamos otros contenedores
+              if(document.getElementById("reporteResultado")) document.getElementById("reporteResultado").innerHTML = "";
+              if(document.getElementById("tabla-reporte")) document.getElementById("tabla-reporte").innerHTML = "";
+              if(document.getElementById("tabla-reporte-cliente")) document.getElementById("tabla-reporte-cliente").innerHTML = "";
+              
+              const contenedor = document.getElementById("reporteConductoresResultado");
 
-            if (Array.isArray(data) && data.length > 0) {
-                // Inyectamos la tabla generada
-                contenedor.innerHTML = generarTablaConductores(data);
-                
-                // Scroll automático
-                contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                
-                console.log("✅ Tabla de conductores visualizada");
-            } else {
-                contenedor.innerHTML = "<p class='p-4 text-orange-600 bg-orange-50 rounded text-center'>No se encontraron servicios en este rango de fechas.</p>";
-            }
-        } catch (err) {
-            console.error("❌ Error generando reporte por conductor:", err);
-            alert("Error al generar reporte por conductor");
-        }
-    });
-}
+              if (Array.isArray(data) && data.length > 0) {
+                  // Inyectamos la tabla generada
+                  contenedor.innerHTML = generarTablaConductores(data);
+                  
+                  // Scroll automático
+                  contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  
+                  console.log("✅ Tabla de conductores visualizada");
+              } else {
+                  contenedor.innerHTML = "<p class='p-4 text-orange-600 bg-orange-50 rounded text-center'>No se encontraron servicios en este rango de fechas.</p>";
+              }
+          } catch (err) {
+              console.error("❌ Error generando reporte por conductor:", err);
+              alert("Error al generar reporte por conductor");
+          }
+      });
+  }
   // -------------------------------
   // 📌 Sección: Impresión de Reportes
   // -------------------------------
@@ -204,7 +220,6 @@ if (btnConductores) {
         }
       });
     }
-
   
   // -------------------------------
   // 📌 Sección: Atajos de Teclado F1–F7
@@ -218,17 +233,38 @@ if (btnConductores) {
     if (e.key === "F6") { e.preventDefault(); abrirVista("pagos"); }
     if (e.key === "F7") { e.preventDefault(); abrirVista("conductores"); }
   });
+  // --- Motor de Pagos ---
+  const fPagos = document.getElementById('formRegistrarPago');
+  if (fPagos) {
+    fPagos.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const d = Object.fromEntries(new FormData(e.target));
+        
+        // 🔥 ELIMINA EL '/api' DE AQUÍ:
+        await apiFetch('/pagos/registrar', { 
+          method: 'POST', 
+          body: JSON.stringify(d) 
+        });
 
+        alert('✅ Pago procesado en Los Patriotas');
+        cargarEstadoSemana();
+        e.target.reset();
+        window.cargarHistorialPagos();
+        // Opcional: Cerrar el formulario o refrescar la vista
+        if (window.abrirVista) abrirVista('pagos'); 
+
+      } catch (err) { 
+        console.error("Detalle del error:", err);
+        alert("Error al registrar: revisa la consola para más detalles"); 
+      }
+    });
+  }
+});
   // -------------------------------
   // 📌 Funciones auxiliares
   // -------------------------------
- 
-  function abrirVista(idVista) {
-    document.querySelectorAll(".seccion").forEach(sec => sec.classList.add("hidden"));
-    const vista = document.getElementById(idVista);
-    if (vista) vista.classList.remove("hidden");
-  }
-
+  
  function generarTablaGeneral(data) {
     return `
       <div class="tabla-dinamica mb-4">
@@ -274,144 +310,138 @@ if (btnConductores) {
     `;
   }
 
+    function generarTablaConductores(data) {
+      let totalServicios = 0;
+      let totalMonto = 0;
 
+      // 1. Calculamos totales
+      data.forEach(r => {
+          totalServicios += parseInt(r.total_servicios) || 0;
+          totalMonto += parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
+      });
 
+      // 2. Generamos las filas de los conductores
+      let filas = data.map(r => {
+          const vTarifa = parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
+          return `
+              <tr style="border-bottom: 1px solid #dee2e6;">
+                  <td style="padding: 8px; text-align: left;">${r.conductor}</td>
+                  <td style="padding: 8px; text-align: center;">${r.total_servicios}</td>
+                  <td style="padding: 8px; text-align: right; font-family: monospace;">
+                      ${vTarifa.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                  </td>
+              </tr>
+          `;
+      }).join("");
 
+      // 3. AGREGAMOS LA FILA DE TOTALES COMO UNA FILA MÁS (Sin usar TFOOT)
+      const filaTotal = `
+          <tr style="background-color: #1f2937; color: white; font-weight: bold;">
+              <td style="padding: 10px; text-align: right;">TOTAL GENERAL:</td>
+              <td style="padding: 10px; text-align: center; font-size: 1.1em;">${totalServicios}</td>
+              <td style="padding: 10px; text-align: right; font-size: 1.1em; font-family: monospace;">
+                  ${totalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+          </tr>
+      `;
 
-function generarTablaConductores(data) {
-    let totalServicios = 0;
-    let totalMonto = 0;
+      return `
+          <div style="width: 100%; overflow-x: auto; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px;">
+              <table style="width: 100%; border-collapse: collapse; background-color: white;">
+                  <thead>
+                      <tr style="background-color: #f3f4f6; border-bottom: 2px solid #ccc;">
+                          <th style="padding: 10px; text-align: left;">Conductor</th>
+                          <th style="padding: 10px; text-align: center;">Total Servicios</th>
+                          <th style="padding: 10px; text-align: right;">Total Tarifa</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${filas}
+                      ${filaTotal}
+                  </tbody>
+              </table>
+          </div>
+      `;
+    }
+  // -------------------------------
+  // 📌 Sección: Reportes por Cliente 
+  // -------------------------------
+  const btnCliente = document.getElementById("btnReporteCliente");
 
-    // 1. Calculamos totales
-    data.forEach(r => {
-        totalServicios += parseInt(r.total_servicios) || 0;
-        totalMonto += parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
-    });
-
-    // 2. Generamos las filas de los conductores
-    let filas = data.map(r => {
-        const vTarifa = parseFloat(String(r.total_tarifa || "0").replace(',', '.')) || 0;
-        return `
-            <tr style="border-bottom: 1px solid #dee2e6;">
-                <td style="padding: 8px; text-align: left;">${r.conductor}</td>
-                <td style="padding: 8px; text-align: center;">${r.total_servicios}</td>
-                <td style="padding: 8px; text-align: right; font-family: monospace;">
-                    ${vTarifa.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                </td>
-            </tr>
-        `;
-    }).join("");
-
-    // 3. AGREGAMOS LA FILA DE TOTALES COMO UNA FILA MÁS (Sin usar TFOOT)
-    const filaTotal = `
-        <tr style="background-color: #1f2937; color: white; font-weight: bold;">
-            <td style="padding: 10px; text-align: right;">TOTAL GENERAL:</td>
-            <td style="padding: 10px; text-align: center; font-size: 1.1em;">${totalServicios}</td>
-            <td style="padding: 10px; text-align: right; font-size: 1.1em; font-family: monospace;">
-                ${totalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </td>
-        </tr>
-    `;
-
-    return `
-        <div style="width: 100%; overflow-x: auto; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px;">
-            <table style="width: 100%; border-collapse: collapse; background-color: white;">
-                <thead>
-                    <tr style="background-color: #f3f4f6; border-bottom: 2px solid #ccc;">
-                        <th style="padding: 10px; text-align: left;">Conductor</th>
-                        <th style="padding: 10px; text-align: center;">Total Servicios</th>
-                        <th style="padding: 10px; text-align: right;">Total Tarifa</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filas}
-                    ${filaTotal}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-// -------------------------------
-// 📌 Sección: Reportes por Cliente 
-// -------------------------------
-const btnCliente = document.getElementById("btnReporteCliente");
   if (btnCliente) {
     btnCliente.addEventListener("click", async () => {
       const telefonoInput = document.getElementById("telefonoCliente");
       if (!telefonoInput) return;
-      const telefono = document.getElementById("telefonoCliente").value.trim();
+
+      const telefono = telefonoInput.value.trim();
       const token = localStorage.getItem("token");
 
-        if (!token) {
-          alert("Sesión expirada. Por favor, vuelve a iniciar sesión.");
-          window.location.href = "/login"; // O tu ruta de login
-          return;
-        }
-
-        if (!telefono) {
-          alert("Debes ingresar un número de teléfono");
-          return;
-        }
-
-        try {
-          const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          });
-
-          if (response.status === 401) {
-            throw new Error("No autorizado: Tu sesión ha caducado.");
-          }
-
-          if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-          }
-
-          const data = await response.json();
-          const tbody = document.getElementById("tabla-reporte-cliente");
-          
-          // Usamos una variable temporal para no tocar el DOM muchas veces
-          let filas = ""; 
-
-          if (Array.isArray(data) && data.length > 0) {
-            data.forEach(item => {
-              filas += `
-                <tr>
-                  <td>${item.nombre_conductor}</td>
-                  <td>${item.origen}</td>
-                  <td>${item.destino}</td>
-                  <td>${item.ultima_fecha}</td>
-                </tr>`;
-            });
-            tbody.innerHTML = filas;
-          } else {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
-          }
-        } catch (err) {
-          console.error("❌ Error:", err);
-          alert(err.message);
-        }
-      });
-    }  
-  // -------------------------------
-  // 📌 Atajo de teclado Alt+T (solo admins)
-  document.addEventListener("keydown", (e) => {
-    if (e.altKey && e.key.toLowerCase() === "t") {
-      e.preventDefault(); // evita cualquier acción por defecto
-      const rol = localStorage.getItem('rol');
-      if (rol && rol.toLowerCase() === 'admin') {
-        abrirModalTelefonosClientes();
-      } else {
-        alert("⚠️ Solo los administradores pueden acceder a la gestión de teléfonos de clientes.");
+      // VALIDACIONES (Alineadas correctamente)
+      if (!token) {
+        alert("Sesión expirada. Por favor, vuelve a iniciar sesión.");
+        window.location.href = "/login";
+        return;
       }
-    }
-  });
-  
-});
 
-  
+      if (!telefono) {
+        alert("Debes ingresar un número de teléfono");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (response.status === 401) {
+          throw new Error("No autorizado: Tu sesión ha caducado.");
+        }
+
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const tbody = document.getElementById("tabla-reporte-cliente");
+        let filas = ""; 
+
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(item => {
+            filas += `
+              <tr>
+                <td>${item.nombre_conductor}</td>
+                <td>${item.origen}</td>
+                <td>${item.destino}</td>
+                <td>${item.ultima_fecha}</td>
+              </tr>`;
+          });
+          tbody.innerHTML = filas;
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+        }
+      } catch (err) {
+        console.error("❌ Error:", err);
+        alert(err.message);
+      }
+    }); // Cierre del listener
+  } // Cierre del if  
+    // -------------------------------
+    // 📌 Atajo de teclado Alt+T (solo admins)
+    document.addEventListener("keydown", (e) => {
+      if (e.altKey && e.key.toLowerCase() === "t") {
+        e.preventDefault(); // evita cualquier acción por defecto
+        const rol = localStorage.getItem('rol');
+        if (rol && rol.toLowerCase() === 'admin') {
+          abrirModalTelefonosClientes();
+        } else {
+          alert("⚠️ Solo los administradores pueden acceder a la gestión de teléfonos de clientes.");
+        }
+      }
+    });
+    
   // -------------------------------
   // 📌 Modal independiente: Teléfonos de Clientes
   // -------------------------------
@@ -445,109 +475,90 @@ const btnCliente = document.getElementById("btnReporteCliente");
       } catch (err) {
           console.error("❌ Error:", err);
       }
-  }
+    }
 
   
- // 📌 Lógica del Buscador (Oculta la paginación)
-document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
-    const query = e.target.value.trim();
+  // 📌 Lógica del Buscador (Oculta la paginación)
+    document.querySelector("#buscarNombreTel").addEventListener("input", async (e) => {
+      const query = e.target.value.trim();
 
-    if (query.length === 0) {
-        cargarClientesTel(1); 
-        return;
-    }
+      if (query.length === 0) {
+          cargarClientesTel(1); 
+          return;
+      }
 
-    if (query.length < 3) return;
+      if (query.length < 3) return;
 
-    try {
-        // Ocultamos la paginación mientras se busca
-        document.getElementById("controlesPaginacion").style.display = "none";
-        
-        // CORRECCIÓN: apiFetch ya devuelve los datos procesados
-        const filtrados = await apiFetch(`/clientes/search?q=${query}`);
-        
-        // Ahora pasamos 'filtrados' directamente a la tabla
-        renderTablaClientesTel(filtrados);
-        
-    } catch (err) {
-        console.error("❌ Error en búsqueda:", err);
-    }
-});
+      try {
+          // Ocultamos la paginación mientras se busca
+          document.getElementById("controlesPaginacion").style.display = "none";
+          
+          // CORRECCIÓN: apiFetch ya devuelve los datos procesados
+          const filtrados = await apiFetch(`/clientes/search?q=${query}`);
+          
+          // Ahora pasamos 'filtrados' directamente a la tabla
+          renderTablaClientesTel(filtrados);
+          
+      } catch (err) {
+          console.error("❌ Error en búsqueda:", err);
+      }
+   });
   
 
   function renderTablaClientesTel(clientes) {
     const tbody = document.querySelector('#tablaClientesTel tbody');
-    tbody.innerHTML = ""; // Limpiar tabla anterior
-    // 🔥 FILTRO DE SEGURIDAD:
-    // Solo procesamos clientes cuyo campo 'activo' sea distinto de 0
-    //const clientesVisibles = clientes.filter(cliente => cliente.activo !== 0);
+    if (!tbody) return;
+    tbody.innerHTML = ""; 
+
     clientes.forEach((cliente, index) => {
       const tr = document.createElement("tr");
-      tr.className = "cursor-pointer hover:bg-gray-100 border-b"; // Opcional: mejora visual
+      // Añadimos una transición suave para el hover
+      tr.className = "cursor-pointer hover:bg-gray-100 border-b transition-colors";
 
-      // 📌 Cálculo de numeración correlativa
-      // Si paginaActual es 1: (0 * 50) + (0 + 1) = 1
-      // Si paginaActual es 2: (1 * 50) + (0 + 1) = 51
-      const tdNum = document.createElement("td");
-      tdNum.style.textAlign = "center";
-      tdNum.style.padding = "8px";
-      tdNum.textContent = ((paginaActual - 1) * 50) + (index + 1);
+      // 1. Numeración correlativa real
+      const num = ((paginaActual - 1) * 50) + (index + 1);
 
-      const tdNombre = document.createElement("td");
-      tdNombre.style.padding = "8px";
-      tdNombre.textContent = cliente.nombre;
+      // 2. Construcción limpia con Template Literals
+      tr.innerHTML = `
+        <td class="p-2 text-center text-gray-500">${num}</td>
+        <td class="p-2 font-medium">${cliente.nombre}</td>
+        <td class="p-2 font-mono">${cliente.nro_telefono || cliente.telefono || 'S/N'}</td>
+        <td class="p-2 truncate max-w-xs cursor-help" title="${cliente.direccion || 'Sin dirección'}">
+          ${cliente.direccion || "Sin dirección"}
+        </td>
+      `;
 
-      const tdTelefono = document.createElement("td");
-      tdTelefono.style.padding = "8px";
-      tdTelefono.textContent = cliente.nro_telefono || cliente.telefono;
-
-      const tdDireccion = document.createElement("td");
-      tdDireccion.style.padding = "8px";
-      // Aplicamos las clases de Tailwind: 
-      // truncate: corta el texto con "..." 
-      // max-w-xs: limita el ancho (aprox 320px)
-      // cursor-help: para que el usuario sepa que hay más texto
-      tdDireccion.className = "truncate max-w-xs cursor-help";
-      // Guardamos la dirección completa en el atributo 'title' 
-      // Así, cuando el operador ponga el mouse encima, verá la dirección completa en un globito
-      tdDireccion.title = cliente.direccion || "Sin dirección";
-      tdDireccion.textContent = cliente.direccion || "Sin dirección";
-
-      tr.appendChild(tdNum);
-      tr.appendChild(tdNombre);
-      tr.appendChild(tdTelefono);
-      tr.appendChild(tdDireccion);
-      // Evento de selección
+      // 3. Evento de selección con feedback visual
       tr.addEventListener("click", () => {
         seleccionarClienteTel(cliente);
-        [...tbody.querySelectorAll("tr")].forEach(r => r.classList.remove("fila-seleccionada", "bg-blue-100"));
-        tr.classList.add("fila-seleccionada", "bg-blue-100");
+        // Limpiamos selección previa y marcamos la nueva
+        tbody.querySelectorAll("tr").forEach(r => r.classList.remove("bg-blue-100", "font-bold"));
+        tr.classList.add("bg-blue-100", "font-bold");
       });
 
       tbody.appendChild(tr);
     });
   }
 
-
-
-
   // En dashboard.js, dentro del evento input del buscador:
   // 📌 Búsqueda remota 
 
 
  function seleccionarClienteTel(cliente) {
-    // 1. Guardamos el ID en el campo oculto (para el servidor)
     const inputId = document.querySelector("#cliIdTel");
-    if (inputId) inputId.value = cliente.id_cliente || cliente.id;
+    const inputNombre = document.querySelector("#cliNombreTel");
+    const inputTelActual = document.querySelector("#cliTelefonoActualTel");
+    const inputNuevo = document.querySelector("#cliTelefonoNuevoTel");
 
-    // 2. Mostramos los datos al operador (para la vista)
-    document.querySelector("#cliNombreTel").value = cliente.nombre;
-    document.querySelector("#cliTelefonoActualTel").value = cliente.nro_telefono || cliente.telefono;
-    
-    // 3. Limpiamos el campo de nuevo teléfono para que el operador escriba
-    document.querySelector("#cliTelefonoNuevoTel").value = "";
-    document.querySelector("#cliTelefonoNuevoTel").focus();
-}
+    if (inputId) inputId.value = cliente.id_cliente || cliente.id;
+    if (inputNombre) inputNombre.value = cliente.nombre;
+    if (inputTelActual) inputTelActual.value = cliente.nro_telefono || cliente.telefono;
+    if (inputNuevo) {
+      inputNuevo.value = "";
+      inputNuevo.focus();
+    }
+  }
+  window.seleccionarClienteTel = seleccionarClienteTel;
   
 
  function abrirModalTelefonosClientes() {
@@ -616,7 +627,7 @@ document.querySelector("#buscarNombreTel").addEventListener("input", async (e) =
         // El alert ahora será profesional y limpio
         alert(`⚠️ Atención:\n${mensajeLimpio}`);
     }
-});
+  });
 
   async function eliminarClienteTel() {
     const idCliente = document.querySelector("#cliIdTel").value; 
@@ -659,40 +670,233 @@ document.querySelector("#buscarNombreTel").addEventListener("input", async (e) =
       console.error("❌ Error al procesar:", err);
       alert("No se pudo completar la operación.");
     }
-}
-  window.eliminarClienteTel = eliminarClienteTel;
-  
-  
-  
-
-  function abrirVista(idVista) {
-    // Ocultar todas las secciones
-    document.querySelectorAll(".seccion").forEach(sec => sec.classList.add("hidden"));
-
-    // Mostrar la sección solicitada
-    const vista = document.getElementById(idVista);
-    if (vista) {
-      vista.classList.remove("hidden");
-      console.log(`✅ Vista abierta: ${idVista}`);
-    } else {
-      console.warn(`⚠️ Sección '${idVista}' no encontrada en el DOM`);
-    }
   }
+  window.eliminarClienteTel = eliminarClienteTel;
+   
 
-    async function registrarAuditoriaAcceso(evento) {
-      const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
+   function abrirVista(idVista) {
+      // 1. Ocultar usando la clase REAL que tienes en el HTML (seccion-contenido)
+      document.querySelectorAll(".seccion-contenido").forEach(sec => {
+          sec.classList.add("hidden");
+      });
+      
+      // 2. Mostrar la sección solicitada
+      const vista = document.getElementById(idVista);
+      if (vista) {
+          vista.classList.remove("hidden");
+          console.log(`✅ Vista abierta: ${idVista}`);
 
-      try {
-          // CAMBIO DE RUTA: ahora es /usuarios/log-acceso
-          await apiFetch('/usuarios/log-acceso', {
-              method: 'POST',
-              body: JSON.stringify({
-                  usuario: usuarioActivo,
-                  evento: evento
-              })
-          });
-      } catch (error) {
-          console.error("Error de auditoría:", error);
+          // 🚀 EL GATILLO: Normalizamos a minúsculas por seguridad
+          if (idVista.toLowerCase() === 'pagos') { 
+              console.log("⚙️ Ejecutando recarga de datos para 'Los Patriotas'...");
+              
+              // Verificamos que las funciones existan antes de llamar
+              if (typeof window.cargarConductoresSelect === 'function') {
+                  window.cargarConductoresSelect();
+              }
+
+              if (typeof window.cargarHistorialPagos === 'function') {
+                  window.cargarHistorialPagos();
+              }
+
+              if (typeof window.cargarEstadoSemana === 'function') {
+                  window.cargarEstadoSemana();
+              }
+              
+          }
+      } else {
+          console.warn(`⚠️ Ojo: No encontré el ID '${idVista}' en el HTML`);
       }
     }
-  
+  window.abrirVista = abrirVista;
+
+   async function registrarAuditoriaAcceso(evento) {
+    const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
+    try {
+      await apiFetch('/usuarios/log-acceso', {
+        method: 'POST',
+        body: JSON.stringify({ usuario: usuarioActivo, evento: evento })
+      });
+    } catch (error) {
+      console.error("Error de auditoría:", error);
+    }
+  }
+  window.registrarAuditoriaAcceso = registrarAuditoriaAcceso;
+  window.cargarConductoresSelect = async function() {
+    const select = document.getElementById('pago_conductor_id');
+    if (!select) {
+        console.error("❌ No se encontró el select 'pago_conductor_id'");
+        return;
+    }
+
+    try {
+        console.log("📡 Solicitando conductores a la API...");
+        const data = await apiFetch('/conductores/disponibles_conductores');
+        
+        select.innerHTML = '<option value="">Seleccione Unidad / Conductor...</option>';
+
+        if (Array.isArray(data) && data.length > 0) {
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id_conductor;
+                opt.textContent = `[Uni ${c.codigo}] - ${c.nombre}`;
+                select.appendChild(opt);
+            });
+            console.log("✅ Lista de conductores cargada con éxito");
+        } else {
+            console.warn("⚠️ No se recibieron conductores disponibles");
+            select.innerHTML = '<option value="">No hay conductores disponibles</option>';
+        }
+    } catch (err) {
+        console.error("❌ Error en la petición:", err);
+    }
+  };
+  window.cargarHistorialPagos = async function() {
+    const tbody = document.getElementById('tabla_historial_pagos');
+    
+    if (!tbody) {
+        console.error("❌ ERROR: No existe el ID 'tabla_historial_pagos' en el HTML.");
+        return;
+    }
+
+    try {
+        console.log("📡 Intentando conectar con /pagos/recientes...");
+        const pagos = await apiFetch('/pagos/recientes');
+        
+        console.log("📦 Datos recibidos del servidor:", pagos);
+
+        if (!pagos || pagos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">No hay pagos en la base de datos.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = pagos.map(p => `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-2 text-sm">${new Date(p.fecha_pago).toLocaleString()}</td>
+                <td class="px-4 py-2 font-medium">${p.conductor_nombre}</td>
+                <td class="px-4 py-2 text-blue-600">${p.semana_anio}</td>
+                <td class="px-4 py-2 font-bold text-green-600">${p.monto_pagado} Bs</td>
+                <td class="px-4 py-2 text-gray-500 text-xs">${p.referencia}</td>
+            </tr>
+        `).join('');
+        
+        console.log("✅ Tabla renderizada con éxito.");
+    } catch (err) {
+        console.error("❌ ERROR en la petición:", err);
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error de conexión.</td></tr>';
+    }
+ };
+ ////para estados de semana
+ window.cargarEstadoSemana = async function() {
+    const tbody = document.getElementById('tablaEstadoPagos');
+    if (!tbody) return;
+
+    try {
+        console.log("📡 Consultando solvencia semanal...");
+        const data = await apiFetch('/pagos/estado_semana');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay cuotas generadas para esta semana.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(c => `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 text-center font-mono font-bold">${c.unidad}</td>
+                <td class="p-2">${c.conductor}</td>
+                <td class="p-2 text-right font-bold ${parseFloat(c.saldo) > 0 ? 'text-red-600' : 'text-green-600'}">
+                    $${c.saldo}
+                </td>
+                <td class="p-2 text-center">${c.status_html}</td>
+                <td class="p-2 text-center">
+                    ${!c.pagado ? 
+                        `<button onclick="prepararCobro('${c.conductor_id}')" class="bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600">Cobrar</button>` 
+                        : '✅'}
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error("❌ Error al cargar estado semanal:", err);
+    }
+};
+window.prepararCobro = function(idConductor) {
+    const select = document.getElementById('pago_conductor_id');
+    if (select) {
+        select.value = idConductor;
+        // Opcional: Hacer scroll suave hacia el formulario
+        document.getElementById('formRegistrarPago').scrollIntoView({ behavior: 'smooth' });
+    }
+};
+// ================================================================
+// SECCIÓN: CONTROL DE ESTADO SEMANAL Y SALDOS
+// ================================================================
+// Función para cargar la tabla de Estado de la Semana
+async function cargarEstadoSemana() {
+    try {
+        // 1. Petición al endpoint que ya tiene en Python
+        const respuesta = await apiFetch('/pagos/estado_semana');
+        if (!respuesta.ok) throw new Error('Error en la respuesta del servidor');
+        
+        const conductores = await respuesta.json();
+        const tbody = document.getElementById('tablaEstadoPagos');
+        
+        if (!tbody) return; // Seguridad si el elemento no existe
+
+        tbody.innerHTML = ''; // Limpiar la tabla
+
+        conductores.forEach(c => {
+            const fila = `
+                <tr class="border-b hover:bg-gray-50 transition-colors">
+                    <td class="p-2 text-center font-mono font-bold text-gray-700">${c.unidad}</td>
+                    <td class="p-2 text-sm text-gray-600">${c.conductor}</td>
+                    
+                    <td class="p-2 text-right font-mono font-bold ${parseFloat(c.saldo) > 0 ? 'text-red-600' : 'text-green-600'}">
+                        $${c.saldo}
+                    </td>
+
+                    <td class="p-2 text-center">
+                        ${c.status_html}
+                    </td>
+                    
+                    <td class="p-2 text-center">
+                        ${!c.pagado ? 
+                            `<button onclick="prepararCobro('${c.id_conductor}', '${c.conductor}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow-sm transition-all">
+                                COBRAR
+                            </button>` 
+                            : '<span class="text-green-600 font-bold text-xs">✅ SOLVENTE</span>'}
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', fila);
+        });
+
+    } catch (error) {
+        console.error('❌ Error al cargar estado_semana:', error);
+    }
+}
+
+// 🌍 Hacerla accesible globalmente para que el formulario de pagos la vea
+window.cargarEstadoSemana = cargarEstadoSemana;
+
+// ⚡ Cargar los datos apenas abra el dashboard
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('tablaEstadoPagos')) {
+        cargarEstadoSemana();
+    }
+});
+window.prepararCobro = function(id, nombre) {
+    // 1. Ponemos el ID en el campo oculto
+    document.getElementById('conductor_id').value = id;
+    
+    // 2. Opcional: Podríamos cambiar el título del formulario para que ella sepa que está nivelando
+    const tituloForm = document.querySelector('#cardRegistrarPago h2');
+    if(tituloForm) tituloForm.innerText = `Nivelando a: ${nombre}`;
+
+    // 3. Enfocamos el campo de referencia para que ponga "CARGA INICIAL"
+    const refField = document.getElementById('referencia');
+    if(refField) {
+        refField.value = "CARGA INICIAL 2026";
+        refField.focus();
+    }
+};

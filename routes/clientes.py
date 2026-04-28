@@ -1,6 +1,6 @@
 import re
 from flask import Blueprint, request, jsonify
-from psycopg2 import IntegrityError
+from sqlalchemy.exc import IntegrityError
 from extensions import db
 from models.clientes import Cliente
 from models.despachos import Despacho
