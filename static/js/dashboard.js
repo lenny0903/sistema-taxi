@@ -233,34 +233,86 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "F6") { e.preventDefault(); abrirVista("pagos"); }
     if (e.key === "F7") { e.preventDefault(); abrirVista("conductores"); }
   });
-  // --- Motor de Pagos ---
+  let ventanaWhatsApp = null;
+// --- Motor de Pagos ---
+// --- MOTOR DE PAGOS (Control Interno vs Referencia) ---
   const fPagos = document.getElementById('formRegistrarPago');
   if (fPagos) {
-    fPagos.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        const d = Object.fromEntries(new FormData(e.target));
-        
-        // 🔥 ELIMINA EL '/api' DE AQUÍ:
-        await apiFetch('/pagos/registrar', { 
-          method: 'POST', 
-          body: JSON.stringify(d) 
-        });
+      fPagos.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formElement = e.target;
 
-        alert('✅ Pago procesado en Los Patriotas');
-        cargarEstadoSemana();
-        e.target.reset();
-        window.cargarHistorialPagos();
-        // Opcional: Cerrar el formulario o refrescar la vista
-        if (window.abrirVista) abrirVista('pagos'); 
+          // 1. CAPTURA DE DATOS PREVIA
+          const d = Object.fromEntries(new FormData(formElement));
+          const montoValor = document.getElementById('pago_monto')?.value || "0";
+          const referenciaManual = d.referencia_pago || d.referencia || "s/r";
 
-      } catch (err) { 
-        console.error("Detalle del error:", err);
-        alert("Error al registrar: revisa la consola para más detalles"); 
-      }
-    });
-  }
-});
+          try {
+              // 2. REGISTRO EN EL SERVIDOR
+              const resultado = await apiFetch('/pagos/registrar', { 
+                  method: 'POST', 
+                  body: JSON.stringify(d) 
+              });
+
+              console.log("Respuesta Servidor:", resultado);
+
+              // 3. FORMATEO ÚNICO DEL CONTROL (00000)
+              // Usamos una sola variable para todo el proceso
+             const idDB = resultado.id || 0;
+             const nroControlFinal = idDB.toString().padStart(5, '0');
+             const montoReal = resultado.monto || "0"; // <--- Use lo que devuelve Python
+
+              // 4. DATOS DE LA UNIDAD Y CONDUCTOR
+              const selectConductor = formElement.querySelector('[name="conductor_id"]');
+              const textoConductor = selectConductor ? selectConductor.options[selectConductor.selectedIndex].text : "S/N";
+              const unidad = textoConductor.match(/\[Uni\s+(.*?)\]/)?.[1] || "S/N";
+              const nombreConductor = textoConductor.split('] - ')[1] || textoConductor;
+              const fecha = new Date().toLocaleString('es-VE', { 
+                  day: '2-digit', month: '2-digit', year: 'numeric', 
+                  hour: '2-digit', minute: '2-digit', hour12: true 
+              });
+
+              // 5. DISEÑO DEL SOPORTE .TXT
+              const contenidoRecibo = 
+                `ASOC. COOP. LOS PATRIOTAS DE TÁRIBA R.L\n` +
+                `CONTROL INTERNO: ${nroControlFinal}\n` + 
+                `RECIBO DE PAGO SEMANAL\n` +
+                `--------------------------------------------\n` +
+                `UNIDAD: ${unidad}\n` +
+                `CONDUCTOR: ${nombreConductor}\n` +
+                `MONTO: COP ${montoReal}\n` + // <--- Aquí ya no saldrá 0
+                `METODO: ${d.metodo_pago || 'Efectivo'}\n` +
+                `REF. PAGO: ${referenciaManual}\n` + 
+                `FECHA: ${fecha}\n` +
+                `--------------------------------------------\n` +
+                `Comprobante generado por el sistema de gestión.`;
+              // 6. DESCARGA DEL ARCHIVO
+              const blob = new Blob([contenidoRecibo], { type: 'text/plain' });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              // El nombre del archivo ahora coincide con el contenido
+              a.download = `Recibo_Ctrl_${nroControlFinal}_Uni_${unidad}.txt`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+
+              // Alerta a la administradora con el número formateado
+              alert(`✅ Registrado con Control Interno: ${nroControlFinal}`);
+
+              // 7. RESET Y RECARGA
+              formElement.reset();
+              if (window.cargarConductoresSelect) window.cargarConductoresSelect();
+              if (window.cargarEstadoSemana) window.cargarEstadoSemana();
+
+          } catch (err) {
+              console.error("Error:", err);
+              alert("Error al procesar el pago o generar el soporte.");
+          }
+      });
+  }  
+});  
   // -------------------------------
   // 📌 Funciones auxiliares
   // -------------------------------
@@ -772,11 +824,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tbody.innerHTML = pagos.map(p => `
             <tr class="border-b hover:bg-gray-50">
-                <td class="px-4 py-2 text-sm">${new Date(p.fecha_pago).toLocaleString()}</td>
-                <td class="px-4 py-2 font-medium">${p.conductor_nombre}</td>
-                <td class="px-4 py-2 text-blue-600">${p.semana_anio}</td>
-                <td class="px-4 py-2 font-bold text-green-600">${p.monto_pagado} Bs</td>
-                <td class="px-4 py-2 text-gray-500 text-xs">${p.referencia}</td>
+                <td class="px-4 py-2 text-sm">${p.fecha}</td>
+                <td class="px-4 py-2 font-medium">${p.conductor}</td>
+                <td class="px-4 py-2 text-blue-600">${p.semana}</td>
+                <td class="p-2 text-right font-bold text-green-700">
+                    ${Number(p.monto).toLocaleString('es-VE')} COP
+                </td>
+                <td class="px-4 py-2 text-gray-500 text-xs">${p.ref || 's/r'}</td>
             </tr>
         `).join('');
         
@@ -786,82 +840,42 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error de conexión.</td></tr>';
     }
  };
- ////para estados de semana
- window.cargarEstadoSemana = async function() {
+ 
+// ================================================================
+// SECCIÓN: CONTROL DE ESTADO SEMANAL Y SALDOS (VERSIÓN ÚNICA)
+// ================================================================
+
+async function cargarEstadoSemana() {
     const tbody = document.getElementById('tablaEstadoPagos');
     if (!tbody) return;
 
     try {
         console.log("📡 Consultando solvencia semanal...");
-        const data = await apiFetch('/pagos/estado_semana');
+        const conductores = await apiFetch('/pagos/estado_semana');
         
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay cuotas generadas para esta semana.</td></tr>';
+        // Limpiar tabla
+        tbody.innerHTML = '';
+
+        if (!conductores || conductores.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay datos para esta semana.</td></tr>';
             return;
         }
 
-        tbody.innerHTML = data.map(c => `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 text-center font-mono font-bold">${c.unidad}</td>
-                <td class="p-2">${c.conductor}</td>
-                <td class="p-2 text-right font-bold ${parseFloat(c.saldo) > 0 ? 'text-red-600' : 'text-green-600'}">
-                    $${c.saldo}
-                </td>
-                <td class="p-2 text-center">${c.status_html}</td>
-                <td class="p-2 text-center">
-                    ${!c.pagado ? 
-                        `<button onclick="prepararCobro('${c.conductor_id}')" class="bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600">Cobrar</button>` 
-                        : '✅'}
-                </td>
-            </tr>
-        `).join('');
-    } catch (err) {
-        console.error("❌ Error al cargar estado semanal:", err);
-    }
-};
-window.prepararCobro = function(idConductor) {
-    const select = document.getElementById('pago_conductor_id');
-    if (select) {
-        select.value = idConductor;
-        // Opcional: Hacer scroll suave hacia el formulario
-        document.getElementById('formRegistrarPago').scrollIntoView({ behavior: 'smooth' });
-    }
-};
-// ================================================================
-// SECCIÓN: CONTROL DE ESTADO SEMANAL Y SALDOS
-// ================================================================
-// Función para cargar la tabla de Estado de la Semana
-async function cargarEstadoSemana() {
-    try {
-        // 1. Petición al endpoint que ya tiene en Python
-        const respuesta = await apiFetch('/pagos/estado_semana');
-        if (!respuesta.ok) throw new Error('Error en la respuesta del servidor');
-        
-        const conductores = await respuesta.json();
-        const tbody = document.getElementById('tablaEstadoPagos');
-        
-        if (!tbody) return; // Seguridad si el elemento no existe
-
-        tbody.innerHTML = ''; // Limpiar la tabla
-
         conductores.forEach(c => {
-            const fila = `
-                <tr class="border-b hover:bg-gray-50 transition-colors">
-                    <td class="p-2 text-center font-mono font-bold text-gray-700">${c.unidad}</td>
-                    <td class="p-2 text-sm text-gray-600">${c.conductor}</td>
-                    
-                    <td class="p-2 text-right font-mono font-bold ${parseFloat(c.saldo) > 0 ? 'text-red-600' : 'text-green-600'}">
-                        $${c.saldo}
-                    </td>
+            // Usamos las llaves que confirmamos en su consola
+            const idValue = c.id_conductor; 
+            const nombreValue = c.conductor;
 
-                    <td class="p-2 text-center">
-                        ${c.status_html}
-                    </td>
-                    
+            const fila = `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2 text-center font-mono font-bold">${c.unidad}</td>
+                    <td class="p-2 text-sm">${nombreValue}</td>
+                    <td class="p-2 text-right font-mono font-bold">$${c.saldo}</td>
+                    <td class="p-2 text-center">${c.status_html}</td>
                     <td class="p-2 text-center">
                         ${!c.pagado ? 
-                            `<button onclick="prepararCobro('${c.id_conductor}', '${c.conductor}')" 
-                                class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow-sm transition-all">
+                            `<button onclick="prepararCobro('${idValue}', '${nombreValue}')"
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded">
                                 COBRAR
                             </button>` 
                             : '<span class="text-green-600 font-bold text-xs">✅ SOLVENTE</span>'}
@@ -870,33 +884,83 @@ async function cargarEstadoSemana() {
             `;
             tbody.insertAdjacentHTML('beforeend', fila);
         });
-
     } catch (error) {
         console.error('❌ Error al cargar estado_semana:', error);
     }
 }
 
-// 🌍 Hacerla accesible globalmente para que el formulario de pagos la vea
+// Hacerla global
 window.cargarEstadoSemana = cargarEstadoSemana;
 
-// ⚡ Cargar los datos apenas abra el dashboard
-document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('tablaEstadoPagos')) {
-        cargarEstadoSemana();
-    }
-});
 window.prepararCobro = function(id, nombre) {
-    // 1. Ponemos el ID en el campo oculto
-    document.getElementById('conductor_id').value = id;
+    console.log("PUENTE ACTIVADO -> ID:", id, "Nombre:", nombre);
     
-    // 2. Opcional: Podríamos cambiar el título del formulario para que ella sepa que está nivelando
-    const tituloForm = document.querySelector('#cardRegistrarPago h2');
-    if(tituloForm) tituloForm.innerText = `Nivelando a: ${nombre}`;
+    const inputId = document.getElementById('modal_conductor_id');
+    const elementoNombre = document.getElementById('modal_nombre_conductor');
+    
+    if (inputId) inputId.value = id;
+    
+    if (elementoNombre) {
+        if (elementoNombre.tagName === 'INPUT') {
+            elementoNombre.value = nombre;
+        } else {
+            elementoNombre.innerText = nombre;
+        }
+    }
+    
+    document.getElementById('modalCargaInicial').classList.remove('hidden');
+};
 
-    // 3. Enfocamos el campo de referencia para que ponga "CARGA INICIAL"
-    const refField = document.getElementById('referencia');
-    if(refField) {
-        refField.value = "CARGA INICIAL 2026";
-        refField.focus();
+// El resto de sus funciones (cerrarModalCarga y onsubmit) se mantienen igual abajo...
+
+window.cerrarModalCarga = function() {
+    document.getElementById('modalCargaInicial').classList.add('hidden');
+    document.getElementById('formCargaInicial').reset();
+};
+
+// Manejador del envío del formulario del Modal
+document.getElementById('formCargaInicial').onsubmit = async (e) => {
+    e.preventDefault();
+    
+    const datos = {
+        conductor_id: document.getElementById('modal_conductor_id').value,
+        monto: document.getElementById('modal_monto').value,
+        referencia_pago: document.getElementById('modal_referencia').value
+    };
+
+    try {
+        const response = await fetch('/pagos/carga_inicial_pagos', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}` // Si usa JWT
+            },
+            body: JSON.stringify(datos)
+        });
+
+        if (response.ok) {
+            alert('¡Nivelación exitosa!');
+            
+            // 1. Cerramos el modal de inmediato
+            cerrarModalCarga();
+            
+            // 2. Refrescamos la tabla de solvencia sin recargar la página
+            // Esta es la función que unificamos hace un momento
+            if (typeof cargarEstadoSemana === 'function') {
+                cargarEstadoSemana();
+            }
+
+            // 3. Opcional: Si tiene la tabla de "Pagos Recientes" abajo, la refrescamos también
+            if (typeof cargarPagosRecientes === 'function') {
+                cargarPagosRecientes();
+            }
+
+            console.log("✅ Vista de pagos actualizada mediante AJAX.");
+        } else {
+            const err = await response.json();
+            alert('Error: ' + (err.error || 'No se pudo procesar el pago'));
+        }
+    } catch (error) {
+        console.error('Error en la carga:', error);
     }
 };
