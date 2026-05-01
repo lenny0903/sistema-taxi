@@ -1045,29 +1045,36 @@
    
 
   
-  //////////Función para poblar select de conductores disponibles al crear turno//////////
-  async function cargarConductoresEnTurnoCrear() {
-    try {
-      const data = await apiFetch('/conductores/disponibles_conductores');
-      const sel = document.getElementById('nuevoConductor');
-      sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
+  ////////// Función para poblar select de conductores disponibles al crear turno //////////
+async function cargarConductoresEnTurnoCrear() {
+  try {
+    const data = await apiFetch('/conductores/disponibles_conductores');
+    const sel = document.getElementById('nuevoConductor');
+    sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
+    console.log("--- RESPUESTA DE CONDUCTORES DESDE BACKEND ---", data);
+    if (Array.isArray(data) && data.length > 0) {
+      console.log("--- EJEMPLO DE CONDUCTOR RECIBIDO ---", data[0]);
+      data.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id_conductor;
+        
+        // 🔑 GUARDAMOS EL CÓDIGO
+        opt.dataset.codigo = c.codigo; 
+        
+        // 🔑 NUEVOS ATRIBUTOS: Guardamos saldo y permiso de excepción
+        opt.setAttribute("data-saldo", c.saldo || 0);
+        opt.setAttribute("data-excepcion", c.permitir_deudor ? "1" : "0");
 
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach(c => {
-          const opt = document.createElement("option");
-          opt.value = c.id_conductor;
-          // 🔑 GUARDAMOS EL CÓDIGO AQUÍ
-          opt.dataset.codigo = c.codigo; 
-          opt.textContent = `${c.codigo} - ${c.nombre}`;
-          sel.appendChild(opt);
-        });
-      } else {
-        sel.innerHTML = '<option disabled>No hay conductores disponibles</option>';
-      }
-    } catch (err) {
-      console.error("Error:", err);
+        opt.textContent = `${c.codigo} - ${c.nombre}`;
+        sel.appendChild(opt);
+      });
+    } else {
+      sel.innerHTML = '<option disabled>No hay conductores disponibles</option>';
     }
+  } catch (err) {
+    console.error("Error:", err);
   }
+}
   //Para auto-seleccionar el auto al elegir un conductor//////
     document.getElementById('nuevoConductor').addEventListener('change', function() {
       // 1. Obtener el código del conductor desde el data-attribute (ej: "b10")
@@ -1829,87 +1836,110 @@
     
 
 
-  //Lógica para iniciar turno /////////
-    document.addEventListener("DOMContentLoaded", () => {
-      const btn = document.getElementById("btnIniciarTurno");
-        if (btn) {
-            btn.onclick = async (e) => {
-              e.preventDefault();
+//Lógica para iniciar turno con validación de solvencia /////////
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnIniciarTurno");
+    if (btn) {
+        btn.onclick = async (e) => {
+          e.preventDefault();
 
-              // 1. Referencias a los elementos
-              const cSel = document.getElementById("nuevoConductor");
-              const aSel = document.getElementById("nuevoAuto");
-              const pSel = document.getElementById("nuevoPunto");
+          // 1. Referencias a los elementos
+          const cSel = document.getElementById("nuevoConductor");
+          const aSel = document.getElementById("nuevoAuto");
+          const pSel = document.getElementById("nuevoPunto");
 
-              // 2. Validación de valores
-              if (!cSel.value || !aSel.value || !pSel.value) {
-                mostrarToast("⚠️ Selecciona conductor, auto y punto de espera.", "error");
-                return;
-              }
+          // 2. Validación de campos vacíos
+          if (!cSel.value || !aSel.value || !pSel.value) {
+            mostrarToast("⚠️ Selecciona conductor, auto y punto de espera.", "error");
+            return;
+          }
 
-              // 3. Guardamos el punto ACTUAL antes de enviar nada
-              const puntoParaMantener = pSel.value;
+          // === NUEVA VALIDACIÓN: Bloqueo por Deuda con Rol de Usuario ===
+          const optConductor = cSel.options[cSel.selectedIndex];
+          const saldo = parseFloat(optConductor.getAttribute("data-saldo") || 0);
+          const excepcion = optConductor.getAttribute("data-excepcion") === "1";
+          
+          // Extraemos el rol guardado en el login
+          const rolUsuario = localStorage.getItem("rol"); 
+          
+          console.log("Saldo parsed:", saldo, "Es excepción:", excepcion, "Rol actual:", rolUsuario);
 
-              try {
-                  // Desactivamos el botón para evitar ráfagas accidentales
-                  btn.style.pointerEvents = "none";
-                  btn.style.opacity = "0.5";
+          // Si el conductor tiene deuda y NO es una excepción:
+          if (saldo > 0 && !excepcion) {
+            // Verificamos si es "administrador" o "admin"
+            if (rolUsuario !== "administrador" && rolUsuario !== "admin") {
+              console.log("El usuario NO es Administrador. Se bloquea por deuda.");
+              mostrarToast(`🚫 Bloqueado: El conductor presenta deuda de $${saldo.toLocaleString('es-VE')} y usted no tiene permisos para autorizarlo.`, "error");
+              return; // Detiene la ejecución aquí mismo y NO envía el POST
+            }
 
-                  const data = await apiFetch("/turnos", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ 
-                          conductor_id: cSel.value, 
-                          auto_id: aSel.value, 
-                          punto_id: pSel.value 
-                      })
-                  });
+            // Si pasa el 'if', es porque sí es Administrador o admin:
+            console.log("El usuario es Administrador. Se permite ignorar el saldo deudor en el frontend.");
+          }
+          // =============================================================
 
-                  mostrarToast(`✅ Turno #${data.id_turno} iniciado`, "success");
+          // 3. Guardamos el punto ACTUAL antes de enviar nada
+          const puntoParaMantener = pSel.value;
 
-                  // 4. El "Respiro" para la base de datos
-                    setTimeout(async () => {
-                      // 1. Refrescamos los datos básicos primero
-                      await cargarTurnos();
-                      
-                      // 2. Refrescamos los conductores
-                      await cargarConductoresEnTurnoCrear();
-                      
-                      // 3. Refrescamos los autos (Crucial: esperamos a que termine)
-                      await cargarAutosDisponiblesSelect();
-                      
-                      // 4. Si existe la tabla general, la actualizamos
-                      if (typeof cargarAutosTabla === "function") {
-                          await cargarAutosTabla();
-                      }
+          try {
+              // Desactivamos el botón para evitar ráfagas accidentales
+              btn.style.pointerEvents = "none";
+              btn.style.opacity = "0.5";
 
-                      // 5. AHORA SÍ: Restauramos el punto de espera
-                      // Lo hacemos al final para que nada lo pise
-                      if (puntoParaMantener) {
-                          const pSelFinal = document.getElementById("nuevoPunto");
-                          pSelFinal.value = puntoParaMantener;
-                      }
+              const data = await apiFetch("/turnos", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ 
+                      conductor_id: cSel.value, 
+                      auto_id: aSel.value, 
+                      punto_id: pSel.value 
+                  })
+              });
 
-                      // 6. Limpiamos solo los campos de identidad
-                      document.getElementById("nuevoConductor").value = "";
-                      document.getElementById("nuevoAuto").value = "";
+              mostrarToast(`✅ Turno #${data.id_turno} iniciado`, "success");
 
-                      // 7. Devolvemos el control al operador
-                      btn.style.pointerEvents = "auto";
-                      btn.style.opacity = "1";
-                      
-                      console.log("✅ Refresco secuencial completado");
-                    }, 600); // Subimos a 600ms para dar margen a la base de datos
+              // 4. El "Respiro" para la base de datos
+              setTimeout(async () => {
+                // 1. Refrescamos los datos básicos primero
+                await cargarTurnos();
+                
+                // 2. Refrescamos los conductores
+                await cargarConductoresEnTurnoCrear();
+                
+                // 3. Refrescamos los autos
+                await cargarAutosDisponiblesSelect();
+                
+                // 4. Si existe la tabla general, la actualizamos
+                if (typeof cargarAutosTabla === "function") {
+                    await cargarAutosTabla();
+                }
 
-              } catch (err) {
-                  btn.style.pointerEvents = "auto";
-                  btn.style.opacity = "1";
-                  console.error("❌ Error:", err.message);
-                  mostrarToast("📍 Error: " + err.message, "error");
-              }
-            };
-        }
-  });
+                // 5. AHORA SÍ: Restauramos el punto de espera
+                if (puntoParaMantener) {
+                    const pSelFinal = document.getElementById("nuevoPunto");
+                    pSelFinal.value = puntoParaMantener;
+                }
+
+                // 6. Limpiamos solo los campos de identidad
+                document.getElementById("nuevoConductor").value = "";
+                document.getElementById("nuevoAuto").value = "";
+
+                // 7. Devolvemos el control al operador
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                
+                console.log("✅ Refresco secuencial completado");
+              }, 600);
+
+          } catch (err) {
+              btn.style.pointerEvents = "auto";
+              btn.style.opacity = "1";
+              console.error("❌ Error:", err.message);
+              mostrarToast("📍 Error: " + err.message, "error");
+          }
+        };
+    }
+});
 ////Lógica modal conductores en punto de espera///////
   // Capturar Ctrl+P y abrir modal
   document.addEventListener("keydown", (e) => {

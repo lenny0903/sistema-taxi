@@ -1,10 +1,16 @@
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
+from app import MONTO_CUOTA_SEMANAL
 from extensions import db
 from models.conductores import Conductor
 from models.despachos import Despacho
+from models.pago_cuotas import PagoCuota
 from models.turnos import Turno
 from models.autos import Auto
 from models.puntos_espera import PuntoEspera
+from sqlalchemy import func
+from models.cuota_semanal import CuotaSemanal
 # routes/conductores.py
 conductores_bp = Blueprint("conductores", __name__)  # sin url_prefix
 
@@ -36,6 +42,7 @@ def listar_conductores_activos():
     conductores = Conductor.query.filter(Conductor.id_conductor.in_(ids)).all()
     
     return jsonify([c.to_dict() for c in conductores])
+
 @conductores_bp.route("/buscar", methods=["GET"])
 def buscar_conductor():
     cedula = request.args.get("nro_cedula")
@@ -102,7 +109,6 @@ def crear_conductor():
         db.session.rollback() # Limpia la sesión si algo falla
         return jsonify({"error": "Error interno al guardar: " + str(e)}), 500
 
-
 @conductores_bp.route("/<int:id>", methods=["PUT"])
 def modificar_conductor(id):
     data = request.get_json()
@@ -133,7 +139,7 @@ def modificar_conductor(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-    
+
 @conductores_bp.route("/en_turno_disponibles", methods=["GET"])
 def listar_conductores_en_turno_disponibles():
     # Buscar turnos activos
@@ -185,15 +191,68 @@ def listar_conductores_en_turno_disponibles():
 def listar_conductores_disponibles():
     conductores = Conductor.query.filter_by(estado="disponible").all()
     resultado = []
+    
+    hoy = datetime.now()
+    semana_actual_num = int(hoy.strftime('%U')) 
+    
     for c in conductores:
+        deuda_total_acumulada = semana_actual_num * MONTO_CUOTA_SEMANAL
+        
+        total_pagado_historico = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
+            .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
+        
+        total_historico_cuotas = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
+            .filter(CuotaSemanal.conductor_id == c.id_conductor, 
+                    CuotaSemanal.semana_anio == "HISTORICO-2026").scalar() or 0.0
+
+        saldo_real = deuda_total_acumulada - (total_pagado_historico + total_historico_cuotas)
+        
+        if saldo_real < 0:
+            saldo_real = 0.0
+
+        permitir = getattr(c, 'permitir_deudor', 0)
+
         resultado.append({
             "id_conductor": c.id_conductor,
             "codigo": c.codigo,
             "nombre": c.nombre,
-            "estado": c.estado
+            "estado": c.estado,
+            "saldo": float(saldo_real),
+            "permitir_deudor": permitir
         })
+        
     return jsonify(resultado), 200
 
+
+# --- ÚNICA FUNCIÓN DE VALIDACIÓN DE SOLVENCIA ---
+def es_solvente(conductor_id):
+    conductor = Conductor.query.get(conductor_id)
+    if not conductor:
+        return True, 0
+
+    permitir = getattr(conductor, 'permitir_deudor', 0)
+    if permitir == 1:
+        return True, 0
+
+    hoy = datetime.now()
+    semana_actual_num = int(hoy.strftime('%U'))
+
+    deuda_total_acumulada = semana_actual_num * MONTO_CUOTA_SEMANAL
+    
+    total_pagado_historico = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
+        .filter(PagoCuota.conductor_id == conductor_id).scalar() or 0.0
+    
+    total_historico_cuotas = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
+        .filter(CuotaSemanal.conductor_id == conductor_id, 
+                CuotaSemanal.semana_anio == "HISTORICO-2026").scalar() or 0.0
+
+    saldo_real = deuda_total_acumulada - (total_pagado_historico + total_historico_cuotas)
+
+    if saldo_real < 0:
+        saldo_real = 0.0
+
+    # Retorna (Es solvente?, Saldo restante)
+    return saldo_real <= 0, saldo_real
 
 
 @conductores_bp.route("/en_turno", methods=["GET"])

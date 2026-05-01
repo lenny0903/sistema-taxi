@@ -6,17 +6,35 @@ from models.conductores import Conductor
 from models.autos import Auto
 from models.despachos import Despacho
 from models.puntos_espera import PuntoEspera
+from routes.conductores import es_solvente
+from flask_jwt_extended import get_jwt, jwt_required
+
 
 turnos_bp = Blueprint("turnos", __name__, url_prefix="/turnos")
 
 # Crear turno
-@turnos_bp.route("", methods=["POST"])
+@turnos_bp.route('', methods=['POST']) # O simplemente @turnos_bp.route('/', methods=['POST'])
+@jwt_required()
 def crear_turno():
     try:
         data = request.get_json()
         conductor_id = data.get("conductor_id")
         auto_id = data.get("auto_id")
-        punto_id = data.get("punto_id")   # 🔹 nuevo campo
+        punto_id = data.get("point_id") or data.get("punto_id")  # Soporta ambos nombres
+
+        # --- VALIDACIÓN DE SOLVENCIA SEGÚN EL ROL ---
+        claims = get_jwt()
+        rol_usuario = claims.get("rol_nombre") or claims.get("rol")  # Captura "Administrador" u "Operador"
+        
+        solvente, saldo_pendiente = es_solvente(conductor_id)
+        
+        # 🚨 EL CAMBIO CLAVE: Solo bloqueamos si NO es solvente Y el usuario NO es Administrador.
+        if not solvente and rol_usuario != "Administrador":
+            return jsonify({
+                "error": f"Bloqueo Administrativo: El conductor presenta un saldo deudor de ${saldo_pendiente:,.2f}."
+            }), 403
+
+        # Si el usuario es Administrador, ignorará el 'if' anterior y continuará aquí:
 
         # Validar que el conductor esté disponible
         conductor = Conductor.query.get(conductor_id)
@@ -39,7 +57,7 @@ def crear_turno():
         turno = Turno(
             conductor_id=conductor_id,
             auto_id=auto_id,
-            punto_id=punto_id,   # 🔹 guardar punto
+            punto_id=punto_id,
             estado="activo"
         )
 
@@ -60,7 +78,8 @@ def crear_turno():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error creando turno: {str(e)}"}), 500
+        print(f"❌ Error al crear turno: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 
