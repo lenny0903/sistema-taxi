@@ -67,7 +67,7 @@ def create_app():
     from routes.reservas import reservas_bp
     from routes.views import views_bp
     from routes.puntos_espera import puntos_bp
-    from routes.lista_espera_multiple import lista_espera_multiple_bp
+    #from routes.lista_espera_multiple import lista_espera_multiple_bp
     from routes.cola_despachos import cola_despachos_bp
     from routes.registrar_pagos import pagos_bp
     from routes.incidencias import incidencias_bp
@@ -89,7 +89,7 @@ def create_app():
     app.register_blueprint(views_bp)
     app.register_blueprint(reservas_bp)
     app.register_blueprint(puntos_bp)
-    app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
+    #app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
     app.register_blueprint(incidencias_bp, url_prefix="/incidencias")

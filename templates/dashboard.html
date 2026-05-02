@@ -2045,100 +2045,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     </div>
-    <!-- ✅ Modal Despacho Múltiple -->
-      <div class="modal fade" id="modalDespachoMultiple" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <!-- Header -->
-            <div class="modal-header">
-              <h5 class="modal-title">Creación despacho múltiple</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <!-- Body -->
-            <div class="modal-body">
-              <form id="formModalDespacho" class="space-y-3">
-                
-                <!-- Teléfono -->
-                <div>
-                  <label for="modalTelefono" class="form-label">Teléfono del cliente</label>
-                  <input type="text" id="modalTelefono" 
-                        maxlength="11"
-                        pattern="^(0276[0-9]{7}|04[0-9]{9})$"
-                        title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
-                        class="form-control"
-                        placeholder="Ej: 04121234567">
-                </div>
-
-                <!-- Nombre del cliente -->
-                <div>
-                  <label for="modalCliente" class="form-label">Nombre del cliente</label>
-                  <input type="text" id="modalCliente" class="form-control" placeholder="Nombre completo">
-                </div>
-
-                <!-- Origen -->
-                <div>
-                  <label for="modalOrigen" class="form-label">Origen</label>
-                  <input type="text" id="modalOrigen" class="form-control" placeholder="Dirección de origen">
-                </div>
-
-                <!-- Destino -->
-                <div>
-                  <label for="modalDestino" class="form-label">Destino</label>
-                  <input type="text" id="modalDestino" class="form-control" placeholder="Dirección de destino">
-                </div>
-
-                <!-- Tarifa -->
-                <div>
-                  <label for="modalTarifa" class="form-label">Tarifa</label>
-                  <input type="number" id="modalTarifa" class="form-control" placeholder="Monto en Bs.">
-                </div>
-
-                <!-- Conductor -->
-                <div> <div id="reporte-container" class="mt-4">
-          <h3 id="fecha-reporte"></h3>
-          <h4 id="rango-reporte"></h4>
-          <div class="tabla-dinamica mb-4">
-            <table border="1" cellspacing="0" cellpadding="5" class="mt-2 w-full">
-              <thead>
-                <tr>
-                  <th>Nro</th>
-                  <th>Nombre Cliente</th>
-                  <th>Teléfono Cliente</th>
-                  <th>Conductor</th>
-                  <th>Embarque (hora)</th>
-                  <th>Desembarque (hora)</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-reporte">
-                <!-- filas dinámicas -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-                  <label for="modalConductor" class="form-label">Conductor</label>
-                  <select id="modalConductor" class="form-select">
-                    <option value="">Seleccione...</option>
-                    <!-- Se llenará dinámicamente con conductores activos -->
-                  </select>
-                </div>
-              </form>
-            </div>
-            <!-- Select de autos -->
-            <div>
-              <label for="modalAuto" class="form-label">Auto</label>
-              <select id="modalAuto" class="form-select"></select>
-            </div>
-            <!-- Footer -->
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button id="btnGuardarDespacho" type="button" class="btn btn-success">Guardar despacho</button>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    <!-- Fin modal múltiple -->  
+    
     <!-- Modal para hacer reserva-->
      <div class="modal fade" id="modalDespachoReserva" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -2359,55 +2266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     </div>
-  <!--Modal creación lista espera múltiple-->
-    <div class="modal" id="modalColaMultiple" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Crear Cola Múltiple</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-          </div>
-          <div class="modal-body">
-            <form id="formColaMultiple">
-              <label for="telefono">Teléfono del cliente:</label>
-              <input type="text" id="telefono" class="form-control mb-2" placeholder="Teléfono" required>
-              <label for="nombre">Nombre del cliente:</label>
-              <input type="text" id="nombre" class="form-control mb-2" placeholder="Nombre" required>
-              <label for="direccion">Dirección de origen:</label>
-              <input type="text" id="direccion" class="form-control mb-3" placeholder="Dirección de origen" required>
-              <button type="submit" class="btn btn-primary">Guardar</button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- Modal tabla lista espera múltiple -->
-    <div class="modal fade" id="modalTablaListaEsperaMultiple" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Lista de Espera Múltiple</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-          </div>
-          <div class="modal-body">
-            <table id="tablaListaEspera" class="table table-striped">
-              <thead>
-                <tr>
-                  <th>Teléfono</th>
-                  <th>Nombre</th>
-                  <th>Dirección</th>
-                  <th>Iteraciones</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Aquí se insertan las filas dinámicamente -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+     
 <!-- Modal Crear Cliente (Tailwind puro) -->
     <div id="modalCrearCliente"
         class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
