@@ -24,46 +24,55 @@ function renderizarTablaClientes(clientes) {
     clientes.forEach(cliente => {
         const row = tbody.insertRow();
         
+        // 🔴 ALERTA VISUAL: Si el cliente está bloqueado, cambiamos el diseño de la fila
+        if (cliente.bloqueado) {
+            row.className = 'bg-red-100 border-l-4 border-red-600 text-red-900 font-semibold';
+        }
+        
         row.insertCell().textContent = cliente.id_cliente;
-        row.insertCell().textContent = cliente.telefono;
-        row.insertCell().textContent = cliente.nombre;
+        row.insertCell().textContent = cliente.nro_telefono || cliente.telefono;
+        
+        // Celda del Nombre con badge de alerta si está vetado
+        const celdaNombre = row.insertCell();
+        celdaNombre.textContent = cliente.nombre;
+        
+        if (cliente.bloqueado) {
+            const badge = document.createElement('span');
+            badge.className = 'ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded font-bold uppercase animate-pulse';
+            badge.textContent = 'Vetado';
+            badge.title = cliente.motivo_bloqueo || 'Este cliente tiene una restricción administrativa';
+            celdaNombre.appendChild(badge);
+        }
+
         row.insertCell().textContent = cliente.direccion || 'N/A';
         row.insertCell().textContent = cliente.punto_referencia || 'Ninguna';
 
-        // Celda de Acciones (Botones de Editar y Eliminar)
+        // Celda de Acciones
         const accionesCell = row.insertCell();
         
-        // Botón Editar
-        const btnEditar = document.createElement('button');
-        btnEditar.textContent = 'Editar';
-        btnEditar.className = 'bg-yellow-500 text-white px-2 py-1 rounded mr-2';
-        btnEditar.onclick = () => editarCliente(cliente);
-        accionesCell.appendChild(btnEditar);
-        
-        // Botón Eliminar
-        const btnEliminar = document.createElement('button');
-        btnEliminar.textContent = 'Eliminar';
-        btnEliminar.className = 'bg-red-500 text-white px-2 py-1 rounded';
-        btnEliminar.onclick = () => confirmarEliminarCliente(cliente.id_cliente, cliente.nombre);
-        accionesCell.appendChild(btnEliminar);
+        if (cliente.bloqueado) {
+            // Mostramos el motivo en lugar de los botones para que el operador decida
+            const spanMotivo = document.createElement('span');
+            spanMotivo.className = 'text-xs text-red-700 italic font-bold';
+            spanMotivo.textContent = `🚫 No atender: ${cliente.motivo_bloqueo || 'Restringido'}`;
+            accionesCell.appendChild(spanMotivo);
+        } else {
+            // Botón Editar
+            const btnEditar = document.createElement('button');
+            btnEditar.textContent = 'Editar';
+            btnEditar.className = 'bg-yellow-500 text-white px-2 py-1 rounded mr-2';
+            btnEditar.onclick = () => editarCliente(cliente);
+            accionesCell.appendChild(btnEditar);
+            
+            // Botón Eliminar
+            const btnEliminar = document.createElement('button');
+            btnEliminar.textContent = 'Eliminar';
+            btnEliminar.className = 'bg-red-500 text-white px-2 py-1 rounded';
+            btnEliminar.onclick = () => confirmarEliminarCliente(cliente.id_cliente, cliente.nombre);
+            accionesCell.appendChild(btnEliminar);
+        }
     });
 }
-
-// 3. Búsqueda de Clientes (Vinculado al input 'onkeyup')
-function buscarClientes() {
-    const query = document.getElementById('busquedaClienteInput').value;
-    // Si la caja de búsqueda está vacía, carga toda la lista
-    if (query.length < 3) {
-        cargarClientes();
-        return;
-    }
-    // Si no, usa el parámetro query de tu ruta GET /clientes/?query=...
-    fetch(`/api/v1/clientes/?query=${query}`) 
-        .then(res => res.json())
-        .then(clientes => renderizarTablaClientes(clientes))
-        .catch(err => console.error("Error en la búsqueda:", err));
-}
-
 // 4. Abrir Modal (Crear o Editar)
 let modoModal = 'crear'; // Variable global para saber si estamos creando o editando
 

@@ -70,6 +70,8 @@ def create_app():
     from routes.lista_espera_multiple import lista_espera_multiple_bp
     from routes.cola_despachos import cola_despachos_bp
     from routes.registrar_pagos import pagos_bp
+    from routes.incidencias import incidencias_bp
+    
     
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -90,6 +92,8 @@ def create_app():
     app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
+    app.register_blueprint(incidencias_bp, url_prefix="/incidencias")
+    
     print(app.url_map)
 
     @app.route("/")

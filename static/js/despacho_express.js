@@ -5,20 +5,80 @@ document.addEventListener("DOMContentLoaded", () => {
     const telefonoInput = document.getElementById("desTelefono");
     const btnEnviar = document.getElementById("btnEnviarDespacho");
 
-    btnEnviar.disabled = true;
+    if (btnEnviar) btnEnviar.disabled = true;
 
-    // Enter en teléfono → validar cliente y saltar foco
-    telefonoInput.addEventListener("keydown", (event) => {
+   // 1️⃣ EVENTO DE TELÉFONO ULTRA-CONTROLADO
+    // 2️⃣ EVENTO DE TECLADO ULTRA-CONTROLADO
+    // EVENTO DE TECLADO ULTRA-CONTROLADO
+    telefonoInput?.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
-            event.preventDefault(); // Evita envío accidental
-            validarClientePorTelefono(); 
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            console.log("⌨️ Enter presionado. Validando con la NUEVA función...");
+            motivoSuspensionGlobal = ""; 
+
+            // Llamamos a la NUEVA función con el nombre único
+            const resultado = await validarClienteExpreso();
+            console.log("🧠 Respuesta recibida de validarClienteExpreso:", resultado);
+            
+            if (!resultado || resultado.valido !== true || !resultado.cliente) {
+                console.log("🛑 Deteniendo flujo: Cliente no válido o no registrado.");
+                if (btnEnviar) btnEnviar.disabled = true;
+                return;
+            }
+
+            const c = resultado.cliente;
+            const idCliente = c.cliente_id || c.id_cliente || c.id;
+            console.log("🆔 ID del cliente extraído:", idCliente);
+
+            if (idCliente) {
+                try {
+                    const token = localStorage.getItem("token");
+                    const headers = { "Content-Type": "application/json" };
+                    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+                    console.log(`📡 Consultando incidencias para el ID: ${idCliente}...`);
+                    const resIncidencias = await fetch(`/incidencias/verificar_cliente/${idCliente}`, {
+                        method: "GET",
+                        headers: headers
+                    });
+
+                    if (resIncidencias.ok) {
+                        const checkBloqueos = await resIncidencias.json();
+                        console.log("🛑 Datos de incidencias recibidos:", checkBloqueos);
+
+                        // 1️⃣ Si el cliente tiene un veto general, avisamos
+                        if (checkBloqueos && checkBloqueos.tiene_veto_general === true) {
+                            const categoria = checkBloqueos.categoria || "VETO GENERAL";
+                            const descripcion = checkBloqueos.mensaje_veto || checkBloqueos.descripcion || "Restricciones";
+                            
+                            mostrarToast(`⚠️ Alerta: Cliente con veto general (${categoria} - ${descripcion}). Se bloqueará al asignar.`, "warning");
+                        } 
+                        // 2️⃣ Si el cliente tiene una exclusión con un conductor específico, también avisamos
+                        else if (checkBloqueos && checkBloqueos.tiene_exclusiones === true) {
+                            const mensajeExclusion = checkBloqueos.mensaje_exclusion || "Conflicto previo con un conductor.";
+                            
+                            mostrarToast(`⚠️ Nota: Este cliente tiene restricciones con ciertos conductores (${mensajeExclusion}).`, "info");
+                        }
+                    }
+                } catch (error) {
+                    console.error("❌ Falló la consulta directa de incidencias:", error);
+                }
+            }
+
+            // ✅ SIEMPRE CONTINUAMOS: Dejamos que la operadora registre el servicio sin importar las alertas
+            console.log("✅ Continuando flujo del formulario express.");
+            if (btnEnviar) btnEnviar.disabled = false;
+            
+            const desNombre = document.getElementById("desNombre");
+            if (desNombre) desNombre.focus();
         }
     });
-
     // Submit del formulario principal → crear registro en la cola
-    formDespacho.addEventListener("submit", async (event) => {
+    formDespacho?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (btnEnviar.disabled) {
+        if (btnEnviar && btnEnviar.disabled) {
             mostrarToast("⚠️ Valida el cliente antes de enviar.", "error");
             return;
         }
@@ -32,17 +92,17 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("desTelefono").focus();
         mostrarToast("Formulario listo para nueva llamada", "info");
     });
+
     // Botón cancelar modal despacho
     const modal = document.getElementById("modalCrearDespacho");
     const btnCancelar = document.getElementById("btnCancelarDespacho");
 
     if (btnCancelar) {
         btnCancelar.onclick = () => {
-            modal.classList.add("hidden");
+            if (modal) modal.classList.add("hidden");
             console.log("🚫 Despacho cancelado por el usuario");
         };
     }
-  
 });
   // Listener de teclado global
   document.addEventListener("keydown", (event) => {
@@ -340,8 +400,7 @@ async function abrirModalDespacho(idCola, idCliente, direccion, destino, tarifa)
         console.error("❌ Error:", err);
     }
 }
-// Confirmar Despacho Final (Elimina de cola y crea despacho)
-// Confirmar Despacho Final (Elimina de cola y crea despacho)
+// Confirmar Despacho Final (Elimina de cola, valida exclusión y crea despacho)
 document.getElementById("btnConfirmarDespacho").onclick = async () => {
     const btnConfirmar = document.getElementById("btnConfirmarDespacho");
     const modal = document.getElementById("modalCrearDespacho");
@@ -355,60 +414,79 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
     const conductorId = document.getElementById("selectConductor").value;
     const autoId      = document.getElementById("selectAuto").value;
 
-    console.log("🚀 Payload listo:", { origenVal, destinoVal, tarifaVal });
-
     if (!origenVal || !tarifaVal) {
         mostrarToast("⚠️ El origen y la tarifa son obligatorios", "error");
         return;
     }
 
-    const payload = {
-        cliente_id: parseInt(clienteId),
-        conductor_id: parseInt(conductorId),
-        auto_id: parseInt(autoId),
-        origen_despacho: origenVal,
-        destino_despacho: destinoVal,
-        tarifa: parseFloat(tarifaVal),
-        estado_despacho: "en curso",
-        cola_id: parseInt(colaSeleccionada) 
-    };
+    if (!clienteId || !conductorId) {
+        mostrarToast("⚠️ Datos de cliente o conductor incompletos", "error");
+        return;
+    }
 
     try {
         btnConfirmar.disabled = true;
+        btnConfirmar.innerText = "Validando...";
+
+        // ====================================================================
+        // 🚨 PASO NUEVO: Validar exclusión mutua (Escenario B)
+        // ====================================================================
+        const checkAfinidad = await apiFetch("/incidencias/validar_afinidad", {
+            method: "POST",
+            body: JSON.stringify({
+                cliente_id: parseInt(clienteId),
+                conductor_id: parseInt(conductorId)
+            })
+        });
+
+        // Verificamos si existe un bloqueo activo
+        if (checkAfinidad && checkAfinidad.permitido === false) {
+            mostrarToast(checkAfinidad.mensaje, "error");
+            btnConfirmar.disabled = false;
+            btnConfirmar.innerText = "Confirmar Despacho";
+            return; // 🛑 Detiene la creación del despacho
+        }
+        // ====================================================================
+
         btnConfirmar.innerText = "Procesando...";
+
+        const payload = {
+            cliente_id: parseInt(clienteId),
+            conductor_id: parseInt(conductorId),
+            auto_id: parseInt(autoId),
+            origen_despacho: origenVal,
+            destino_despacho: destinoVal,
+            tarifa: parseFloat(tarifaVal),
+            estado_despacho: "en curso",
+            cola_id: parseInt(colaSeleccionada) 
+        };
 
         const result = await apiFetch("/despachos/", {
             method: "POST",
             body: JSON.stringify(payload)
         });
 
-        // Verificamos si el resultado es exitoso (ajustado a tu apiFetch)
         if (result && !result.error) {
             mostrarToast(`✅ Despacho creado con éxito`, "success");
             modal.classList.add("hidden");
-            // LIMPIAR MEMORIA DE ESTA FILA
+
+            // Limpiar memoria de la fila en la tabla
             delete memoriaEdicionCola1.origenes[colaSeleccionada];
             delete memoriaEdicionCola1.destinos[colaSeleccionada];
             delete memoriaEdicionCola1.tarifas[colaSeleccionada];
+
             // Refrescar todo el sistema
             await cargarColaClientes(); 
-            // Solo necesitamos refrescar la disponibilidad UNA vez.
             if (typeof refrescarConductoresDisponibles === 'function') {
-                // Esta función ya debería actualizar window.conductoresGlobales 
-                // y llamar a actualizarContadorConductores(data.length)
                 await refrescarConductoresDisponibles();
             }
-            
-            //cerrarModalCola();
         } else {
             mostrarToast("❌ Error: " + (result.error || "No se pudo crear el despacho"), "error");
         }
     } catch (err) {
-        // AQUÍ ESTABA EL ERROR: Faltaba este bloque catch
         console.error("❌ Error en Despacho:", err);
         mostrarToast("❌ Error de conexión o del servidor", "error");
     } finally {
-        // Y este bloque asegura que el botón se reactive siempre
         btnConfirmar.disabled = false;
         btnConfirmar.innerText = "Confirmar Despacho";
     }
@@ -416,30 +494,90 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
 /**
  * Función mejorada para validar y mover foco al botón Enviar
  */
-async function validarClientePorTelefono() {
+let motivoSuspensionGlobal = "";
+
+
+// Función de validación (la dejamos simple como respaldo)
+async function validarClienteExpreso() {
     const telInput = document.getElementById('desTelefono');
-    const tel = telInput.value.trim();
-    if (!tel) return;
-
-    // USAMOS fetchDefensivo para que maneje los errores y el log de "📡 Datos recibidos"
-    const data = await fetchDefensivo(`/clientes/buscar?telefono=${tel}`);
+    if (!telInput) return { valido: false, motivo: "Input no encontrado" };
     
-    // fetchDefensivo siempre devuelve un Array, así que esto es seguro:
-    const cliente = (data.length > 0) ? data[0] : null;
+    const tel = telInput.value.trim();
+    if (!tel) return { valido: false, motivo: "Teléfono vacío" };
 
-    if (cliente) {
-        document.getElementById('desNombre').value = cliente.nombre;
-        // Según tu nota [2026-01-13], traemos la dirección de la BD
-        document.getElementById('desOrigen').value = cliente.direccion || ""; 
-        activarCamposDespacho(true);
+    try {
+        console.log(`📡 [NUEVO] Buscando cliente con teléfono: ${tel}`);
         
-        setTimeout(() => document.getElementById("btnEnviarDespacho").focus(), 100);
-    } else {
-        activarCamposDespacho(false);
-        abrirModalCliente(tel, null);
+        const token = localStorage.getItem("token");
+        const headers = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        // Fetch nativo directo a la URL
+        const response = await fetch(`/clientes/buscar?telefono=${tel}`, {
+            method: "GET",
+            headers: headers
+        });
+
+        if (!response.ok) {
+            return { valido: false, motivo: "Error en el servidor al buscar cliente" };
+        }
+
+        const dataCliente = await response.json();
+        console.log("🔍 [NUEVO] Datos crudos del cliente:", dataCliente);
+
+        const cliente = Array.isArray(dataCliente) ? dataCliente[0] : dataCliente;
+        
+        if (cliente) {
+            if (document.getElementById('desNombre')) document.getElementById('desNombre').value = cliente.nombre || "";
+            if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = cliente.direccion || "";
+            
+            // Retornamos el objeto cliente explícitamente
+            return { valido: true, cliente: cliente };
+        }
+
+        return { valido: false, motivo: "Cliente no registrado" };
+
+    } catch (err) {
+        console.error("❌ Error grave en validarClienteExpreso:", err);
+        return { valido: false, motivo: "Error de conexión" };
     }
 }
 
+// 📌 FUNCIÓN PARA EL TOAST ROJO
+function crearToastEmergencia(mensaje) {
+    const alertaPrevia = document.getElementById("toast-emergencia");
+    if (alertaPrevia) alertaPrevia.remove();
+
+    const div = document.createElement("div");
+    div.id = "toast-emergencia";
+    div.innerText = `🚫 VETO: ${mensaje}`;
+    
+    Object.assign(div.style, {
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        backgroundColor: "#ef4444",
+        color: "white",
+        padding: "16px 24px",
+        borderRadius: "8px",
+        fontSize: "16px",
+        fontWeight: "bold",
+        boxShadow: "0px 4px 15px rgba(0,0,0,0.4)",
+        zIndex: "999999",
+        minWidth: "320px",
+        fontFamily: "sans-serif",
+        opacity: "0",
+        transition: "opacity 0.3s ease-in-out"
+    });
+
+    document.body.appendChild(div);
+    setTimeout(() => { div.style.opacity = "1"; }, 10);
+
+    setTimeout(() => {
+        div.style.opacity = "0";
+        setTimeout(() => div.remove(), 350);
+    }, 6000);
+}
 function activarCamposDespacho(activar) {
     const campos = ["desNombre", "desOrigen", "desDestino", "btnEnviarDespacho"];
     campos.forEach(id => {

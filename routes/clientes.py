@@ -1,4 +1,5 @@
 import re
+from charset_normalizer import models
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from extensions import db
@@ -8,6 +9,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError 
 from datetime import datetime
 from sqlalchemy import text
+from models.incidencias import BloqueoAfinidad
+
 # Definición del Blueprint
 clientes_bp = Blueprint('clientes', __name__, url_prefix="/clientes")
 
@@ -130,15 +133,41 @@ def obtener_cliente(id):
 @clientes_bp.route('/buscar', methods=['GET'])
 def buscar_cliente():
     telefono = request.args.get('telefono')
-    if telefono:
-        # 🔥 AGREGAMOS EL FILTRO DE ESTADO ACTIVO
-        cliente = Cliente.query.filter(
-            Cliente.telefono == telefono, 
-            Cliente.estado == 1
-        ).all()
-        return jsonify([c.to_dict() for c in cliente])
-    return jsonify([])
+    if not telefono:
+        return jsonify([])
 
+    # Buscamos coincidencias exactas del teléfono en clientes activos
+    clientes = Cliente.query.filter(
+        Cliente.telefono == telefono, 
+        Cliente.estado == 1
+    ).all()
+
+    respuesta = []
+    for c in clientes:
+        # 1. ¿Tiene veto general activo?
+        bloqueo_general = BloqueoAfinidad.query.filter_by(
+            cliente_id=c.id_cliente,
+            tipo_bloqueo="CLIENTE_GENERAL",
+            activo=True
+        ).first()
+
+        # 2. ¿Tiene exclusiones activas con conductores?
+        exclusiones = BloqueoAfinidad.query.filter_by(
+            cliente_id=c.id_cliente,
+            tipo_bloqueo="CONDUCTOR_EXCLUSION",
+            activo=True
+        ).all()
+
+        # Convertimos a diccionario e inyectamos la data de bloqueo y exclusiones
+        c_dict = c.to_dict()
+        c_dict["bloqueado"] = True if bloqueo_general else False
+        c_dict["motivo_bloqueo"] = bloqueo_general.nota_gerencial if bloqueo_general else None
+        c_dict["tiene_exclusiones"] = len(exclusiones) > 0
+        c_dict["total_exclusiones"] = len(exclusiones)
+        
+        respuesta.append(c_dict)
+
+    return jsonify(respuesta)
 # Obtener o actualizar cliente por teléfono
 @clientes_bp.route('/telefono/<string:telefono>', methods=['GET', 'PUT'])
 def cliente_por_telefono(telefono):
@@ -247,6 +276,7 @@ def update_telefono():
         #Evita enviar el {str(e)} al usuario, solo regístralo en consola del servidor
         print(f"DEBUG ERROR: {str(e)}") 
         return jsonify({"error": "Hubo un problema técnico en el servidor. Intente más tarde."}), 500
+
 # 🔹 Buscar clientes por nombre o teléfono (Server-side)
 @clientes_bp.route('/search', methods=['GET'])
 def buscar_clientes_full():

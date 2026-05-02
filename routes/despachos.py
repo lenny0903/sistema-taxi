@@ -1,6 +1,7 @@
 import uuid
 from flask import Blueprint, app, request, jsonify
 from extensions import db
+from models import despachos
 from models.despachos import Despacho
 from models.turnos import Turno
 from models.clientes import Cliente
@@ -20,30 +21,53 @@ def hora_local():
 from models.lista_espera import ListaEspera
 despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 
+from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de bloqueos
+
 @despachos_bp.route("/", methods=["POST"])
 def crear_despacho():
     try:
         data = request.get_json()
         
-        # 1. Extraer y validar (Igual a como lo tienes)
+        # 1. Extraer y validar
         origen = data.get("origen_despacho")
+        cliente_id = data.get("cliente_id")
+        conductor_id = data.get("conductor_id")
+
         if not origen:
             return jsonify({"error": "El origen es obligatorio"}), 400
+
+        if not cliente_id or not conductor_id:
+            return jsonify({"error": "Cliente y conductor son obligatorios"}), 400
 
         try:
             tarifa_val = float(data.get("tarifa", 0))
         except:
             tarifa_val = 0.0
 
+        # ====================================================================
+        # 🚨 VALIDACIÓN BACKEND: Evitar el despacho si hay exclusión activa
+        # ====================================================================
+        bloqueo = BloqueoAfinidad.query.filter_by(
+            cliente_id=cliente_id,
+            conductor_id=conductor_id,
+            tipo_bloqueo="CONDUCTOR_EXCLUSION",
+            activo=True
+        ).first()
+
+        if bloqueo:
+            return jsonify({
+                "error": f"Bloqueo activo: El conductor no puede atender a este cliente. Motivo: {bloqueo.nota_gerencial}"
+            }), 400
+        # ====================================================================
+
         # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
         with db.session.no_autoflush:
-            # 2. Crear el objeto Despacho
             ahora = hora_local()
             nuevo_despacho = Despacho(
                 origen_despacho=origen,
                 destino_despacho=data.get("destino_despacho"),
-                cliente_id=data.get("cliente_id"),
-                conductor_id=data.get("conductor_id"),
+                cliente_id=cliente_id,
+                conductor_id=conductor_id,
                 auto_id=data.get("auto_id"),
                 tarifa=tarifa_val,
                 estado_despacho=data.get("estado_despacho", "en curso"),
@@ -53,13 +77,12 @@ def crear_despacho():
             )
             db.session.add(nuevo_despacho)
 
-            # 3. Borrado de Cola (Cambiamos el método para que sea atómico) 🔥
+            # Borrado de Cola
             cola_id = data.get("cola_id")
             if cola_id:
-                # Usamos synchronize_session=False para que no intente validar la sesión antes de borrar
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
-        # 4. UN SOLO COMMIT FINAL
+        # UN SOLO COMMIT FINAL
         db.session.commit()
 
         return jsonify({
@@ -71,19 +94,29 @@ def crear_despacho():
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-
-@despachos_bp.route("/<int:id>", methods=["GET"])
+    
+@despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
-    despacho = Despacho.query.get_or_404(id)
+    # 1. Obtenemos el despacho específico por su ID
+    d = Despacho.query.get_or_404(id)
+    
+    # 2. Retornamos directamente el diccionario con los datos
     return jsonify({
-        "id_despacho": despacho.id_despacho,
-        "origen": despacho.origen_despacho,
-        "destino": despacho.destino_despacho,
-        "cliente": {"id": despacho.cliente.id_cliente, "nombre": despacho.cliente.nombre},
-        "conductor": {"id": despacho.conductor.id_conductor, "nombre": despacho.conductor.nombre},
-        "auto": {"id": despacho.auto.id_auto, "placa": despacho.auto.nro_placa},
-        "tarifa": despacho.tarifa,
-        "estado": despacho.estado_despacho
+        'id_despacho': d.id_despacho,
+        'auto_placa': d.auto_placa,
+        'destino': d.destino,
+        'origen': d.origen,
+        'tarifa': d.tarifa,
+        'estado_despacho': d.estado_despacho,
+        'cliente_nombre': d.cliente.nombre if d.cliente else "N/D",
+        'cliente_telefono': d.cliente.telefono if d.cliente else "N/D",
+        'conductor_nombre': d.conductor.nombre if d.conductor else "N/D",
+        
+        # ⚠️ Los IDs que el frontend necesita desesperadamente:
+        'cliente_id': d.id_cliente, 
+        'id_cliente': d.id_cliente,
+        'conductor_id': d.id_conductor,
+        'id_conductor': d.id_conductor
     })
 
 
@@ -191,24 +224,45 @@ def candelar_despacho(id):
 
 @despachos_bp.route("/activos", methods=["GET"])
 def listar_despachos_activos():
-    # 🔹 Solo despachos en curso
-    despachos = Despacho.query.filter_by(estado_despacho="en curso").all()
-    resultado = []
-    for d in despachos:
-        resultado.append({
-            "id_despacho": d.id_despacho,
-            "cliente_telefono": d.cliente.telefono if d.cliente else "-",
-            "cliente_nombre": d.cliente.nombre if d.cliente else "-",
-            "conductor_nombre": d.conductor.nombre if d.conductor else "-",
-            "auto_placa": d.auto.nro_placa if d.auto else "-",
-            "origen": d.origen_despacho,
-            "destino": d.destino_despacho,
-            "tarifa": d.tarifa,
-            "estado_despacho": d.estado_despacho,
-            #"punto_referencia": d.cliente.punto_referencia if d.cliente else ""
-        })
-    return jsonify(resultado), 200
+    try:
+        # 🔹 Solo despachos en curso
+        despachos = Despacho.query.filter_by(estado_despacho="en curso").all()
+        resultado = []
+        
+        for d in despachos:
+            # 1. Extraer ID del cliente con seguridad
+            c_id = None
+            if d.cliente:
+                # Intenta obtener id_cliente, si no existe usa id
+                c_id = getattr(d.cliente, 'id_cliente', getattr(d.cliente, 'id', None))
+            
+            # 2. Extraer ID del conductor con seguridad
+            cond_id = None
+            if d.conductor:
+                # Intenta obtener id_conductor, si no existe usa id
+                cond_id = getattr(d.conductor, 'id_conductor', getattr(d.conductor, 'id', None))
 
+            resultado.append({
+                "id_despacho": d.id_despacho,
+                "cliente_telefono": d.cliente.telefono if d.cliente else "-",
+                "cliente_nombre": d.cliente.nombre if d.cliente else "-",
+                "conductor_nombre": d.conductor.nombre if d.conductor else "-",
+                "auto_placa": d.auto.nro_placa if d.auto else "-",
+                "origen": d.origen_despacho,
+                "destino": d.destino_despacho,
+                "tarifa": d.tarifa,
+                "estado_despacho": d.estado_despacho,
+                
+                # ⚠️ Los IDs extraídos con total seguridad:
+                "cliente_id": c_id,
+                "conductor_id": cond_id
+            })
+            
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        print(f"❌ Error en listar_despachos_activos: {str(e)}")
+        return jsonify({"error": "Error interno del servidor", "detalle": str(e)}), 500
 
 @despachos_bp.route("/<int:id>/finalizar", methods=["PUT"])
 def finalizar_despacho(id):

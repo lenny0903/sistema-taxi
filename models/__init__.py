@@ -15,7 +15,7 @@ from .auditoria_acceso import AuditoriaAcceso
 from .pago_cuotas import PagoCuota
 from .cuota_semanal import CuotaSemanal
 from .incidencias import Incidencia
-from .bloqueo_afinidad import BloqueoAfinidad
+
 
 __all__ = [
     "Usuario",
@@ -35,5 +35,5 @@ __all__ = [
     "PagoCuota",
     "CuotaSemanal",
     "Incidencia",
-    "BloqueoAfinidad"
+
 ]

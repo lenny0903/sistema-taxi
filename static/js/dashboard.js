@@ -312,6 +312,22 @@ document.addEventListener("DOMContentLoaded", () => {
           }
       });
   }  
+  // ===================================================
+    // 🚨 NUEVA ESCUCHA DE EVENTOS PARA EL MODAL DE INCIDENCIAS
+    // ===================================================
+    const textarea = document.getElementById("incid_descripcion");
+    const select = document.getElementById("incid_categoria");
+
+    if (textarea) {
+        textarea.addEventListener("input", validarFormularioIncidencia);
+    }
+
+    if (select) {
+        select.addEventListener("change", () => {
+            actualizarOrigenReporte();
+            validarFormularioIncidencia();
+        });
+    }
 });  
   // -------------------------------
   // 📌 Funciones auxiliares
@@ -964,3 +980,167 @@ document.getElementById('formCargaInicial').onsubmit = async (e) => {
         console.error('Error en la carga:', error);
     }
 };
+///////Sección para modales de reportes de información (Clientes, Conductores, etc.)///////
+// Abre el modal de incidencias inyectando los datos del despacho seleccionado
+// Variables globales temporales para asegurar el guardado de IDs
+// Variables globales temporales para asegurar el guardado de IDs
+// Variables de control absoluto
+// Variables de control global absoluto
+let idDespachoGlobal = null;
+let idClienteGlobal = null;
+let idConductorGlobal = null;
+
+function abrirModalIncidenciaSeguro(datosCodificados) {
+    try {
+        // Decodificar el objeto completo del despacho
+        const despacho = JSON.parse(decodeURIComponent(datosCodificados));
+        console.log("📥 [MODAL] Objeto completo recibido de la tabla:", despacho);
+
+        // 1. Extraer ID del Despacho
+        idDespachoGlobal = despacho.id_despacho || despacho.id || null;
+
+        // 2. Extraer ID del Cliente probando todos los nombres de campo existentes
+        idClienteGlobal = despacho.cliente_id || despacho.id_cliente || despacho.id_cliente_fk || despacho.cliente || null;
+
+        // 3. Extraer ID del Conductor probando todas las variantes
+        idConductorGlobal = despacho.conductor_id || despacho.id_conductor || despacho.id_conductor_fk || despacho.conductor || null;
+
+        console.log("📌 [MODAL] IDs guardados en memoria:", { idDespachoGlobal, idClienteGlobal, idConductorGlobal });
+
+        const modal = document.getElementById("modalIncidencia");
+        if (!modal) return;
+
+        modal.classList.remove("hidden");
+
+        // Pintar en la interfaz del modal para confirmar visualmente
+        if (document.getElementById("lblIncidCliente")) {
+            document.getElementById("lblIncidCliente").textContent = idClienteGlobal || "N/D";
+        }
+        if (document.getElementById("lblIncidConductor")) {
+            document.getElementById("lblIncidConductor").textContent = idConductorGlobal || "N/D";
+        }
+
+        // Limpiar campos de entrada
+        if (document.getElementById("incid_categoria")) document.getElementById("incid_categoria").value = "";
+        if (document.getElementById("incid_descripcion")) document.getElementById("incid_descripcion").value = "";
+
+    } catch (error) {
+        console.error("❌ Error al procesar los datos del despacho:", error);
+    }
+}
+
+// Hacerla accesible globalmente en el navegador
+window.abrirModalIncidencia = abrirModalIncidenciaSeguro;
+
+async function guardarIncidencia(event) {
+    if (event) event.preventDefault();
+
+    const payload = {
+        despacho_id: idDespachoGlobal ? parseInt(idDespachoGlobal) : null,
+        cliente_id: idClienteGlobal ? parseInt(idClienteGlobal) : null,
+        conductor_id: idConductorGlobal ? parseInt(idConductorGlobal) : null,
+        categoria: document.getElementById('incid_categoria').value,
+        origen_reporte: document.getElementById('incid_origen_reporte')?.value || "CONDUCTOR",
+        descripcion: document.getElementById('incid_descripcion').value.trim()
+    };
+
+    console.log("📤 [API] Objeto que se enviará al servidor:", payload);
+
+    if (!payload.despacho_id || !payload.cliente_id || payload.cliente_id === 0) {
+        alert("⚠️ Error local: No se ha capturado el ID del cliente o del despacho.");
+        return;
+    }
+
+    try {
+        const data = await apiFetch('/incidencias/', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (data && (data.success || data.id_incidencia || data.msg)) {
+            alert("✅ Incidencia guardada con éxito");
+            cerrarModalIncidencia();
+            if (document.getElementById('formIncidencia')) {
+                document.getElementById('formIncidencia').reset();
+            }
+            idDespachoGlobal = null;
+            idClienteGlobal = null;
+            idConductorGlobal = null;
+        } else {
+            alert("❌ Error: " + (data?.error || "Intente nuevamente"));
+        }
+    } catch (error) {
+        console.error("❌ Error en la solicitud de guardado:", error);
+    }
+}
+
+// Hacerlas accesibles en el scope global
+window.guardarIncidencia = guardarIncidencia;
+
+function cerrarModalIncidencia() {
+    document.getElementById('modalIncidencia').classList.add('hidden');
+}
+
+// ===================================================
+// 1. DETECTAR EL ORIGEN DEL REPORTE SEGÚN EL OPTGROUP
+// ===================================================
+function actualizarOrigenReporte() {
+    const selectCategoria = document.getElementById("incid_categoria");
+    if (!selectCategoria) {
+        console.error("❌ No se encontró el elemento #incid_categoria");
+        return;
+    }
+
+    const optionSeleccionada = selectCategoria.options[selectCategoria.selectedIndex];
+    if (!optionSeleccionada || !optionSeleccionada.parentNode) return;
+
+    const optgroup = optionSeleccionada.parentNode.label; 
+    const inputOrigen = document.getElementById("incid_origen_reporte");
+
+    if (inputOrigen) {
+        if (optgroup === "Reportado por el Conductor (Hacia el Cliente)") {
+            inputOrigen.value = "CONDUCTOR";
+        } else if (optgroup === "Reportado por el Cliente (Hacia el Conductor)" || optgroup === "Casos Administrativos") {
+            inputOrigen.value = "CLIENTE";
+        }
+        console.log("🎯 Origen asignado:", inputOrigen.value);
+    }
+    
+    // Forzamos la validación del formulario inmediatamente
+    validarFormularioIncidencia();
+}
+
+function validarFormularioIncidencia() {
+    const select = document.getElementById("incid_categoria");
+    const textarea = document.getElementById("incid_descripcion");
+    const btnGuardar = document.getElementById("btnGuardarIncidencia");
+
+    // Imprimimos en consola para ver qué está encontrando el script
+    console.log("🔍 Estado de los elementos en el DOM:", {
+        select: select ? "Encontrado" : "No encontrado",
+        textarea: textarea ? "Encontrado" : "No encontrado",
+        boton: btnGuardar ? "Encontrado" : "No encontrado"
+    });
+
+    if (!select || !textarea || !btnGuardar) return;
+
+    const categoria = select.value;
+    const descripcion = textarea.value.trim();
+
+    console.log(`📝 Validando datos -> Categoría: "${categoria}", Descripción: "${descripcion}" (Largo: ${descripcion.length})`);
+
+    // Condición para activar: Categoría seleccionada y al menos 5 caracteres en la descripción
+    if (categoria !== "" && descripcion.length >= 5) {
+        console.log("🔓 ACTIVANDO BOTÓN");
+        btnGuardar.disabled = false;
+        btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+    } else {
+        console.log("🔒 BLOQUEANDO BOTÓN");
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add("opacity-50", "cursor-not-allowed");
+    }
+}
+
+// Las hacemos globales para que el HTML y la consola puedan llamarlas
+window.actualizarOrigenReporte = actualizarOrigenReporte;
+window.validarFormularioIncidencia = validarFormularioIncidencia;
