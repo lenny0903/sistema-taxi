@@ -1144,3 +1144,80 @@ function validarFormularioIncidencia() {
 // Las hacemos globales para que el HTML y la consola puedan llamarlas
 window.actualizarOrigenReporte = actualizarOrigenReporte;
 window.validarFormularioIncidencia = validarFormularioIncidencia;
+// =================================================================
+// CALCULADORA EXPRESS: CONVERSIÓN DE COP A VES PARA OPERADORAS
+// =================================================================
+
+function inicializarCalculadoraCopToVes() {
+    const modalCalc = document.getElementById('modalCalculadoraBs');
+    if (!modalCalc) return;
+
+    const inputTasa = document.getElementById('calc_tasa');
+    const inputCop = document.getElementById('calc_monto_cop');
+    const inputBs = document.getElementById('calc_resultado_bs');
+    const btnCopiar = document.getElementById('btn_copiar_bs');
+
+    // Recuperamos la última tasa guardada del localStorage
+    const tasaGuardada = localStorage.getItem('tasa_dia_cop');
+    if (tasaGuardada && inputTasa) {
+        inputTasa.value = tasaGuardada;
+    }
+
+    // Función que realiza el cálculo matemático
+    const calcular = () => {
+        const tasa = parseFloat(inputTasa.value) || 0;
+        const pesos = parseFloat(inputCop.value) || 0;
+
+        // Guardamos la tasa actual para la próxima vez
+        localStorage.setItem('tasa_dia_cop', inputTasa.value);
+
+        if (tasa > 0 && pesos > 0) {
+            // Dividimos Pesos entre la tasa para obtener Bolívares
+            const bolivares = pesos / tasa;
+            
+            // Mostramos el resultado formateado con 2 decimales
+            inputBs.value = bolivares.toLocaleString('es-VE', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+        } else {
+            inputBs.value = '0,00';
+        }
+    };
+
+    // 🚀 EVENTO CLAVE: Escucha cuando la operadora escribe o borra en tiempo real
+    if (inputCop) {
+        inputCop.addEventListener('input', calcular);
+    }
+    if (inputTasa) {
+        inputTasa.addEventListener('input', calcular);
+    }
+
+    // Configuración al abrir el modal
+    modalCalc.addEventListener('shown.bs.modal', () => {
+        if (inputCop) {
+            inputCop.value = '';
+            inputCop.focus(); // Coloca el cursor directamente en el campo de pesos
+        }
+        if (inputBs) {
+            inputBs.value = '0,00';
+        }
+    });
+
+    // Acción del botón copiar
+    if (btnCopiar) {
+        btnCopiar.addEventListener('click', () => {
+            const valorLimpio = inputBs.value.replace(/\./g, '').replace(',', '.');
+            if (valorLimpio !== '0.00') {
+                navigator.clipboard.writeText(valorLimpio);
+                
+                const originalText = btnCopiar.innerText;
+                btnCopiar.innerText = '✅';
+                setTimeout(() => { btnCopiar.innerText = originalText; }, 1000);
+            }
+        });
+    }
+}
+
+// Ejecutamos la función directamente
+inicializarCalculadoraCopToVes();
