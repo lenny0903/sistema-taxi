@@ -99,3 +99,16 @@ document.getElementById('buscadorRapido')?.addEventListener('input', function() 
         resultadoDiv.classList.replace('bg-warning-subtle', 'bg-light');
     }
 });
+
+const DEBUG_MODE = false; // Cámbialo a false antes del estrés o producción
+
+function log(mensaje, tipo = 'info') {
+    if (!DEBUG_MODE) return;
+    
+    if (tipo === 'error') console.error("❌ " + mensaje);
+    else if (tipo === 'success') console.log("✅ " + mensaje);
+    else console.log("🔹 " + mensaje);
+}
+
+// Ejemplo de uso:
+log("Dashboard sincronizado", 'success');

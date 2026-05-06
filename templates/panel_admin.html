@@ -13,40 +13,44 @@
 
 <!-- Tabla para editar tarifas -->
 <h3>Matriz de Tarifas (Configuración)</h3>
-<table class="table">
-    <thead>
+    
+    <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6;">
+    
+    <table class="table table-hover">
+        <thead class="sticky-top bg-dark text-white" style="z-index: 10;">
+            <tr>
+                <th>ID</th>
+                <th>Destino (Sector)</th>
+                <th>Municipio</th>
+                <th>Tarifa (COP)</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for t in destinos %}
         <tr>
-            <th>ID</th>
-            <th>Destino (Sector)</th>
-            <th>Municipio</th>
-            <th>Tarifa (COP)</th>
-            <th>Acción</th>
+            <td>{{ t.id }}</td>
+            <td>
+                <input type="text" id="input_destino_{{ t.id }}" 
+                    value="{{ t.destino }}" class="form-control">
+            </td>
+            <td>
+                <input type="text" id="input_municipio_{{ t.id }}" 
+                    value="{{ t.municipio }}" class="form-control">
+            </td>
+            <td>
+                <input type="number" id="input_tarifa_{{ t.id }}" 
+                    value="{{ t.precio_cop | int }}" class="form-control">
+            </td>
+            <td>
+                <button onclick="guardarTodo({{ t.id }})" 
+                        class="btn btn-success">Guardar Todo</button>
+            </td>
         </tr>
-    </thead>
-    <tbody>
-    {% for t in destinos %}
-    <tr>
-        <td>{{ t.id }}</td>
-        <td>
-            <input type="text" id="input_destino_{{ t.id }}" 
-                  value="{{ t.destino }}" class="form-control">
-        </td>
-        <td>
-            <input type="text" id="input_municipio_{{ t.id }}" 
-                  value="{{ t.municipio }}" class="form-control">
-        </td>
-        <td>
-            <input type="number" id="input_tarifa_{{ t.id }}" 
-                  value="{{ t.precio_cop | int }}" class="form-control">
-        </td>
-        <td>
-            <button onclick="guardarTodo({{ t.id }})" 
-                    class="btn btn-success">Guardar Todo</button>
-        </td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
 
 
 <!-- 1. Forzamos la carga de Socket.io justo antes del script que lo usa -->

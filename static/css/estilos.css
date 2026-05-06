@@ -132,3 +132,25 @@
   border-top: 1px solid #ddd;
   background: #f9f9f9;
 }
+/* 1. Este contenedor solo afectará a la matriz de tarifas */
+.tabla-dinamica {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+}
+
+/* 2. Esto asegura que EL ENCABEZADO de ESTA tabla sea fijo, sin tocar las otras */
+.tabla-dinamica .table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #343a40; /* Un color oscuro para diferenciarla */
+    color: white;
+    z-index: 10;
+}
+
+/* 3. Ajuste para los inputs dentro de ESTA tabla para que no se vean gigantes */
+.tabla-dinamica .form-control {
+    padding: 2px 5px;
+    height: auto;
+    font-size: 0.9rem;
+}
