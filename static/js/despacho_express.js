@@ -226,15 +226,13 @@ async function cargarColaClientes() {
         }
 
         tbodyCola.innerHTML = data.map((c, index) => {
-           const id = c.id_cola;
+            const id = c.id_cola;
             const telefono = c.telefono || (c.cliente ? c.cliente.telefono : "---");
-            const nombre   = c.nombre   || (c.cliente ? c.cliente.nombre : "Cliente");
-            const origen   = c.origen   || (c.cliente ? c.cliente.direccion : "");
-            const destino  = c.destino  || "";
-            // --- LÓGICA DE PLACEHOLDER DINÁMICO ---
-            // --- LÓGICA DE CONTEO ---
+            const nombre = c.nombre || (c.cliente ? c.cliente.nombre : "Cliente");
+            const origen = c.origen || (c.cliente ? c.cliente.direccion : "");
+            const destino = c.destino || "";
+
             const grupo = data.filter(item => {
-                // Limpiamos ambos teléfonos para comparar solo números
                 const telItem = (item.telefono || item.cliente?.telefono || "").toString().trim();
                 const telActual = telefono.toString().trim();
                 return telItem === telActual && telActual !== "";
@@ -242,34 +240,44 @@ async function cargarColaClientes() {
 
             const totalAutos = grupo.length;
             let placeholderTexto = "Hacia...";
-
             if (totalAutos > 1) {
                 const posicion = grupo.findIndex(item => item.id_cola === id) + 1;
                 placeholderTexto = `Auto ${posicion} de ${totalAutos}...`;
             }
-    // --------------------------------------------
 
-            // 2. Buscar en memoria (Usando el nombre que definiste: memoriaEdicionCola1)
-            const valOrigen  = memoriaEdicionCola1.origenes[id]  || origen;
+            const valOrigen = memoriaEdicionCola1.origenes[id] || origen;
             const valDestino = memoriaEdicionCola1.destinos[id] || destino;
-            const valTarifa  = memoriaEdicionCola1.tarifas[id]  || "";
+            const valTarifa = memoriaEdicionCola1.tarifas[id] || "";
 
-            // 3. RETORNAR EL HTML (Importante: Todo lo que usa ${} debe estar definido arriba)
-           // --- LÓGICA DE LIMPIEZA ---
-            // 1. Limpiamos el destino que viene de la base de datos
-            // Si trae "(Auto" o está vacío, lo forzamos a "" (vacío real)
+            // --- LÓGICA DE LIMPIEZA MANTENIDA ---
             const destinoLimpio = (destino.includes("(Auto") || !destino.trim()) ? "" : destino.trim();
+            let valorFinalDestino = (valDestino.includes("(Auto") || !valDestino.trim()) ? destinoLimpio : valDestino.trim();
+            if (valorFinalDestino.includes("Auto")) valorFinalDestino = "";
 
-            // 2. Limpiamos lo que hay en memoria temporal
-            // Si la memoria tiene "(Auto" o solo espacios, usamos el destinoLimpio
-            let valorFinalDestino = (valDestino.includes("(Auto") || !valDestino.trim()) 
-                ? destinoLimpio 
-                : valDestino.trim();
-
-            // 3. SEGURO FINAL: Si después de todo sigue teniendo el texto de Auto, lo vaciamos
-            if (valorFinalDestino.includes("Auto")) {
-                valorFinalDestino = "";
-            }
+            // --- INTEGRACIÓN INTELIGENTE DE MATRIZ DE TARIFAS ---
+            // Esta cadena se ejecuta cada vez que el operador escribe en el destino
+            // Este bloque va dentro del mapa de filas de cargarColaClientes
+            const onInputDestino = `
+                const val = this.value;
+                // Buscamos si lo que escribió el usuario es EXACTAMENTE un destino de la lista
+                const tarifaMatch = MATRIZ_TARIFAS.find(t => t.destino === val);
+                
+                if (tarifaMatch) {
+                    // Si lo encuentra, actualiza el precio en pantalla y en la memoria del formulario
+                    const monto = tarifaMatch.precio_cop;
+                    memoriaEdicionCola1.tarifas[${id}] = monto;
+                    
+                    const inputTarifa = document.getElementById('tarifaCliente_${id}');
+                    if(inputTarifa) {
+                        inputTarifa.value = monto;
+                        // Un pequeño efecto visual para que el operador note el cambio
+                        inputTarifa.classList.add('bg-green-100');
+                        setTimeout(() => inputTarifa.classList.remove('bg-green-100'), 500);
+                    }
+                }
+                // Guardamos la dirección completa (con detalles extra si los hay)
+                memoriaEdicionCola1.destinos[${id}] = val;
+            `;
             return `
             <tr class="hover:bg-gray-50 text-sm">
                 <td class="border px-2 py-1 text-center">${index + 1}</td> 
@@ -283,16 +291,17 @@ async function cargarColaClientes() {
                 </td>
                 <td class="border px-2 py-1">
                     <input type="text" id="editDestino_${id}" 
+                        list="listaTarifasMatriz" 
                         class="w-full border p-1 rounded bg-blue-50 focus:bg-white" 
-                        placeholder="Hacia..." 
-                        value="${valorFinalDestino || placeholderTexto}" 
+                        placeholder="${placeholderTexto}" 
+                        value="${valorFinalDestino}" 
                         onfocus="this.select()"
-                        oninput="memoriaEdicionCola1.destinos[${id}] = this.value">
+                        oninput="${onInputDestino}">
                 </td>
                 <td class="border px-2 py-1">
                     <input type="number" id="tarifaCliente_${id}"
                         class="border p-1 w-20 rounded font-bold text-green-700"
-                        placeholder="Bs."
+                        placeholder="COP"
                         value="${valTarifa}"
                         oninput="memoriaEdicionCola1.tarifas[${id}] = this.value">
                 </td>
@@ -631,5 +640,30 @@ async function actualizarContadorConductores() {
         }
     } catch (error) {
         console.error("Error al contar conductores:", error);
+    }
+}
+
+function generarDatalistTarifas() {
+    let html = '<datalist id="listaTarifasMatriz">';
+    MATRIZ_TARIFAS.forEach(t => {
+        html += `<option value="${t.destino}">${t.municipio} - ${t.precio} COP</option>`;
+    });
+    html += '</datalist>';
+    // Lo inyectamos al final del body si no existe
+    if (!document.getElementById("listaTarifasMatriz")) {
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+}
+generarDatalistTarifas();
+
+function actualizarPrecio(input, idFila) {
+    const destinoSeleccionado = input.value;
+    // Buscamos en la matriz que cargaste desde Flask
+    const datos = MATRIZ_TARIFAS.find(t => t.destino === destinoSeleccionado);
+    
+    if (datos) {
+        const inputPrecio = document.getElementById(`tarifa_${idFila}`);
+        inputPrecio.value = datos.precio_cop;
+        console.log(`💰 Precio actualizado para ${datos.destino}: ${datos.precio_cop} COP`);
     }
 }

@@ -1,26 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
+<a href="/panel.html" 
+   class="btn btn-secondary position-fixed shadow" 
+   style="top: 20px; right: 20px; z-index: 1050; border-radius: 50px; padding: 10px 20px;">
+    ← Volver al Panel
+</a>
 <h2>Panel Administrador</h2>
-<h3>Despachos</h3>
-<table class="table table-striped">
-  <thead>
-    <tr><th>ID</th><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th><th>Acción</th></tr>
-  </thead>
-  <tbody>
-    {% for d in despachos %}
+
+
+
+<hr> <!-- Un separador visual para San Cristóbal -->
+
+<!-- Tabla para editar tarifas -->
+<h3>Matriz de Tarifas (Configuración)</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Destino (Sector)</th>
+            <th>Municipio</th>
+            <th>Tarifa (COP)</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for t in destinos %}
     <tr>
-      <td>{{ d.id_despacho }}</td>
-      <td>{{ d.origen }}</td>
-      <td>{{ d.destino }}</td>
-      <td>{{ d.tarifa }}</td>
-      <td>{{ d.estado }}</td>
-      <td>
-        <form method="post" action="/despachos/eliminar_html/{{ d.id_despacho }}">
-          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
-        </form>
-      </td>
+        <td>{{ t.id }}</td>
+        <td>
+            <input type="text" id="input_destino_{{ t.id }}" 
+                  value="{{ t.destino }}" class="form-control">
+        </td>
+        <td>
+            <input type="text" id="input_municipio_{{ t.id }}" 
+                  value="{{ t.municipio }}" class="form-control">
+        </td>
+        <td>
+            <input type="number" id="input_tarifa_{{ t.id }}" 
+                  value="{{ t.precio_cop | int }}" class="form-control">
+        </td>
+        <td>
+            <button onclick="guardarTodo({{ t.id }})" 
+                    class="btn btn-success">Guardar Todo</button>
+        </td>
     </tr>
     {% endfor %}
-  </tbody>
+    </tbody>
 </table>
+
+
+<!-- 1. Forzamos la carga de Socket.io justo antes del script que lo usa -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    // Inicializamos el socket AQUÍ mismo por si la base.html falla
+    if (typeof socket === 'undefined') {
+        var socket = io();
+    }
+</script>
+
+<!-- 2. Ahora sí cargamos tu lógica de administración -->
+<script src="{{ url_for('static', filename='js/admin_tarifas.js') }}"></script>
+
 {% endblock %}

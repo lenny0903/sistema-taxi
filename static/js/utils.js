@@ -81,3 +81,21 @@ window.refrescarConductoresDisponibles = async function() {
         return [];
     }
 };
+
+document.getElementById('buscadorRapido')?.addEventListener('input', function() {
+    const destinoBusqueda = this.value;
+    const resultadoDiv = document.getElementById('resultadoPrecioRapido');
+    
+    // Buscamos en la matriz global que ya cargamos desde Flask
+    const tarifa = MATRIZ_TARIFAS.find(t => t.destino === destinoBusqueda);
+    
+    if (tarifa) {
+        // Formateamos el número para que se vea profesional (ej: 5.000)
+        const precioFormateado = new Intl.NumberFormat('es-CO').format(tarifa.precio_cop);
+        resultadoDiv.innerText = `$ ${precioFormateado}`;
+        resultadoDiv.classList.replace('bg-light', 'bg-warning-subtle'); // Resalte visual
+    } else {
+        resultadoDiv.innerText = "$ 0";
+        resultadoDiv.classList.replace('bg-warning-subtle', 'bg-light');
+    }
+});

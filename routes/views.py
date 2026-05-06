@@ -1,7 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, session
+from flask import Blueprint, app, render_template, request, redirect, session
+from models.matriz_tarifas import MatrizTarifa
 from models.usuarios import Usuario
 from models.despachos import Despacho
 from werkzeug.security import check_password_hash
+from extensions import db
+from flask import Blueprint, render_template, request, redirect, session, jsonify
+
 
 views_bp = Blueprint("views", __name__)
 
@@ -31,9 +35,34 @@ def login_html():
 @views_bp.route("/panel_operador")
 def panel_operador():
     despachos = Despacho.query.all()
-    return render_template("panel_operador.html", title="Panel Operador", despachos=despachos)
+    # AGREGA ESTO:
+    tarifas = MatrizTarifa.query.all()
+    destinos_lista = [{"destino": t.destino, "precio_cop": t.precio_cop, "municipio": t.municipio} for t in tarifas]
+    
+    return render_template("panel_operador.html", title="Panel Operador", despachos=despachos, destinos=destinos_lista)
 
 @views_bp.route("/panel_admin")
 def panel_admin():
     despachos = Despacho.query.all()
-    return render_template("panel_admin.html", title="Panel Administrador", despachos=despachos)
+    destinos_query = MatrizTarifa.query.all()
+    
+    # Esto saldrá en tu terminal de Linux Mint
+    print(f"DEBUG: Se encontraron {len(destinos_query)} registros en la matriz.")
+    
+    return render_template("panel_admin.html", 
+                           title="Panel Administrador", 
+                           despachos=despachos, 
+                           destinos=destinos_query)
+
+@views_bp.route("/actualizar_tarifa", methods=["POST"])
+def actualizar_tarifa():
+    data = request.get_json()
+    id_tarifa = data.get('id')
+    nuevo_precio = data.get('precio_cop')
+    
+    tarifa = MatrizTarifa.query.get(id_tarifa)
+    if tarifa:
+        tarifa.precio_cop = nuevo_precio
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Tarifa actualizada"})
+    return jsonify({"status": "error", "message": "No encontrada"}), 404

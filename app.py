@@ -1,4 +1,5 @@
 import eventlet
+from models.matriz_tarifas import MatrizTarifa
 eventlet.monkey_patch() # Recomendado para modo 'eventlet'
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
 from flask import Flask, render_template, url_for, redirect
@@ -14,6 +15,7 @@ from sqlalchemy.engine import Engine
 from tasks.scheduler import iniciar_scheduler
 import config
 import sqlite3
+
 
 from flask_socketio import SocketIO
 MONTO_CUOTA_SEMANAL = 40000
@@ -113,8 +115,18 @@ def create_app():
 
     @app.route("/panel.html")
     def panel_html():
-        # Dashboard SPA
-        return render_template("dashboard.html")
+        # Obtenemos las tarifas y las convertimos a una lista de diccionarios
+        tarifas = MatrizTarifa.query.all()
+        destinos_lista = [
+            {
+                "destino": t.destino, 
+                "precio_cop": t.precio_cop, 
+                "municipio": t.municipio
+            } for t in tarifas
+        ]
+    
+        # Pasamos la lista procesada al template
+        return render_template("dashboard.html", destinos=destinos_lista)
     
     
     #app.register_blueprint(views_bp)
