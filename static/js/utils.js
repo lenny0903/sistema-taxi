@@ -100,7 +100,7 @@ document.getElementById('buscadorRapido')?.addEventListener('input', function() 
     }
 });
 
-const DEBUG_MODE = false; // Cámbialo a false antes del estrés o producción
+const DEBUG_MODE = true; // Cámbialo a false antes del estrés o producción
 
 function log(mensaje, tipo = 'info') {
     if (!DEBUG_MODE) return;

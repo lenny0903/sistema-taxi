@@ -118,36 +118,22 @@ def obtener_pagos_recientes():
 @jwt_required()
 def obtener_estado_semana():
     try:
-        hoy = datetime.now()
-        semana_actual_str = hoy.strftime('%Y-%U')
-        # Obtenemos el número de semana actual (ej. 17) para saber cuánto debería haber pagado
-        semana_actual_num = int(hoy.strftime('%U')) 
-
         conductores_aptos = Conductor.query.filter_by(estado="disponible").all()
-        
-        pagos_semanales = CuotaSemanal.query.filter_by(semana_anio=semana_actual_str).all()
-        pagos_dict = {p.conductor_id: p.pagado for p in pagos_semanales}
-
         resultado = []
-        hoy = datetime.now()
-        semana_actual_num = int(hoy.strftime('%U')) # Semana del año (0-52)
 
         for c in conductores_aptos:
-            # 1. Calculamos la deuda total acumulada a la fecha
-            deuda_total_acumulada = semana_actual_num * MONTO_CUOTA_SEMANAL
+            # 1. CARGOS: Solo sumamos lo que la administradora cargó en la tabla
+            # (Aquí entrarán los 40k semanales y las Cargas Iniciales de deuda vieja)
+            total_cargos = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
+                .filter(CuotaSemanal.conductor_id == c.id_conductor).scalar() or 0.0
             
-            # 2. Sumamos TODOS sus pagos históricos (incluyendo cargas iniciales)
-            total_pagado_historico = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
+            # 2. ABONOS: Sumamos todos los pagos reales
+            total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
                 .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
-            
-            # Agregamos también lo que venga de CuotaSemanal si hubo carga inicial allí
-            total_historico_cuotas = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-                .filter(CuotaSemanal.conductor_id == c.id_conductor, 
-                        CuotaSemanal.semana_anio == "HISTORICO-2026").scalar() or 0.0
 
-            saldo_real = deuda_total_acumulada - (total_pagado_historico + total_historico_cuotas)
+            # 3. SALDO: Diferencia real
+            saldo_real = total_cargos - total_abonos
             
-            # EL CAMBIO CLAVE: Solvente solo si el saldo es 0 o menor
             esta_realmente_solvente = saldo_real <= 0
 
             resultado.append({
@@ -163,9 +149,15 @@ def obtener_estado_semana():
                 )
             })
 
-        # Ordenar: primero los pendientes, luego los pagados
-        resultado.sort(key=lambda x: x['pagado'])
+        # Ordenar por el que más debe
+        resultado.sort(key=lambda x: float(x['saldo'].replace(',', '')), reverse=True)
         return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print(f"❌ Error en estado_semana: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
     except Exception as e:
         print(f"❌ Error en estado_semana: {str(e)}")
@@ -174,31 +166,47 @@ def obtener_estado_semana():
 @pagos_bp.route('/inicializar_semana', methods=['POST'])
 @jwt_required()
 def inicializar_semana():
+    # Usamos la variable global importada de app
+    from app import MONTO_CUOTA_SEMANAL 
+    
+    # Generamos el identificador de la semana actual
     semana_control = datetime.now().strftime('%Y-%U') 
 
-    # Cambiado a 'disponible' para ser coherente con la tabla de arriba
-    conductores = Conductor.query.filter_by(estado="disponible").all()
-    conteo = 0
+    try:
+        # Solo conductores activos (disponibles)
+        conductores = Conductor.query.filter_by(estado="disponible").all()
+        conteo = 0
 
-    for c in conductores:
-        existe = CuotaSemanal.query.filter_by(
-            conductor_id=c.id_conductor, 
-            semana_anio=semana_control
-        ).first()
+        for c in conductores:
+            # VALIDACIÓN CRÍTICA: Evita cargar dos veces la misma semana si dan doble clic
+            existe = CuotaSemanal.query.filter_by(
+                conductor_id=c.id_conductor, 
+                semana_anio=semana_control
+            ).first()
 
-        if not existe:
-            nueva_cuota = CuotaSemanal(
-                conductor_id=c.id_conductor,
-                semana_anio=semana_control,
-                monto_fijo=40000.0, # Use su variable global aquí
-                pagado=False 
-            )
-            db.session.add(nueva_cuota)
-            conteo += 1
-    
-    db.session.commit()
-    return jsonify({"message": f"Se inicializaron {conteo} conductores para la semana {semana_control}."})
+            if not existe:
+                nueva_cuota = CuotaSemanal(
+                    conductor_id=c.id_conductor,
+                    semana_anio=semana_control,
+                    monto_fijo=MONTO_CUOTA_SEMANAL, # Usamos la global
+                    pagado=False 
+                )
+                db.session.add(nueva_cuota)
+                conteo += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"✅ Se cargó la semana {semana_control} a {conteo} conductores.",
+            "semana": semana_control,
+            "monto_aplicado": MONTO_CUOTA_SEMANAL
+        }), 200
 
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error al inicializar semana: {str(e)}")
+        return jsonify({"status": "error", "message": "No se pudo inicializar la semana."}), 500
 # Dentro de registrar_pagos.py
 
 @pagos_bp.route('/carga_inicial_pagos', methods=['POST'])
@@ -207,27 +215,33 @@ def carga_inicial_pagos():
     try:
         data = request.get_json()
         conductor_id = data.get('conductor_id')
-        monto_total = float(data.get('monto')) # Lo que ella escriba en el modal
-        referencia = data.get('referencia', 'CARGA INICIAL SISTEMA')
+        # Es el monto total que la administradora leyó en el cuaderno
+        monto_total = float(data.get('monto')) 
+        referencia = data.get('referencia', 'NIVELACIÓN CUADERNO 2026')
 
-        # Buscamos al conductor
+        # Buscamos al conductor para validar que existe
         conductor = Conductor.query.get_or_404(conductor_id)
 
-        # Creamos un registro especial de abono masivo
-        nuevo_pago = CuotaSemanal(
+        # REGISTRO CONTABLE: Usamos PagoCuota para que reste del saldo
+        # Esto genera un saldo negativo (a favor) si no hay cargos previos
+        nueva_nivelacion = PagoCuota(
             conductor_id=conductor_id,
-            monto_fijo=monto_total, # Aquí guardamos el total de la nivelación
-            semana_anio="HISTORICO-2026", # Una etiqueta para saber que es carga inicial
-            pagado=True,
-            referencia_pago=referencia,
+            monto_pagado=monto_total,
+            referencia=referencia,
             fecha_pago=datetime.now()
         )
 
-        db.session.add(nuevo_pago)
+        db.session.add(nueva_nivelacion)
         db.session.commit()
 
-        return jsonify({"msg": "Carga inicial procesada con éxito", "nuevo_saldo": "calculado"}), 200
+        # Retornamos éxito para que el JS refresque la tabla
+        return jsonify({
+            "status": "success",
+            "msg": f"Nivelación exitosa para Unidad {conductor.unidad}",
+            "monto_cargado": monto_total
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ Error en nivelación: {str(e)}")
+        return jsonify({"error": "No se pudo procesar la nivelación"}), 500
