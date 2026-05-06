@@ -1,5 +1,8 @@
+import shutil
+
 import eventlet
 from models.matriz_tarifas import MatrizTarifa
+from flask_apscheduler import APScheduler
 eventlet.monkey_patch() # Recomendado para modo 'eventlet'
 from flask_jwt_extended import JWTManager   # <-- importa JWTManager
 from flask import Flask, render_template, url_for, redirect
@@ -13,6 +16,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event, text 
 from sqlalchemy.engine import Engine
 from tasks.scheduler import iniciar_scheduler
+from datetime import datetime
+import os
 import config
 import sqlite3
 
@@ -21,6 +26,35 @@ from flask_socketio import SocketIO
 MONTO_CUOTA_SEMANAL = 40000
 
 socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
+scheduler = APScheduler() # Instancia global
+def ejecutar_respaldo_automatico():
+    base_path = os.getcwd()
+    # 🛠️ CAMBIO AQUÍ: Eliminamos 'instance' de la ruta
+    ruta_db = os.path.join(base_path, 'taxis.db') 
+    carpeta_backups = os.path.join(base_path, 'backups_automaticos')
+    
+    if not os.path.exists(carpeta_backups):
+        os.makedirs(carpeta_backups)
+    
+    nombre_backup = f"taxis_{datetime.now().strftime('%Y%m%d_%H%M')}.db"
+    ruta_destino = os.path.join(carpeta_backups, nombre_backup)
+    
+    try:
+        # Verificamos si el archivo realmente existe antes de copiar
+        if os.path.exists(ruta_db):
+            shutil.copy2(ruta_db, ruta_destino)
+            print(f"✅ [BACKUP] Respaldo generado con éxito: {nombre_backup}")
+            gestionar_almacenamiento_backups(carpeta_backups)
+        else:
+            print(f"⚠️ [ERROR] No se encontró la DB en: {ruta_db}")
+    except Exception as e:
+        print(f"❌ [ERROR BACKUP] Fallo técnico: {e}")
+
+def gestionar_almacenamiento_backups(carpeta):
+    backups = sorted([os.path.join(carpeta, f) for f in os.listdir(carpeta)], key=os.path.getmtime)
+    while len(backups) > 24: # Guardamos solo un día completo (24 horas)
+        os.remove(backups.pop(0))
+
 def create_app():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
@@ -127,7 +161,7 @@ def create_app():
     
         # Pasamos la lista procesada al template
         return render_template("dashboard.html", destinos=destinos_lista)
-    
+          
     
     #app.register_blueprint(views_bp)
 
@@ -135,5 +169,16 @@ def create_app():
 
 
 if __name__ == "__main__":
-    app = create_app()
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+   app = create_app()
+    
+   # 1. Vincular el scheduler a la app
+   scheduler.init_app(app)
+    
+   # 2. Programar la tarea (Cambiado a 1 minuto para tu prueba)
+   scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=1)
+    
+   # 3. Iniciar
+   scheduler.start()
+    
+   print("🚀 Servidor y Scheduler iniciados...")
+   socketio.run(app, debug=True, host="0.0.0.0", port=5000)

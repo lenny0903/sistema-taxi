@@ -58,11 +58,17 @@ def panel_admin():
 def actualizar_tarifa():
     data = request.get_json()
     id_tarifa = data.get('id')
-    nuevo_precio = data.get('precio_cop')
     
     tarifa = MatrizTarifa.query.get(id_tarifa)
+    
     if tarifa:
-        tarifa.precio_cop = nuevo_precio
+        # 🛠️ SINCRONIZACIÓN TOTAL:
+        # Mapeamos lo que viene del JS (data.get) al modelo de SQLAlchemy (tarifa.campo)
+        tarifa.destino = data.get('destino') # <--- ¡Esta línea faltaba!
+        tarifa.municipio = data.get('municipio') # <--- ¡Y esta también!
+        tarifa.precio_cop = data.get('precio_cop')
+        
         db.session.commit()
-        return jsonify({"status": "success", "message": "Tarifa actualizada"})
+        return jsonify({"status": "success", "message": "Registro completo actualizado"})
+    
     return jsonify({"status": "error", "message": "No encontrada"}), 404

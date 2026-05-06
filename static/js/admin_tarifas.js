@@ -1,33 +1,41 @@
 async function guardarTodo(id) {
-    // Capturamos los tres campos del DOM
-    const inputDestino = document.getElementById(`input_destino_${id}`);
-    const inputMunicipio = document.getElementById(`input_municipio_${id}`);
-    const inputTarifa = document.getElementById(`input_tarifa_${id}`);
+    console.log("🚀 Intentando guardar ID:", id);
+
+    // Capturamos los datos desde los IDs que pusiste en el HTML
+    const destino = document.getElementById(`input_destino_${id}`).value;
+    const municipio = document.getElementById(`input_municipio_${id}`).value;
+    const precio = document.getElementById(`input_tarifa_${id}`).value;
 
     const datos = {
         id: id,
-        destino: inputDestino.value,
-        municipio: inputMunicipio.value,
-        precio_cop: inputTarifa.value
+        destino: destino,
+        municipio: municipio,
+        precio_cop: precio
     };
 
     try {
-        const res = await fetch('/actualizar_matriz_completa', { 
+        // 🚩 IMPORTANTE: Cambia la URL a '/actualizar_tarifa' para que coincida con tu Python
+        const res = await fetch('/actualizar_tarifa', { 
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(datos)
         });
 
-        if (res.ok) {
-            // Feedback visual para el usuario en Táchira
-            [inputDestino, inputMunicipio, inputTarifa].forEach(el => {
-                el.classList.add('is-valid');
-                setTimeout(() => el.classList.remove('is-valid'), 2000);
-            });
-            console.log(`✅ Registro ${id} actualizado con éxito.`);
+        const resultado = await res.json();
+
+        if (res.ok && resultado.status === "success") {
+            alert(`✅ Sector ${destino} actualizado correctamente.`);
+            console.log("Respuesta del servidor:", resultado);
+            
+            // Si usas Socket.io para avisar al operador:
+            if (typeof socket !== 'undefined') {
+                socket.emit('matriz_actualizada', datos);
+            }
+        } else {
+            console.error("❌ Error del servidor:", resultado.message);
         }
     } catch (error) {
-        console.error("❌ Error en la comunicación con el servidor:", error);
+        console.error("❌ Error en la comunicación:", error);
     }
 }
 

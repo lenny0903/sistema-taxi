@@ -102,7 +102,7 @@
             🧮 Conversor COP a VES
           </button>
         </li>
-        <li class="nav-item">
+        <li class="menu-admin">
             <a class="nav-link" href="{{ url_for('views.panel_admin') }}">
                 <i class="fas fa-money-bill-wave"></i> 
                 <span>Gestionar Tarifas</span>
@@ -1178,24 +1178,35 @@ async function cargarConductoresEnTurnoCrear() {
 
 
     function mostrarSeccion(id) {
-        const rol = localStorage.getItem("rol"); // "Administrador" u "Operador"
-        const idLimpio = id.trim();
-
-        // 1. SEGURIDAD: Secciones que el Operador NO puede ver
-        const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
+        // 1. Normalizamos el rol a minúsculas para evitar errores de mayúsculas/minúsculas
+        const rolRaw = localStorage.getItem("rol") || "";
+        const rol = rolRaw.trim().toLowerCase(); 
         
-        if (rol === "Operador" && seccionesAdmin.includes(idLimpio)) {
-            console.warn(`🚫 Acceso denegado: El rol ${rol} no tiene permiso para ${idLimpio}`);
-            return; // Salimos de la función y no mostramos nada
+        let idLimpio = id.trim();
+
+        // 2. Definimos las listas de control (en minúsculas)
+        const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
+        const seccionesProhibidas = [...seccionesAdmin, 'clientes', 'clientesSection'];
+
+        // 🚀 REDIRECCIÓN INTELIGENTE: Si es operador y va a algo prohibido, lo mandamos a despachos
+        if (rol === "operador" && seccionesProhibidas.includes(idLimpio)) {
+            console.log(`🔄 Redirigiendo ${rol} desde ${idLimpio} hacia despachos...`);
+            idLimpio = 'despachos'; 
         }
 
-        // 2. BLOQUEO UNIVERSAL: Sección Clientes (mencionaste que nadie debe verla)
-        if (idLimpio === 'clientes' || idLimpio === 'clientesSection') {
-            console.warn("🚫 La sección de Clientes está deshabilitada para todos.");
+        // 3. SEGURIDAD ADICIONAL: Bloqueo estricto para el rol operador
+        if (rol === "operador" && seccionesAdmin.includes(idLimpio)) {
+            console.warn(`🚫 Acceso denegado: El rol ${rol} no puede ver ${idLimpio}`);
             return;
         }
 
-        // 3. LÓGICA DE VISUALIZACIÓN
+        // 4. BLOQUEO UNIVERSAL: Nadie ve Clientes
+        if (idLimpio === 'clientes' || idLimpio === 'clientesSection') {
+            console.warn("🚫 Sección Clientes deshabilitada globalmente.");
+            return;
+        }
+
+        // 5. LÓGICA DE VISUALIZACIÓN
         document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
         const target = document.getElementById(idLimpio);
         
@@ -1984,28 +1995,29 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error cargando conductores en espera:", err);
     }
   }
-  ////Para controlar acceso de roles a la secció despacho////
-    document.addEventListener('DOMContentLoaded', () => {
-      const token = localStorage.getItem('token');
-      const rol = localStorage.getItem('rol');
+  document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    // Normalizamos a minúsculas para que no falle por "Operador" vs "operador"
+    const rol = (localStorage.getItem('rol') || "").toLowerCase(); 
 
-      if (!token) {
-          window.location.href = '/index.html';
-          return;
-      }
+    if (!token) {
+        window.location.href = '/index.html';
+        return;
+    }
 
-      // 2. Filtros de menú (Optimizado con clases)
-      if (rol === 'operador') {
-          document.querySelectorAll('.menu-admin').forEach(el => el.classList.add('hidden'));
-      }
-
-      // 3. ENTRADA DIRECTA (Controlada)
-      // Usamos un pequeño delay o simplemente verificamos que no estemos ya en la sección
-      const seccionActual = document.getElementById('seccion-despachos'); // Ajusta al ID de tu div
-      if (seccionActual && seccionActual.classList.contains('hidden')) {
-          console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
-          mostrarSeccion('despachos');
-      }
+    // 2. Filtros de menú: Ocultar lo que el operador no debe ver
+    if (rol === 'operador') {
+        document.querySelectorAll('.menu-admin').forEach(el => el.classList.add('hidden'));
+        
+        // 🚀 EL GATILLO: Si es operador, forzamos la vista de despachos al entrar
+        console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
+        
+        // IMPORTANTE: Asegúrate que el ID en tu HTML sea 'despachos' 
+        // o ajusta este nombre al que usas en mostrarSeccion
+        setTimeout(() => {
+            mostrarSeccion('despachos'); 
+        }, 100); // Un pequeño delay de 100ms para asegurar que el DOM esté listo
+    }
   });
    
 </script>
