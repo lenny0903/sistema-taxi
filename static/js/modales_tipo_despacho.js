@@ -38,8 +38,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   const modalReserva = document.getElementById("modalDespachoReserva");
   if (modalReserva) {
-    window.modalReservaInstance = new bootstrap.Modal(modalReserva);
-    console.log("✅ Instancia modalReserva creada");
+      // 1. 🛡️ LIMPIEZA: Si ya existe una instancia previa en este elemento, la eliminamos
+      const existingInstance = bootstrap.Modal.getInstance(modalReserva);
+      if (existingInstance) {
+          existingInstance.dispose();
+          console.log("♻️ Instancia previa de modalReserva descartada para liberar memoria");
+      }
+
+      // 2. 🏗️ CREACIÓN: Creamos la instancia limpia
+      window.modalReservaInstance = new bootstrap.Modal(modalReserva);
+      console.log("✅ Instancia modalReserva creada");
   }
   // -------------------------------
 // 📌 Select tipoDespacho → abrir modal Reserva

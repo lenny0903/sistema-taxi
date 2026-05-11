@@ -1,15 +1,19 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
-from models import Despacho, Conductor
-from extensions import db
-#from app import db
+from flask import Blueprint, jsonify, request, send_file, current_app
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func
+from extensions import db
+from models import Despacho, Conductor, Usuario, Auto
+from models.clientes import Cliente
+from models.cuota_semanal import CuotaSemanal
+from models.pago_cuotas import PagoCuota
+
+# ReportLab imports
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from flask import send_file
-from models.clientes import Cliente
-
 reporte_bp = Blueprint('reportes', __name__)
 
 @reporte_bp.route("/conductores", methods=["GET"])
@@ -290,4 +294,136 @@ def reporte_por_cliente():
 
     except Exception as e:
         print("❌ Error en reporte_por_cliente:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------
+# 📌 Reporte de Pagos (Cierre de Caja)
+# -------------------------------
+# Asegúrese de agregar current_app a sus imports de flask
+
+
+@reporte_bp.route("/pagos", methods=["GET"])
+@jwt_required()
+def reporte_pagos_contabilidad():
+    try:
+        inicio = request.args.get("inicio")
+        fin = request.args.get("fin")
+
+        if not inicio or not fin:
+            return jsonify({"error": "Faltan fechas"}), 400
+
+        inicio_dt = datetime.strptime(inicio, "%Y-%m-%d")
+        fin_dt = datetime.strptime(fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+
+        # 🔎 REVISIÓN: Usamos CuotaSemanal (NO PagoCuota)
+        resultados = db.session.query(
+            CuotaSemanal, 
+            Conductor
+        ).join(Conductor, CuotaSemanal.conductor_id == Conductor.id_conductor)\
+         .filter(
+            CuotaSemanal.pagado == True,
+            CuotaSemanal.fecha_pago >= inicio_dt,
+            CuotaSemanal.fecha_pago <= fin_dt
+        ).all()
+
+        lista_pagos = []
+        total_acumulado = 0.0
+
+        for cuota, conductor in resultados:
+            # Usamos monto_fijo que es el nombre en su modelo
+            monto = float(cuota.monto_fijo) if cuota.monto_fijo else 0.0
+            total_acumulado += monto
+            
+            lista_pagos.append({
+                "fecha_pago": cuota.fecha_pago.strftime("%Y-%m-%d %H:%M") if cuota.fecha_pago else "-",
+                "conductor": f"{conductor.codigo} - {conductor.nombre}",
+                "numero_unidad": getattr(conductor, 'id_unidad', '-'), 
+                "monto": monto,
+                "metodo_pago": "Registrado", 
+                "referencia": cuota.referencia_pago or "-"
+            })
+
+        return jsonify({
+            "pagos": lista_pagos,
+            "totales": {
+                "efectivo": total_acumulado,
+                "transferencia": 0.0,
+                "total_general": total_acumulado
+            }
+        })
+
+    except Exception as e:
+        # Ahora current_app funcionará porque lo importamos arriba
+        current_app.logger.error(f"❌ Error en contabilidad: {str(e)}")
+        # También lo imprimimos en la consola para verlo rápido
+        print(f"❌ ERROR EN REPORTE PAGOS: {str(e)}")
+        return jsonify({"error": "Error interno al procesar pagos"}), 500
+    
+
+@reporte_bp.route("/generar_cierre_pdf", methods=["GET"]) # <-- CAMBIAMOS NOMBRE PARA EVITAR CACHE
+#@jwt_required()
+def funcion_pdf_cierre_caja():
+    try:
+        # 🛡️ VALIDACIÓN MANUAL (Seguridad de "Los Patriotas")
+        token_url = request.args.get("token")
+        if not token_url or token_url == "null":
+            return "Acceso denegado: Token faltante", 401
+            
+        try:
+            from flask_jwt_extended import decode_token
+            decode_token(token_url) # Esto valida que el token sea real y vigente
+        except:
+            return "Sesión inválida o expirada", 401
+        inicio = request.args.get("inicio")
+        fin = request.args.get("fin")
+        
+        inicio_dt = datetime.strptime(inicio, "%Y-%m-%d")
+        fin_dt = datetime.strptime(fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+
+        resultados = db.session.query(CuotaSemanal, Conductor).join(
+            Conductor, CuotaSemanal.conductor_id == Conductor.id_conductor
+        ).filter(
+            CuotaSemanal.pagado == True,
+            CuotaSemanal.fecha_pago >= inicio_dt,
+            CuotaSemanal.fecha_pago <= fin_dt
+        ).all()
+
+        filepath = f"/tmp/cierre_{inicio}.pdf"
+        doc = SimpleDocTemplate(filepath, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        elements.append(Paragraph("CIERRE DE CAJA - LOS PATRIOTAS", styles['Title']))
+        elements.append(Paragraph(f"Período: {inicio} al {fin}", styles['Normal']))
+        elements.append(Spacer(1, 12))
+
+        data = [["Fecha", "Conductor", "Referencia", "Monto (COP)"]]
+        total = 0
+        for cuota, cond in resultados:
+            monto = float(cuota.monto_fijo or 0)
+            total += monto
+            data.append([
+                cuota.fecha_pago.strftime("%d/%m %H:%M"),
+                f"{cond.codigo} - {cond.nombre}",
+                cuota.referencia_pago or "-",
+                f"{monto:,.0f}"
+            ])
+        
+        data.append(["", "", "TOTAL GENERAL:", f"{total:,.0f} COP"])
+
+        t = Table(data, colWidths=[80, 200, 100, 100])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+        ]))
+        elements.append(t)
+        doc.build(elements)
+
+        return send_file(filepath, as_attachment=True, download_name=f"Cierre_{inicio}.pdf")
+    except Exception as e:
+        print(f"❌ ERROR PDF: {e}")
         return jsonify({"error": str(e)}), 500

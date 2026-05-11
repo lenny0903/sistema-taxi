@@ -581,8 +581,10 @@
 
         <div id="reporteConductoresResultado" class="mt-4"></div>
          <!-- Botón para reporte embarque/desembarque -->
-        <button id="btnReporteEmbarque" class="bg-purple-500 text-white px-4 py-2 rounded mt-4">
-          Reporte Embarque/Desembarque
+        <button type="button" 
+                id="btnReporteEmbarque"
+                class="bg-purple-500 text-white px-4 py-2 rounded mt-4"
+                onclick="forzarReporte()"> Reporte Embarque/Desembarque
         </button>
         <!-- Contenedor del reporte embarque/desembarque -->
         <div id="reporte-container" class="mt-4">
@@ -635,6 +637,52 @@
             </tbody>
           </table>
         </div>
+        <!-- Reporte de pagos semanales -->
+        <div class="mt-8 border-t pt-6">
+            <h3 class="text-xl font-bold mb-3 text-blue-700">Contabilidad de Pagos (Cierre de Caja)</h3>
+            
+            <div style="display: flex !important; gap: 10px; margin-bottom: 20px; align-items: center;">
+                <button id="btnReportePagos" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 shadow-md">
+                    📊 Generar Cierre de Pagos
+                </button>
+
+                <button id="btnImprimirCierre" 
+                        style="display: inline-flex !important; background-color: #dc2626 !important; color: white !important; font-weight: bold; padding: 10px 20px; border-radius: 5px; align-items: center; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <i class="fas fa-file-pdf" style="margin-right: 8px;"></i> Imprimir PDF
+                </button>
+            </div> <div id="reportePagosResultado" class="mt-4">
+                <div id="resumenCaja" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 hidden">
+                    <div class="bg-green-100 p-4 rounded border border-green-200 shadow-sm">
+                        <p class="text-sm text-green-700 font-bold">EFECTIVO (COP)</p>
+                        <h4 id="totalEfectivo" class="text-2xl font-black">0</h4>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded border border-blue-200 shadow-sm">
+                        <p class="text-sm text-blue-700 font-bold">TRANSFERENCIA (COP)</p>
+                        <h4 id="totalTransf" class="text-2xl font-black">0</h4>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded border border-gray-200 shadow-sm">
+                        <p class="text-sm text-gray-700 font-bold">TOTAL GENERAL</p>
+                        <h4 id="totalGeneral" class="text-2xl font-black">0</h4>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border mt-2 hidden" id="tablaPagosReporte">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="border p-2">Fecha/Hora</th>
+                                <th class="border p-2">Unidad</th>
+                                <th class="border p-2">Conductor</th>
+                                <th class="border p-2">Monto (COP)</th>
+                                <th class="border p-2">Método</th>
+                                <th class="border p-2">Referencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyPagosReporte"></tbody>
+                    </table>
+                </div>
+            </div>
+          </div>
       </section>
       <!-- Sección: Respaldo -->
       <section id="respaldo" class="seccion hidden">
@@ -878,7 +926,11 @@
     });
 
 
-  document.addEventListener('DOMContentLoaded', () => {
+
+
+
+// 2. AHORA SÍ, LA LÓGICA DE INICIO (Esto sí va en el DOMContentLoaded)
+document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('token');
     const rol = localStorage.getItem('rol');
 
@@ -887,50 +939,15 @@
       return;
     }
 
-    console.log("Token:", token);
-    console.log("Rol leído:", rol);
-
     const roleSpan = document.getElementById('userRole');
-    if (roleSpan) {
-      roleSpan.textContent = `Rol: ${rol}`;
-    } else {
-      console.error("Elemento #userRole no encontrado en el DOM");
-    }
+    if (roleSpan) roleSpan.textContent = `Rol: ${rol}`;
 
     if (rol && rol.toLowerCase() === 'operador') {
       document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
     }
-
-    // apiFetch con token y merge de opciones
-    // apiFetch con token y MANEJO DE JSON (Corregido)
-    window.apiFetch = async (url, options = {}) => {
-      const token = localStorage.getItem('token');
-      const baseHeaders = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
-      };
-
-      try {
-        const res = await fetch(url, {
-          ...options,
-          headers: { ...baseHeaders, ...(options.headers || {}) }
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Error ${res.status}: ${errorText}`);
-        }
-
-        // 🔥 ESTO ES LO QUE FALTABA:
-        return await res.json(); 
-        
-      } catch (err) {
-        console.error("❌ Error en apiFetch (Dashboard):", err);
-        throw err;
-      }
-    };
     
-  });
+    console.log("✅ Sistema de seguridad y apiFetch inicializados.");
+});
   async function cargarPuntos() {
     const resp = await fetch("/api/puntos_espera");
     const puntos = await resp.json();
@@ -1207,13 +1224,15 @@ async function cargarConductoresEnTurnoCrear() {
         }
 
         // 5. LÓGICA DE VISUALIZACIÓN
-        document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-        const target = document.getElementById(idLimpio);
-        
+       document.querySelectorAll('.seccion, #pagos, #despachos, #turnosActivos, #reportes, #usuarios').forEach(sec => {
+          sec.classList.add('hidden');
+          sec.style.display = 'none'; // 🔥 Esto asegura que desaparezca sí
+       });  
+       const target = document.getElementById(idLimpio); 
         if (target) {
-            target.classList.remove('hidden');
-            console.log("✅ Mostrando sección:", idLimpio);
-
+           target.classList.remove('hidden');
+           target.style.display = 'block'; // 🚀 Esto obliga a que la sección elegida se vea
+           console.log("✅ VISTA CORREGIDA. Mostrando:", idLimpio);
             // 4. CARGA DE DATOS SEGÚN LA SECCIÓN
             switch (idLimpio) {
                 case 'usuarios':
@@ -1226,12 +1245,13 @@ async function cargarConductoresEnTurnoCrear() {
                     console.log("👤 Cargando lista de conductores...");
                     cargarConductores(); 
                     break;
-                case 'turnosActivos':
-                    cargarTurnos();
-                    cargarConductoresEnTurnoCrear();
-                    cargarAutosDisponiblesSelect();
-                    cargarPuntos();
-                    break;
+               case 'turnosActivos':
+                  console.log("🚕 Refrescando Turnos Activos...");
+                  cargarTurnos();
+                  cargarConductoresEnTurnoCrear();
+                  cargarAutosDisponiblesSelect();
+                  cargarPuntos();
+                  break;
                 case 'pagos': 
                     console.log("💰 Detectada sección de pagos. Cargando datos completos...");
                     // 1. Carga el select de conductores (el que ya tenías)
@@ -1249,19 +1269,29 @@ async function cargarConductoresEnTurnoCrear() {
                         window.cargarHistorialPagos();
                     }
                     break;
-                // 👆 HASTA AQUÍ    
+                // 👆 HASTA AQUÍ   
+                case 'reportes':
+                  console.log("📊 Sección de reportes abierta. Verificando integridad...");
+                  // Aquí podría llamar a una función para limpiar reportes viejos si quisiera
+                  setTimeout(inicializarBotonImpresion, 100);
+                  break; 
                 case 'despachosActivos':
                     cargarDespachosActivos();
                     break;
                 case 'despachos':
                     // Aquí puedes cargar datos iniciales para crear despacho si es necesario
                     break;
-            }
+              }
+          // 🎯 AQUÍ ES DONDE DEBE IR EL CANDADO
+         if (id === 'reportes') {
+              console.log("🔍 Entrando a reportes, verificando seguridad...");
+              restringirAccesoPorRol(); 
+          }
         } else {
             console.error(`⚠️ Sección ${idLimpio} no encontrada en el HTML`);
         }
       }
-  
+      
    
     //Actualizar autos disponibles para el select de crear turno
     async function cargarAutosDisponiblesSelect() {
@@ -1388,55 +1418,86 @@ async function cargarDespachosActivos() {
  
   
    // Conectar el botón con la función
-  document.getElementById("btnReporteEmbarque").addEventListener("click", () => {
-    const inicio = document.getElementById("fechaInicio").value;
-    const fin = document.getElementById("fechaFin").value;
-    if (!inicio || !fin) {
-      alert("Debes seleccionar fecha inicio y fin");
-      return;
-    }
-    cargarReporteEmbarqueDesembarque(inicio, fin);
-  });    
-  async function cargarReporteEmbarqueDesembarque(inicio, fin) {
-  try {
-    // Llamada al backend con las fechas seleccionadas
-    const res = await fetch(`/reportes/embarque_desembarque?inicio=${inicio}&fin=${fin}`);
+  // 1. Cree esta función para "armar" el botón cada vez que se necesite
+  function configurarBotonEmbarque() {
+    const btnRef = document.getElementById("btnReporteEmbarque");
+    if (!btnRef) return;
 
-    if (!res.ok) {
-      const error = await res.json();
-      alert(error.error || "Error al generar el reporte");
-      return;
-    }
+    // Clonamos afuera para que el botón nazca "virgen" sin eventos viejos
+    const btnNuevo = btnRef.cloneNode(true);
+    btnRef.parentNode.replaceChild(btnNuevo, btnRef);
 
-    const data = await res.json();
+    // Le asignamos la lógica DIRECTAMENTE
+    btnNuevo.onclick = async () => {
+        const inicio = document.getElementById("fechaInicio")?.value;
+        const fin = document.getElementById("fechaFin")?.value;
 
-    // Encabezado: fecha del reporte y rango
-    document.getElementById("fecha-reporte").textContent =
-      "📅 Fecha del reporte: " + data.fecha_reporte;
-    document.getElementById("rango-reporte").textContent =
-      "📊 Rango del reporte: " + data.rango;
+        if (!inicio || !fin) {
+            alert("Seleccione ambas fechas, Ingeniero.");
+            return;
+        }
 
-    // Tabla dinámica
-    const tbody = document.getElementById("tabla-reporte");
-    tbody.innerHTML = ""; // limpiar antes de insertar
-    data.data.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.nro}</td>
-        <td>${row.cliente}</td>
-        <td>${row.telefono_cliente}</td>
-        <td>${row.conductor_codigo} - ${row.conductor_nombre} - ${row.auto_placa}</td>
-        <td>${row.embarque || "-"}</td>
-        <td>${row.desembarque}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    console.error("❌ Error cargando reporte:", err);
-    alert("No se pudo cargar el reporte");
+        console.log(`🚀 Consultando reporte: ${inicio} al ${fin}`);
+        await cargarReporteEmbarqueDesembarque(inicio, fin);
+    };
+    
+    console.log("✅ Botón de embarque configurado.");
   }
-}
 
+// 2. ¿Cuándo llamar a configurarBotonEmbarque()? 
+// LLÁMELA dentro de su función mostrarSeccion('reportes')
+// Justo después de que el HTML de los reportes se haga visible.    
+ async function cargarReporteEmbarqueDesembarque(inicio, fin, elementoTabla = null) {
+    console.log(`📡 Solicitando reporte: ${inicio} -> ${fin}`);
+    
+    try {
+        // 1. Traemos los datos
+        const data = await window.apiFetch(`/reportes/embarque_desembarque?inicio=${inicio}&fin=${fin}`);
+
+        if (!data) {
+            console.warn("⚠️ No se recibieron datos del servidor.");
+            return;
+        }
+
+        // 2. Identificamos la tabla (Priorizamos la que nos pasen por argumento)
+        const t_body = elementoTabla || document.getElementById("tabla-reporte");
+        const t_fecha = document.getElementById("fecha-reporte");
+        const t_rango = document.getElementById("rango-reporte");
+
+        if (!t_body) {
+            console.error("❌ Error: No se encontró 'tabla-reporte' en el DOM.");
+            return;
+        }
+
+        // 3. Renderizamos los datos inmediatamente
+        if (t_fecha) t_fecha.textContent = "📅 Fecha: " + (data.fecha_reporte || "");
+        if (t_rango) t_rango.textContent = "📊 Rango: " + (data.rango || "");
+
+        t_body.innerHTML = ""; 
+        
+        if (data.data && data.data.length > 0) {
+            data.data.forEach(row => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="border px-2 py-1 text-center">${row.nro}</td>
+                    <td class="border px-2 py-1">${row.cliente}</td>
+                    <td class="border px-2 py-1">${row.telefono_cliente}</td>
+                    <td class="border px-2 py-1"><strong>${row.conductor_codigo}</strong> - ${row.conductor_nombre}</td>
+                    <td class="border px-2 py-1 text-center">${row.embarque || "-"}</td>
+                    <td class="border px-2 py-1 text-center">${row.desembarque || "-"}</td>
+                `;
+                t_body.appendChild(tr);
+            });
+            console.log("✅ Reporte renderizado con éxito.");
+        } else {
+            t_body.innerHTML = "<tr><td colspan='6' class='text-center py-4'>No hay datos para estas fechas</td></tr>";
+        }
+
+    } catch (err) {
+        console.error("❌ Error crítico en reporte:", err);
+    }
+  }
+  
   
   // Abrir modal para editar cliente desde despacho
   async function guardarCambiosCliente() {
@@ -2595,30 +2656,37 @@ document.addEventListener("DOMContentLoaded", () => {
 <script src="{{ url_for('static', filename='js/despacho_express.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modales_cliente.js') }}"></script>
-<script src="{{ url_for('static', filename='js/cola_despachos.js') }}"></script>
+<!---<script src="{{ url_for('static', filename='js/cola_despachos.js') }}"></script>-->
 
-  <script>
-    // Conexión automática (funciona en LMDE y en cualquier PC de la oficina)
-    const socket = io(); 
+ <script>
+    // 🛡️ Configuración robusta para la oficina
+    const socket = io({
+        transports: ["polling", "websocket"], // 👈 Primero asegura conexión vía HTTP
+        upgrade: true,                        // Permite subir a WebSocket si la red es estable
+        reconnection: true,                   // Auto-reconexión si falla el internet
+        reconnectionAttempts: 5
+    });
 
-    // El nombre del evento debe coincidir con el de scheduler.py ("reserva_activa")
     socket.on("reserva_activa", (data) => {
-      console.log("Reserva recibida del scheduler:", data);
-      
-      mostrarToast(
-        `🚗 Reserva #${data.id_reserva} de ${data.cliente} está próxima a despacho (${data.origen} → ${data.destino} a las ${data.hora})`,
-        "info"
-      );
+        console.log("Reserva recibida del scheduler:", data);
+        
+        mostrarToast(
+            `🚗 Reserva #${data.id_reserva} de ${data.cliente} está próxima a despacho (${data.origen} → ${data.destino} a las ${data.hora})`,
+            "info"
+        );
 
-      // Opcional: Sonido de alerta
-      const beep = new Audio('/static/sounds/notification.mp3');
-      beep.play().catch(e => console.log("Interacción requerida para audio"));
+        const beep = new Audio('/static/sounds/notification.mp3');
+        beep.play().catch(e => console.log("Interacción requerida para audio"));
     });
 
     socket.on("connect", () => {
         console.log("✅ Conectado al sistema de alertas en tiempo real");
+        console.log("📡 Transporte activo:", socket.io.engine.transport.name); // Para verificar si usa polling o ws
+    });
+
+    socket.on("connect_error", (err) => {
+        console.warn("⚠️ Intento de reconexión de alertas:", err.message);
     });
  </script>
-
 </body>
 </html>

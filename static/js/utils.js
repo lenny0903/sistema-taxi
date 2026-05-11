@@ -112,3 +112,29 @@ function log(mensaje, tipo = 'info') {
 
 // Ejemplo de uso:
 log("Dashboard sincronizado", 'success');
+
+window.apiFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('token');
+  const baseHeaders = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+  };
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: { ...baseHeaders, ...(options.headers || {}) }
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Error ${res.status}: ${errorText}`);
+    }
+
+    // Retornamos el JSON de una vez para simplificar el resto del sistema
+    return await res.json(); 
+  } catch (err) {
+    console.error("❌ Error en apiFetch:", err);
+    throw err;
+  }
+};

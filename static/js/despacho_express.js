@@ -9,70 +9,141 @@ document.addEventListener("DOMContentLoaded", () => {
 
    // 1️⃣ EVENTO DE TELÉFONO ULTRA-CONTROLADO
     // 2️⃣ EVENTO DE TECLADO ULTRA-CONTROLADO
-    // EVENTO DE TECLADO ULTRA-CONTROLADO
+    // 1. EL SEMÁFORO (Ponlo arriba del todo, fuera del addEventListener)
+    // Variable global para el Semáforo (fuera del listener)
+    let clienteListoParaEnviar = null; 
+
     telefonoInput?.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
             event.preventDefault();
             event.stopImmediatePropagation();
 
-            console.log("⌨️ Enter presionado. Validando con la NUEVA función...");
-            motivoSuspensionGlobal = ""; 
+            // 1️⃣ VALIDACIÓN NATIVA (Si el número está incompleto, se frena aquí)
+            if (!telefonoInput.checkValidity()) {
+                mostrarToast("⚠️ " + telefonoInput.validationMessage, "error");
+                telefonoInput.reportValidity();
+                return; 
+            }
 
-            // Llamamos a la NUEVA función con el nombre único
-            const resultado = await validarClienteExpreso();
-            console.log("🧠 Respuesta recibida de validarClienteExpreso:", resultado);
-            
-            if (!resultado || resultado.valido !== true || !resultado.cliente) {
-                console.log("🛑 Deteniendo flujo: Cliente no válido o no registrado.");
-                if (btnEnviar) btnEnviar.disabled = true;
+            // 🚩 RESETEAR EL SEMÁFORO AQUÍ 
+            // Esto asegura que si el operador cambió el número a mitad de camino, 
+            // el sistema no intente un envío directo con datos viejos.
+            const telActual = telefonoInput.value.trim();
+
+            const inputNom = document.getElementById("desNombre");
+            const inputOri = document.getElementById("desOrigen");
+            const inputDes = document.getElementById("desDestino");
+            const btnEnv = document.getElementById("btnEnviarDespacho");
+
+            // 🎯 PASO 2: EL SEGUNDO ENTER (ENVÍO DIRECTO)
+            // Solo entra aquí si el semáforo coincide con el teléfono que está en el input
+            if (clienteListoParaEnviar === telActual && inputNom && inputNom.value.trim() !== "") {
+                console.log("🚀 SEMÁFORO VERDE: Enviando despacho...");
+                if (btnEnv) {
+                    btnEnv.disabled = false;
+                    btnEnv.click();
+                }
+                clienteListoParaEnviar = null; 
                 return;
             }
 
-            const c = resultado.cliente;
-            const idCliente = c.cliente_id || c.id_cliente || c.id;
-            console.log("🆔 ID del cliente extraído:", idCliente);
+            // 🎯 PASO 1: EL PRIMER ENTER (VALIDACIÓN E INCIDENCIAS)
+            console.log("⌨️ SEMÁFORO ROJO: Preparando nueva validación...");
+            
+            // Limpiamos la memoria del semáforo antes de buscar para evitar "fantasmas"
+            clienteListoParaEnviar = null; 
 
-            if (idCliente) {
-                try {
-                    const token = localStorage.getItem("token");
-                    const headers = { "Content-Type": "application/json" };
-                    if (token) headers["Authorization"] = `Bearer ${token}`;
+            // Feedback visual inmediato para el operador
+            if (inputNom) inputNom.value = "Buscando..."; 
+            if (inputOri) inputOri.value = "Buscando..."; 
+            if (inputDes) inputDes.value = ""; 
 
-                    console.log(`📡 Consultando incidencias para el ID: ${idCliente}...`);
-                    const resIncidencias = await fetch(`/incidencias/verificar_cliente/${idCliente}`, {
-                        method: "GET",
-                        headers: headers
-                    });
+            const resultado = await validarClienteExpreso();
+            
+            if (resultado && resultado.valido === true && resultado.cliente) {
+                const c = resultado.cliente;
+                
+                // ✅ Llenar campos y bloquear
+                if (inputNom) {
+                    inputNom.value = c.nombre || "";
+                    inputNom.readOnly = true;
+                    inputNom.style.backgroundColor = "#f3f4f6"; 
+                }
+                if (inputOri) {
+                    inputOri.value = c.direccion || "";
+                    inputOri.readOnly = true;
+                    inputOri.style.backgroundColor = "#f3f4f6";
+                }
 
-                    if (resIncidencias.ok) {
-                        const checkBloqueos = await resIncidencias.json();
-                        console.log("🛑 Datos de incidencias recibidos:", checkBloqueos);
+                const btnMod = document.getElementById("btnModificarCliente"); 
+                if (btnMod) {
+                    btnMod.disabled = false;
+                    btnMod.style.opacity = "1";
+                    btnMod.onclick = () => {
+                        if (!c.id_cliente) c.id_cliente = c.cliente_id || c.id;
+                        abrirModalCliente(telActual, c); 
+                    };
+                }
+               
+                if (inputDes) {
+                    inputDes.disabled = false;
+                    inputDes.readOnly = false;
+                    inputDes.style.backgroundColor = "#ffffff";
+                    inputDes.value = ""; 
+                    inputDes.focus(); // Mover foco al destino
+                }
+                 clienteListoParaEnviar = telActual; 
+                if (btnEnv) btnEnv.disabled = false;
+                
+                console.log("✅ Validación completa. Siguiente Enter enviará.");
+                const idParaIncidencia = c.id_cliente || c.cliente_id || c.id;
+                if (idParaIncidencia) { // <--- Usamos la variable recién declarada
+                    try {
+                       const token = localStorage.getItem("token");
+                        const resInc = await fetch(`/incidencias/verificar_cliente/${idParaIncidencia}`, {
+                            method: "GET",
+                            headers: { 
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}` 
+                            }
+                        });
 
-                        // 1️⃣ Si el cliente tiene un veto general, avisamos
-                        if (checkBloqueos && checkBloqueos.tiene_veto_general === true) {
-                            const categoria = checkBloqueos.categoria || "VETO GENERAL";
-                            const descripcion = checkBloqueos.mensaje_veto || checkBloqueos.descripcion || "Restricciones";
-                            
-                            mostrarToast(`⚠️ Alerta: Cliente con veto general (${categoria} - ${descripcion}). Se bloqueará al asignar.`, "warning");
-                        } 
-                        // 2️⃣ Si el cliente tiene una exclusión con un conductor específico, también avisamos
-                        else if (checkBloqueos && checkBloqueos.tiene_exclusiones === true) {
-                            const mensajeExclusion = checkBloqueos.mensaje_exclusion || "Conflicto previo con un conductor.";
-                            
-                            mostrarToast(`⚠️ Nota: Este cliente tiene restricciones con ciertos conductores (${mensajeExclusion}).`, "info");
+                        if (resInc.ok) {
+                            const check = await resInc.json();
+                            console.log("🛑 Datos recibidos (Dinámicos):", check);
+
+                            if (check.tiene_veto_general === true) {
+                                const msgVeto = check.mensaje_veto || "Veto administrativo";
+                                crearToastEmergencia(`🚫 ${msgVeto}`);
+                            } 
+                            else if (check.tiene_exclusiones === true) {
+                                // 🧠 Ahora sí es 100% DINÁMICO:
+                                const catReal = check.categoria || "INCIDENCIA"; // Traído del nuevo campo en Flask
+                                const descReal = check.descripcion || "Sin descripción";
+
+                                // Mostrará "EXCESO_CARGA: más de cinco" o "GROSERIAS: habló con groserías"
+                                crearToastEmergencia(`⚠️ ${catReal}: ${descReal}`);
+                            }
                         }
+                    } catch (err) {
+                        console.error("❌ Error en incidencias:", err);
                     }
-                } catch (error) {
-                    console.error("❌ Falló la consulta directa de incidencias:", error);
+                }
+
+                // ✅ PREPARAR SEMÁFORO PARA EL SIGUIENTE ENTER
+                // Si todo salió bien, ahora sí autorizamos el envío directo en el próximo Enter
+                //clienteListoParaEnviar = telActual; 
+                //if (btnEnv) btnEnv.disabled = false;
+                
+                //console.log("✅ Validación completa. Siguiente Enter enviará.");
+
+            } else {
+                // 🆕 CLIENTE NUEVO: Abrir modal
+                console.log("🆕 Cliente no encontrado.");
+                if (typeof abrirModalCliente === 'function') {
+                    abrirModalCliente(telActual, null);
                 }
             }
-
-            // ✅ SIEMPRE CONTINUAMOS: Dejamos que la operadora registre el servicio sin importar las alertas
-            console.log("✅ Continuando flujo del formulario express.");
-            if (btnEnviar) btnEnviar.disabled = false;
-            
-            const desNombre = document.getElementById("desNombre");
-            if (desNombre) desNombre.focus();
         }
     });
     // Submit del formulario principal → crear registro en la cola
@@ -87,10 +158,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Botón cancelar sección despacho
     document.getElementById("btnCancelarPrincipal")?.addEventListener("click", () => {
+        // 1. Limpiar lo visual
         document.getElementById("formDespacho").reset();
+        
+        // 2. 🔥 LIMPIAR EL CEREBRO (Esto es lo que faltaba)
+        // Borramos cualquier dato temporal de la cola rápida
+        memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; 
+        
+        // Matamos el semáforo para que la próxima búsqueda sea "desde cero"
+        clienteListoParaEnviar = null; 
+
+        // 3. Bloquear campos y dar foco
         activarCamposDespacho(false);
+        
+        // Si tiene campos de lectura (readonly), quítele el color gris
+        const inputNom = document.getElementById("desNombre");
+        if (inputNom) {
+            inputNom.readOnly = false;
+            inputNom.style.backgroundColor = "#ffffff";
+        }
+
         document.getElementById("desTelefono").focus();
-        mostrarToast("Formulario listo para nueva llamada", "info");
+        
+        // Un mensaje que le confirme al operador que TODO se limpió
+        mostrarToast("🧹 Sistema reseteado para nueva llamada", "info");
     });
 
     // Botón cancelar modal despacho
@@ -117,7 +208,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalCola = document.getElementById("modalColaClientes");
         modalCola.classList.remove("hidden");
         cargarColaClientes(); // refresca tabla al abrir
-        refrescarConductoresDisponibles();
+        //refrescarConductoresDisponibles();
     }
 
     function cerrarModalCola() {
@@ -479,16 +570,18 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
             mostrarToast(`✅ Despacho creado con éxito`, "success");
             modal.classList.add("hidden");
 
-            // Limpiar memoria de la fila en la tabla
+            // Limpiar memoria
             delete memoriaEdicionCola1.origenes[colaSeleccionada];
-            delete memoriaEdicionCola1.destinos[colaSeleccionada];
-            delete memoriaEdicionCola1.tarifas[colaSeleccionada];
+            // ... (restante de su limpieza)
 
-            // Refrescar todo el sistema
-            await cargarColaClientes(); 
-            if (typeof refrescarConductoresDisponibles === 'function') {
-                await refrescarConductoresDisponibles();
-            }
+            // 🚀 MEJORA: Refrescar en paralelo. No usamos 'await' secuencial.
+            console.log("🔄 Iniciando refresco paralelo...");
+            Promise.all([
+                cargarColaClientes(),
+                typeof refrescarConductoresDisponibles === 'function' ? refrescarConductoresDisponibles() : Promise.resolve()
+            ]).then(() => {
+                console.log("✅ Sistema actualizado completamente");
+            });
         } else {
             mostrarToast("❌ Error: " + (result.error || "No se pudo crear el despacho"), "error");
         }
@@ -513,7 +606,9 @@ async function validarClienteExpreso() {
     
     const tel = telInput.value.trim();
     if (!tel) return { valido: false, motivo: "Teléfono vacío" };
-
+    if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "";
+    if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = "";
+    if (document.getElementById('desDestino')) document.getElementById('desDestino').value = "";
     try {
         console.log(`📡 [NUEVO] Buscando cliente con teléfono: ${tel}`);
         
@@ -522,7 +617,7 @@ async function validarClienteExpreso() {
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
         // Fetch nativo directo a la URL
-        const response = await fetch(`/clientes/buscar?telefono=${tel}`, {
+        const response = await fetch(`/clientes/buscar?telefono=${tel}&t=${Date.now()}`, {
             method: "GET",
             headers: headers
         });
@@ -553,19 +648,21 @@ async function validarClienteExpreso() {
 }
 
 // 📌 FUNCIÓN PARA EL TOAST ROJO
-function crearToastEmergencia(mensaje) {
+function crearToastEmergencia(mensaje, tipo = "VETO") { // Añadimos tipo opcional
     const alertaPrevia = document.getElementById("toast-emergencia");
     if (alertaPrevia) alertaPrevia.remove();
 
     const div = document.createElement("div");
     div.id = "toast-emergencia";
-    div.innerText = `🚫 VETO: ${mensaje}`;
+    
+    // 🎯 CAMBIO AQUÍ: Ahora usará el mensaje que construimos en el bloque de incidencias
+    div.innerText = mensaje; 
     
     Object.assign(div.style, {
         position: "fixed",
         top: "20px",
         right: "20px",
-        backgroundColor: "#ef4444",
+        backgroundColor: "#ef4444", // Rojo para que resalte
         color: "white",
         padding: "16px 24px",
         borderRadius: "8px",
@@ -588,7 +685,7 @@ function crearToastEmergencia(mensaje) {
     }, 6000);
 }
 function activarCamposDespacho(activar) {
-    const campos = ["desNombre", "desOrigen", "desDestino", "btnEnviarDespacho"];
+    const campos = ["desNombre", "desOrigen", "desDestino", "btnEnviarDespacho", "btnModificarCliente"];
     campos.forEach(id => {
         const el = document.getElementById(id);
         if (el) {

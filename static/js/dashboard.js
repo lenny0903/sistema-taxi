@@ -220,7 +220,81 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     }
-  
+  // -------------------------------
+  // 📌 Sección: Reporte de Pagos (Contabilidad)
+  // -------------------------------
+  const btnReportePagos = document.getElementById("btnReportePagos");
+
+  if (btnReportePagos) {
+        btnReportePagos.addEventListener("click", async () => {
+            // 1. CAPTURA DE FECHAS
+            const inicio = document.getElementById("fechaInicio").value;
+            const fin = document.getElementById("fechaFin").value;
+
+            // 2. VALIDACIONES
+            if (!inicio || !fin) {
+                alert("Debes seleccionar fecha de inicio y fecha de fin para el cierre de caja");
+                return;
+            }
+
+            try {
+                // LLAMADA AL BACKEND (Ruta que definimos en reportes.py)
+                const data = await apiFetch(`/reportes/pagos?inicio=${inicio}&fin=${fin}`);
+                
+                // Limpiamos los otros contenedores de reportes para no confundir
+                ["reporteResultado", "reporteConductoresResultado", "reporte-container", "reporteClienteResultado"]
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.innerHTML = "";
+                });
+
+                const contenedorTabla = document.getElementById("tbodyPagosReporte");
+                const contenedorResumen = document.getElementById("resumenCaja");
+
+                if (data && data.pagos && data.pagos.length > 0) {
+                // Llenamos la tabla dinámicamente
+                contenedorTabla.innerHTML = data.pagos.map(p => `
+                    <tr class="text-sm hover:bg-gray-50">
+                    <td class="border p-2">${p.fecha_pago}</td>
+                    <td class="border p-2 font-bold">${p.numero_unidad}</td>
+                    <td class="border p-2">${p.conductor}</td>
+                    <td class="border p-2 text-right">${p.monto.toLocaleString()}</td>
+                    <td class="border p-2 text-center">
+                        <span class="px-2 py-1 rounded text-xs ${p.metodo_pago.toLowerCase() === 'efectivo' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                        ${p.metodo_pago}
+                        </span>
+                    </td>
+                    <td class="border p-2 text-xs text-gray-500">${p.referencia || '-'}</td>
+                    </tr>
+                `).join('');
+
+                // Actualizamos las tarjetas de totales (Resumen)
+                document.getElementById("totalEfectivo").innerText = data.totales.efectivo.toLocaleString() + " COP";
+                document.getElementById("totalTransf").innerText = data.totales.transferencia.toLocaleString() + " COP";
+                document.getElementById("totalGeneral").innerText = data.totales.total_general.toLocaleString() + " COP";
+
+                // Mostramos la tabla y el resumen (quitamos 'hidden')
+                contenedorResumen.classList.remove("hidden");
+                document.getElementById("tablaPagosReporte").classList.remove("hidden");
+                
+                // Scroll suave al resultado
+                document.getElementById("reportePagosResultado").scrollIntoView({ behavior: 'smooth' });
+                
+                } else {
+                alert("No se encontraron pagos en el rango seleccionado.");
+                contenedorResumen.classList.add("hidden");
+                document.getElementById("tablaPagosReporte").classList.add("hidden");
+                }
+            } catch (err) {
+                console.error("❌ Error en reporte de contabilidad:", err);
+                alert("Error al conectar con el servidor de reportes");
+            }
+        });
+    }
+   
+
+    // Llámela dentro de su DOMContentLoaded o cuando cambie de vista a 'reportes'
+    //restringirAccesoPorRol();
   // -------------------------------
   // 📌 Sección: Atajos de Teclado F1–F7
   // -------------------------------
@@ -743,38 +817,43 @@ document.addEventListener("DOMContentLoaded", () => {
    
 
    function abrirVista(idVista) {
-      // 1. Ocultar usando la clase REAL que tienes en el HTML (seccion-contenido)
-      document.querySelectorAll(".seccion-contenido").forEach(sec => {
-          sec.classList.add("hidden");
-      });
-      
-      // 2. Mostrar la sección solicitada
-      const vista = document.getElementById(idVista);
-      if (vista) {
-          vista.classList.remove("hidden");
-          console.log(`✅ Vista abierta: ${idVista}`);
+        // 1. Ocultar todas las secciones usando su clase común
+        document.querySelectorAll(".seccion-contenido").forEach(sec => {
+            sec.classList.add("hidden");
+        });
 
-          // 🚀 EL GATILLO: Normalizamos a minúsculas por seguridad
-          if (idVista.toLowerCase() === 'pagos') { 
-              console.log("⚙️ Ejecutando recarga de datos para 'Los Patriotas'...");
-              
-              // Verificamos que las funciones existan antes de llamar
-              if (typeof window.cargarConductoresSelect === 'function') {
-                  window.cargarConductoresSelect();
-              }
+        // 🚀 EL TRUCO DE SEGURIDAD: Mapeo de nombres alternativos
+        // Si llega 'clientes', lo convertimos internamente en 'clientesSection'
+        let idReal = idVista;
+        if (idVista === 'clientes') idReal = 'clientesSection';
 
-              if (typeof window.cargarHistorialPagos === 'function') {
-                  window.cargarHistorialPagos();
-              }
+        // 2. Intentar capturar la sección solicitada
+        const vista = document.getElementById(idReal);
 
-              if (typeof window.cargarEstadoSemana === 'function') {
-                  window.cargarEstadoSemana();
-              }
-              
-          }
-      } else {
-          console.warn(`⚠️ Ojo: No encontré el ID '${idVista}' en el HTML`);
-      }
+        if (vista) {
+            vista.classList.remove("hidden");
+            console.log(`✅ Vista abierta: ${idReal}`);
+
+            // Gatillo de recarga de datos
+            if (idReal.toLowerCase() === 'pagos') { 
+                console.log("⚙️ Ejecutando recarga de datos para 'Los Patriotas'...");
+                
+                if (typeof window.cargarConductoresSelect === 'function') {
+                    window.cargarConductoresSelect();
+                }
+                if (typeof window.cargarHistorialPagos === 'function') {
+                    window.cargarHistorialPagos();
+                }
+                if (typeof window.cargarEstadoSemana === 'function') {
+                    window.cargarEstadoSemana();
+                }
+            }
+        } else {
+            // Solo avisamos si el ID no es nulo y realmente no existe ni con el mapeo
+            if (idVista) {
+                console.warn(`⚠️ Ojo: El ID '${idVista}' (mapeado como '${idReal}') no existe en el HTML.`);
+            }
+        }
     }
   window.abrirVista = abrirVista;
 
@@ -791,34 +870,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   window.registrarAuditoriaAcceso = registrarAuditoriaAcceso;
   window.cargarConductoresSelect = async function() {
-    const select = document.getElementById('pago_conductor_id');
-    if (!select) {
-        console.error("❌ No se encontró el select 'pago_conductor_id'");
-        return;
-    }
+        const select = document.getElementById('pago_conductor_id');
+        if (!select) return;
 
-    try {
-        console.log("📡 Solicitando conductores a la API...");
-        const data = await apiFetch('/conductores/disponibles_conductores');
-        
-        select.innerHTML = '<option value="">Seleccione Unidad / Conductor...</option>';
+        try {
+            console.log("📡 Probando ruta de solvencia...");
+            
+            // PRUEBA ESTA RUTA EXACTA (con el prefijo del blueprint)
+            const data = await apiFetch('/pagos/estado_semana'); 
+            
+            select.innerHTML = '<option value="">Seleccione Unidad / Conductor...</option>';
 
-        if (Array.isArray(data) && data.length > 0) {
-            data.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id_conductor;
-                opt.textContent = `[Uni ${c.codigo}] - ${c.nombre}`;
-                select.appendChild(opt);
-            });
-            console.log("✅ Lista de conductores cargada con éxito");
-        } else {
-            console.warn("⚠️ No se recibieron conductores disponibles");
-            select.innerHTML = '<option value="">No hay conductores disponibles</option>';
+            if (Array.isArray(data)) {
+                data.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id_conductor;
+                    // RECUERDE: En /estado_semana los campos son 'unidad' y 'conductor'
+                    opt.textContent = `[Uni ${c.unidad}] - ${c.conductor}`;
+                    select.appendChild(opt);
+                });
+                console.log(`✅ ${data.length} conductores cargados con éxito`);
+            }
+        } catch (err) {
+            console.error("❌ Error 404 detectado. Intente cambiar la ruta en apiFetch", err);
         }
-    } catch (err) {
-        console.error("❌ Error en la petición:", err);
-    }
-  };
+    };
   window.cargarHistorialPagos = async function() {
     const tbody = document.getElementById('tabla_historial_pagos');
     
@@ -844,7 +920,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="px-4 py-2 font-medium">${p.conductor}</td>
                 <td class="px-4 py-2 text-blue-600">${p.semana}</td>
                 <td class="p-2 text-right font-bold text-green-700">
-                    ${Number(p.monto).toLocaleString('es-VE')} COP
+                    ${(Number(p.monto) || 0).toLocaleString('es-VE')} COP
                 </td>
                 <td class="px-4 py-2 text-gray-500 text-xs">${p.ref || 's/r'}</td>
             </tr>
@@ -889,7 +965,7 @@ async function cargarEstadoSemana() {
                     <td class="p-2 text-right font-mono font-bold">$${c.saldo}</td>
                     <td class="p-2 text-center">${c.status_html}</td>
                     <td class="p-2 text-center">
-                        ${!c.pagado ? 
+                        ${parseFloat(c.saldo) > 0 ? 
                             `<button onclick="prepararCobro('${idValue}', '${nombreValue}')"
                                 class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded">
                                 COBRAR
@@ -1221,3 +1297,202 @@ function inicializarCalculadoraCopToVes() {
 
 // Ejecutamos la función directamente
 inicializarCalculadoraCopToVes();
+function restringirAccesoPorRol() {
+    const rolNombre = localStorage.getItem("rol_nombre");
+    const rolSimple = localStorage.getItem("rol");
+    const rolFinal = rolNombre || rolSimple;
+
+    console.log("🔍 Intento de lectura de rol:", rolFinal);
+
+    const contenedorContabilidad = document.querySelector(".mt-8.border-t.pt-6");
+    const btnReportePagos = document.getElementById("btnReportePagos");
+    const btnImprimir = document.getElementById("btnImprimirCierre"); // 👈 AGREGADO
+
+    if (!rolFinal) {
+        console.warn("⚠️ Rol no encontrado, reintentando en 500ms...");
+        setTimeout(restringirAccesoPorRol, 500);
+        return;
+    }
+
+    const rolLower = rolFinal.toLowerCase().trim();
+
+    if (rolLower === "administrador" || rolLower === "admin") {
+        console.log("✅ Acceso administrativo confirmado para:", rolFinal);
+    
+        if (contenedorContabilidad) {
+            contenedorContabilidad.style.display = "block";
+            if (btnReportePagos) btnReportePagos.style.display = "inline-block";
+
+            // 🚨 OPERACIÓN RESCATE PDF
+            let btnImprimir = document.getElementById("btnImprimirCierre");
+            
+            if (!btnImprimir) {
+                console.warn("⚠️ Botón PDF no existe en el HTML. Creándolo dinámicamente...");
+                // Si el botón no existe, lo inyectamos al lado del amarillo
+                const nuevoBtn = document.createElement('button');
+                nuevoBtn.id = "btnImprimirCierre";
+                nuevoBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Imprimir PDF';
+                nuevoBtn.className = "bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 ml-2";
+                nuevoBtn.style.display = "inline-flex";
+                
+                // Lo insertamos justo después del botón amarillo
+                btnReportePagos.parentNode.insertBefore(nuevoBtn, btnReportePagos.nextSibling);
+                nuevoBtn.onclick = function() {
+                    const inicio = document.getElementById('fechaInicioContable').value;
+                    const fin = document.getElementById('fechaFinContable').value;
+
+                    if (!inicio || !fin) {
+                        alert("Por favor seleccione el rango de fechas primero.");
+                        return;
+                    }
+
+                    const token = localStorage.getItem('access_token');
+                    const url = `/reportes/pdf_pagos?inicio=${inicio}&fin=${fin}`;
+
+                    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const urlBlob = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = urlBlob;
+                            a.download = `Cierre_Caja_${inicio}.pdf`;
+                            a.click();
+                        })
+                        .catch(err => console.error("Error:", err));
+                };
+                // ... dentro de la creación dinámica del botón ...
+                nuevoBtn.onclick = function() {
+                    // Intentamos capturar los IDs que usa el botón amarillo
+                    // Si el amarillo funciona, use exactamente los mismos IDs aquí
+                    const campoInicio = document.getElementById('fechaInicio') || document.getElementById('fechaInicioContable');
+                    const campoFin = document.getElementById('fechaFin') || document.getElementById('fechaFinContable');
+
+                    if (!campoInicio || !campoFin) {
+                        console.error("❌ No se encontraron los inputs de fecha en el DOM");
+                        alert("Error técnico: No se encuentran los campos de fecha.");
+                        return;
+                    }
+
+                    const inicio = campoInicio.value;
+                    const fin = campoFin.value;
+
+                    if (!inicio || !fin) {
+                        alert("Por favor seleccione el rango de fechas primero.");
+                        return;
+                    }
+
+                    console.log("🚀 Enviando a imprimir pagos desde:", inicio, "hasta:", fin);
+                    
+                    const token = localStorage.getItem('access_token');
+                    const url = `/reportes/pdf_pagos?inicio=${inicio}&fin=${fin}`;
+
+                    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                        .then(response => {
+                            if (!response.ok) throw new Error("Fallo en la respuesta del servidor");
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            const urlBlob = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = urlBlob;
+                            a.download = `Cierre_Caja_${inicio}.pdf`;
+                            document.body.appendChild(a); // Agregamos al body por seguridad
+                            a.click();
+                            a.remove();
+                        })
+                        .catch(err => alert("Error al descargar PDF: " + err.message));
+                };
+            } else {
+                // Si existe, forzamos su visibilidad total
+                btnImprimir.style.setProperty('display', 'inline-flex', 'important');
+                btnImprimir.style.setProperty('visibility', 'visible', 'important');
+                btnImprimir.classList.remove('hidden');
+                console.log("📕 Botón PDF forzado a visible.");
+            }
+        }
+    } else {
+        console.log("🚫 Rol operativo detectado. Ocultando contabilidad.");
+        if (btnReportePagos) btnReportePagos.style.display = "none";
+        if (btnImprimir) btnImprimir.style.display = "none"; // 👈 OCULTAR TAMBIÉN
+        if (contenedorContabilidad) contenedorContabilidad.style.display = "none";
+    }
+}
+// 1. Defina la función en cualquier parte de su dashboard.js
+window.inicializarBotonImpresion = function() {
+    const btnImprimir = document.getElementById('btnImprimirCierre');
+    if (btnImprimir) {
+        // Limpiamos el botón
+        const btnLimpio = btnImprimir.cloneNode(true);
+        btnImprimir.parentNode.replaceChild(btnLimpio, btnImprimir);
+
+        btnLimpio.addEventListener('click', function() {
+            const campoInicio = document.getElementById('fechaInicio') || document.getElementById('fechaInicioContable');
+            const campoFin = document.getElementById('fechaFin') || document.getElementById('fechaFinContable');
+
+            if (!campoInicio?.value || !campoFin?.value) {
+                alert("Por favor seleccione el rango de fechas.");
+                return;
+            }
+
+            // 🎯 Capturamos el token real que sabemos que se llama 'token'
+            const token = localStorage.getItem('token'); 
+            
+            const url = `/reportes/generar_cierre_pdf?inicio=${campoInicio.value}&fin=${campoFin.value}&token=${token}`;
+            
+            console.log("🚀 Disparando descarga directa...");
+            // Abrimos en pestaña nueva para que el navegador gestione la descarga
+            window.open(url, '_blank'); 
+        });
+    }
+};
+// 🕵️ El Vigilante Global (Delegación de eventos)
+document.addEventListener('click', function (event) {
+    // Si el elemento clicado es nuestro botón de reporte
+    if (event.target && event.target.id === 'btnReporteEmbarque') {
+        console.log("🎯 Clic detectado por el Vigilante Global");
+        window.forzarReporte();
+    }
+});
+
+// Su función se queda igual, pero asegúrese de que esté así:
+window.forzarReporte = async function() {
+    console.log("🚀 Disparo manual iniciado...");
+    
+    // 1. Buscamos el contenedor padre primero
+    const seccionReportes = document.getElementById("reportes"); 
+    if (!seccionReportes) {
+        console.error("❌ No se encontró la sección de reportes.");
+        return;
+    }
+
+    const inicio = seccionReportes.querySelector("#fechaInicio")?.value;
+    const fin = seccionReportes.querySelector("#fechaFin")?.value;
+
+    if (!inicio || !fin) {
+        alert("Ingeniero, seleccione las fechas en la sección activa.");
+        return;
+    }
+
+    // 2. Buscamos la tabla SOLO dentro de esta sección
+    const tabla = seccionReportes.querySelector("#tabla-reporte");
+    
+    if (tabla) {
+        console.log("✅ Tabla encontrada en la sección activa. Cargando...");
+        await cargarReporteEmbarqueDesembarque(inicio, fin, tabla);
+    } else {
+        console.error("❌ La tabla no existe dentro de la sección de reportes.");
+        // Si no existe, la creamos a la fuerza
+        const contenedorTabla = seccionReportes.querySelector("#reporte-container");
+        if (contenedorTabla) {
+            contenedorTabla.innerHTML = `
+                <table class="w-full mt-2 border">
+                    <thead>
+                        <tr><th>Nro</th><th>Cliente</th><th>Teléfono</th><th>Conductor</th><th>Embarque</th><th>Desembarque</th></tr>
+                    </thead>
+                    <tbody id="tabla-reporte"></tbody>
+                </table>`;
+            const nuevaTabla = seccionReportes.querySelector("#tabla-reporte");
+            await cargarReporteEmbarqueDesembarque(inicio, fin, nuevaTabla);
+        }
+    }
+};

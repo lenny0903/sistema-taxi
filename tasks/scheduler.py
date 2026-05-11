@@ -11,20 +11,33 @@ def iniciar_scheduler(app, socketio):
     _app = app
     _socketio = socketio
     
-    # Evitar duplicados si el servidor se reinicia solo
+    # Limpiamos para evitar duplicados en reinicios de NSSM
     scheduler.remove_all_jobs()
     
+    # 1. Tarea de Reservas (Cada 5 segundos)
     scheduler.add_job(
         job_verificar_reservas,
         trigger="interval",
-        seconds=5, # Revisión rápida para pruebas
+        seconds=5, 
         id="job_reservas"
+    )
+
+    # 2. Tarea de Carga de Cuota Semanal (Cada Viernes a las 6:00 AM)
+    # Se usa 'cron' para que sea un día y hora específicos
+    scheduler.add_job(
+        job_cargar_cuotas_semanales, # Asegúrate de haber definido esta función
+        trigger="cron",
+        day_of_week="fri", # Viernes
+        hour=6,
+        minute=0,
+        id="job_cuota_semanal",
+        replace_existing=True
     )
     
     if not scheduler.running:
         scheduler.start()
-    print("🚀 [SISTEMA] Scheduler activo cada 20 segundos")
-
+        
+    print("🚀 [SISTEMA] Scheduler iniciado: Reservas (5s) y Cuota Semanal (Viernes 6AM)")
 def job_verificar_reservas():
     # 2. AQUÍ SE USA 'datetime' (Esto debería quitar el color gris)
     ahora = datetime.now()
@@ -61,3 +74,36 @@ def job_verificar_reservas():
             db.session.commit()
         except Exception as e:
             print(f"❌ Error: {e}")
+def job_cargar_cuotas_semanales():
+    if _app is None:
+        return
+
+    with _app.app_context():
+        try:
+            from flask import current_app # Importamos esto para leer la config
+            from models.conductores import Conductor
+            from models.registrar_pagos import Pago 
+            from extensions import db
+            
+            # Buscamos el monto directamente de la configuración de la app
+            # Asegúrate de que en app.py lo hayas puesto como app.config['MONTO_CUOTA_SEMANAL'] = 40000
+            monto = current_app.config.get('MONTO_CUOTA_SEMANAL', 40000)
+            
+            conductores = Conductor.query.filter_by(activo=True).all()
+            
+            for c in conductores:
+                nueva_deuda = Pago(
+                    id_conductor=c.id,
+                    monto=-monto,
+                    fecha=datetime.now(),
+                    descripcion="Cuota Semanal Automática"
+                )
+                db.session.add(nueva_deuda)
+            
+            db.session.commit()
+            print(f"✅ [CONTABILIDAD] Cuota de {monto} cargada con éxito.")
+            _socketio.emit('actualizar_tabla_pagos', {'status': 'success'})
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [ERROR CONTABLE] Fallo: {e}")

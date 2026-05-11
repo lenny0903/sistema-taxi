@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from models.conductores import Conductor
 from app import MONTO_CUOTA_SEMANAL
+from sqlalchemy import func, or_
 pagos_bp = Blueprint('pagos', __name__)
 
 from sqlalchemy import func # <--- IMPORTANTE: Agrega esto al inicio del archivo
@@ -118,23 +119,42 @@ def obtener_pagos_recientes():
 @jwt_required()
 def obtener_estado_semana():
     try:
-        conductores_aptos = Conductor.query.filter_by(estado="disponible").all()
+        conductores_aptos = Conductor.query.filter(
+            Conductor.estado.in_(["disponible", "ocupado", "activo"])
+        ).all()
         resultado = []
 
+        from datetime import datetime
+
         for c in conductores_aptos:
-            # 1. CARGOS: Solo sumamos lo que la administradora cargó en la tabla
-            # (Aquí entrarán los 40k semanales y las Cargas Iniciales de deuda vieja)
+            # 1. Buscamos la cuota específica de la semana actual
+            semana_hoy = datetime.now().strftime('%Y-%U')
+            cuota_semanal = CuotaSemanal.query.filter_by(
+                conductor_id=c.id_conductor, 
+                semana_anio=semana_hoy
+            ).first()
+
+            # 2. Calculamos el saldo histórico total (Cargos - Abonos)
             total_cargos = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
                 .filter(CuotaSemanal.conductor_id == c.id_conductor).scalar() or 0.0
             
-            # 2. ABONOS: Sumamos todos los pagos reales
             total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
                 .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
 
-            # 3. SALDO: Diferencia real
-            saldo_real = total_cargos - total_abonos
-            
-            esta_realmente_solvente = saldo_real <= 0
+            # 3. Lógica de Saldo Inteligente
+            if total_cargos == 0:
+                # Si no hay registros previos, debe la semana actual
+                saldo_real = 40000.0 - total_abonos
+            else:
+                saldo_real = total_cargos - total_abonos
+
+            # 4. Verificación de Solvencia (Doble validación)
+            # Es solvente si el saldo es 0 O si la cuota semanal ya está marcada como pagada
+            esta_realmente_solvente = (saldo_real <= 0) or (cuota_semanal and cuota_semanal.pagado)
+
+            # Forzamos saldo 0 si la cuota ya está marcada como pagada
+            if esta_realmente_solvente:
+                saldo_real = 0.0
 
             resultado.append({
                 "id_conductor": c.id_conductor,
@@ -150,19 +170,26 @@ def obtener_estado_semana():
             })
 
         # Ordenar por el que más debe
-        resultado.sort(key=lambda x: float(x['saldo'].replace(',', '')), reverse=True)
-        return jsonify(resultado), 200
+        def limpiar_saldo(x):
+            try:
+                # Quitamos comas y convertimos a float de forma segura
+                return float(str(x['saldo']).replace(',', ''))
+            except:
+                return 0.0
+
+        resultado.sort(key=limpiar_saldo, reverse=True)
+        
+        # ... (su lógica de ordenamiento) ...
+        resultado.sort(key=limpiar_saldo, reverse=True)
+        
+        print(f"DEBUG: Enviando {len(resultado)} conductores al JS")
+        return jsonify(resultado), 200 # <--- DEJE SOLO ESTE
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        print(f"❌ Error en estado_semana: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-    except Exception as e:
-        print(f"❌ Error en estado_semana: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    
+            db.session.rollback() # Siempre haga rollback en errores de consulta
+            print(f"❌ Error en estado_semana: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+        
 @pagos_bp.route('/inicializar_semana', methods=['POST'])
 @jwt_required()
 def inicializar_semana():
@@ -215,33 +242,41 @@ def carga_inicial_pagos():
     try:
         data = request.get_json()
         conductor_id = data.get('conductor_id')
-        # Es el monto total que la administradora leyó en el cuaderno
         monto_total = float(data.get('monto')) 
         referencia = data.get('referencia', 'NIVELACIÓN CUADERNO 2026')
 
-        # Buscamos al conductor para validar que existe
+        # 1. Recuperamos la identidad del usuario desde el JWT
+        # Esto soluciona el error de usuario_id: None
+        id_usuario_jwt = get_jwt_identity()
+
+        # 2. Generamos la semana actual para el registro
+        # Esto soluciona el error de semana_anio: None
+        semana_actual = datetime.now().strftime('%Y-%U')
+
         conductor = Conductor.query.get_or_404(conductor_id)
 
-        # REGISTRO CONTABLE: Usamos PagoCuota para que reste del saldo
-        # Esto genera un saldo negativo (a favor) si no hay cargos previos
+        # 3. Construcción completa del objeto cumpliendo los NOT NULL
         nueva_nivelacion = PagoCuota(
             conductor_id=conductor_id,
+            semana_anio=semana_actual,  # <--- CRÍTICO
             monto_pagado=monto_total,
+            metodo_pago='Efectivo',     # Valor por defecto para nivelación
             referencia=referencia,
+            usuario_id=id_usuario_jwt,   # <--- CRÍTICO para auditoría
             fecha_pago=datetime.now()
         )
 
         db.session.add(nueva_nivelacion)
         db.session.commit()
 
-        # Retornamos éxito para que el JS refresque la tabla
         return jsonify({
             "status": "success",
-            "msg": f"Nivelación exitosa para Unidad {conductor.unidad}",
+            "msg": f"Nivelación exitosa para Unidad {conductor.codigo}", # Use .codigo si es el de la unidad
             "monto_cargado": monto_total
         }), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error en nivelación: {str(e)}")
-        return jsonify({"error": "No se pudo procesar la nivelación"}), 500
+        # El print le dirá exactamente qué campo falta si persiste el error
+        print(f"❌ Error en nivelación: {str(e)}") 
+        return jsonify({"error": f"Error de integridad: {str(e)}"}), 500

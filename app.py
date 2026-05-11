@@ -58,12 +58,26 @@ def gestionar_almacenamiento_backups(carpeta):
 def create_app():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
-    app.config['SECRET_KEY'] = config.SECRET_KEY
+    
+    # --- BLINDAJE DE SEGURIDAD (AQUÍ ESTÁ EL ARREGLO) ---
+    # Usamos una frase fija para que no importe cuántas veces reinicies el .bat
+    LLAVE_FIJA = "taxis_tachira_2026_fija_pro" 
+    app.config['SECRET_KEY'] = LLAVE_FIJA
+    app.config['JWT_SECRET_KEY'] = LLAVE_FIJA
+    
+    # Extendemos el tiempo a 24 horas para que no caduque a los 20 min o cada hora
+    from datetime import timedelta
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+    # ---------------------------------------------------
+
     app.config['DEBUG'] = config.DEBUG
     print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
     migrate = Migrate(app, db)
-    app.secret_key = "clave_super_secreta_unica"  
+    
+    # ELIMINA O COMENTA ESTA LÍNEA (Genera conflicto con la de arriba)
+    # app.secret_key = "clave_super_secreta_unica"   
+    
     socketio.init_app(app)
     db.init_app(app)
     jwt = JWTManager(app)
@@ -169,16 +183,20 @@ def create_app():
 
 
 if __name__ == "__main__":
-   app = create_app()
+    app = create_app()
     
-   # 1. Vincular el scheduler a la app
-   scheduler.init_app(app)
+    # 1. Vincular el scheduler a la app
+    scheduler.init_app(app)
     
-   # 2. Programar la tarea (Cambiado a 1 minuto para tu prueba)
-   scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=1)
+    # 2. Programar la tarea
+    # Se recomienda usar 'replace_existing=True' por si reinicias la app
+    scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=1, replace_existing=True)
     
-   # 3. Iniciar
-   scheduler.start()
+    # 3. Iniciar
+    scheduler.start()
     
-   print("🚀 Servidor y Scheduler iniciados...")
-   socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    print("🚀 Servidor y Scheduler iniciados en modo Producción...")
+    
+    # CAMBIO CRÍTICO: debug=False para producción
+    # Use_reloader=False evita que el scheduler se ejecute dos veces
+    socketio.run(app, debug=False, host="0.0.0.0", port=5000, use_reloader=False)

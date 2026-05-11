@@ -175,11 +175,15 @@ def verificar_cliente(cliente_id):
             activo=True
         ).all()
 
+        ultima_incidencia = Incidencia.query.filter_by(cliente_id=cliente_id).order_by(Incidencia.id.desc()).first()
+
         return jsonify({
             "tiene_veto_general": False,
             "tiene_exclusiones": len(exclusiones) > 0,
-            "total_exclusiones": len(exclusiones)
+            "total_exclusiones": len(exclusiones),
+            # 🎯 CORRECCIÓN: Agregamos la categoría real de la base de datos
+            "categoria": ultima_incidencia.categoria if ultima_incidencia else "NOTA",
+            "descripcion": ultima_incidencia.descripcion if ultima_incidencia else "Cliente sin reportes recientes."
         }), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
