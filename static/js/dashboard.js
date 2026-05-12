@@ -308,84 +308,118 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "F7") { e.preventDefault(); abrirVista("conductores"); }
   });
   let ventanaWhatsApp = null;
-// --- Motor de Pagos ---
-// --- MOTOR DE PAGOS (Control Interno vs Referencia) ---
-  const fPagos = document.getElementById('formRegistrarPago');
-  if (fPagos) {
-      fPagos.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formElement = e.target;
+ // --- Motor de Pagos ---
+ // --- MOTOR DE PAGOS (Control Interno vs Referencia) ---
+  // --- LÓGICA DE INTERFAZ PARA EXONERACIONES ---
+    const selectNovedad = document.getElementById('tipo_novedad');
+    if (selectNovedad) {
+        selectNovedad.addEventListener('change', (e) => {
+            const esExoneracion = e.target.value !== 'PAGO_NORMAL';
+            const seccionPago = document.getElementById('seccion_pago_real');
+            const btn = document.querySelector('#formRegistrarPago button[type="submit"]');
+            
+            if (esExoneracion) {
+                if (seccionPago) seccionPago.classList.add('hidden');
+                btn.classList.replace('bg-blue-600', 'bg-purple-600');
+                btn.classList.replace('hover:bg-blue-700', 'hover:bg-purple-700');
+                btn.innerText = `Registrar Exoneración (${e.target.options[e.target.selectedIndex].text})`;
+            } else {
+                if (seccionPago) seccionPago.classList.remove('hidden');
+                btn.classList.replace('bg-purple-600', 'bg-blue-600');
+                btn.classList.replace('hover:bg-purple-700', 'hover:bg-blue-700');
+                btn.innerText = 'Procesar Pago (40.000 COP)';
+            }
+        });
+    }
 
-          // 1. CAPTURA DE DATOS PREVIA
-          const d = Object.fromEntries(new FormData(formElement));
-          const montoValor = document.getElementById('pago_monto')?.value || "0";
-          const referenciaManual = d.referencia_pago || d.referencia || "s/r";
+    // --- LOGICA DE ENVÍO Y GENERACIÓN DE RECIBO ---
+    const fPagos = document.getElementById('formRegistrarPago');
+    if (fPagos) {
+        fPagos.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formElement = e.target;
 
-          try {
-              // 2. REGISTRO EN EL SERVIDOR
-              const resultado = await apiFetch('/pagos/registrar', { 
-                  method: 'POST', 
-                  body: JSON.stringify(d) 
-              });
+            // 1. CAPTURA DE DATOS PREVIA
+            const d = Object.fromEntries(new FormData(formElement));
+            const referenciaManual = d.referencia_pago || d.referencia || "s/r";
+            
+            // Verificamos si es exoneración para el recibo
+            const novedadTexto = selectNovedad ? selectNovedad.options[selectNovedad.selectedIndex].text : "PAGO NORMAL";
+            const esExoneracion = d.tipo_novedad && d.tipo_novedad !== 'PAGO_NORMAL';
 
-              console.log("Respuesta Servidor:", resultado);
+            try {
+                // 2. REGISTRO EN EL SERVIDOR
+                const resultado = await apiFetch('/pagos/registrar', { 
+                    method: 'POST', 
+                    body: JSON.stringify(d) 
+                });
 
-              // 3. FORMATEO ÚNICO DEL CONTROL (00000)
-              // Usamos una sola variable para todo el proceso
-             const idDB = resultado.id || 0;
-             const nroControlFinal = idDB.toString().padStart(5, '0');
-             const montoReal = resultado.monto || "0"; // <--- Use lo que devuelve Python
+                console.log("Respuesta Servidor:", resultado);
 
-              // 4. DATOS DE LA UNIDAD Y CONDUCTOR
-              const selectConductor = formElement.querySelector('[name="conductor_id"]');
-              const textoConductor = selectConductor ? selectConductor.options[selectConductor.selectedIndex].text : "S/N";
-              const unidad = textoConductor.match(/\[Uni\s+(.*?)\]/)?.[1] || "S/N";
-              const nombreConductor = textoConductor.split('] - ')[1] || textoConductor;
-              const fecha = new Date().toLocaleString('es-VE', { 
-                  day: '2-digit', month: '2-digit', year: 'numeric', 
-                  hour: '2-digit', minute: '2-digit', hour12: true 
-              });
+                // 3. FORMATEO ÚNICO DEL CONTROL (00000)
+                const idDB = resultado.id || 0;
+                const nroControlFinal = idDB.toString().padStart(5, '0');
+                const montoReal = resultado.monto || "0"; 
 
-              // 5. DISEÑO DEL SOPORTE .TXT
-              const contenidoRecibo = 
+                // 4. DATOS DE LA UNIDAD Y CONDUCTOR
+                const selectConductor = formElement.querySelector('[name="conductor_id"]');
+                const textoConductor = selectConductor ? selectConductor.options[selectConductor.selectedIndex].text : "S/N";
+                const unidad = textoConductor.match(/\[Uni\s+(.*?)\]/)?.[1] || "S/N";
+                const nombreConductor = textoConductor.split('] - ')[1] || textoConductor;
+                const fecha = new Date().toLocaleString('es-VE', { 
+                    day: '2-digit', month: '2-digit', year: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: true 
+                });
+
+                // 5. DISEÑO DEL SOPORTE .TXT (ADAPTADO A EXONERACIÓN)
+                const tituloRecibo = esExoneracion ? `COMPROBANTE DE EXONERACIÓN` : `RECIBO DE PAGO SEMANAL`;
+                const metodoFinal = esExoneracion ? `N/A (EXONERADO)` : (d.metodo_pago || 'Efectivo');
+                const detalleReferencia = esExoneracion ? `MOTIVO: ${novedadTexto}` : `REF. PAGO: ${referenciaManual}`;
+
+                const contenidoRecibo = 
                 `ASOC. COOP. LOS PATRIOTAS DE TÁRIBA R.L\n` +
                 `CONTROL INTERNO: ${nroControlFinal}\n` + 
-                `RECIBO DE PAGO SEMANAL\n` +
+                `${tituloRecibo}\n` +
                 `--------------------------------------------\n` +
                 `UNIDAD: ${unidad}\n` +
                 `CONDUCTOR: ${nombreConductor}\n` +
-                `MONTO: COP ${montoReal}\n` + // <--- Aquí ya no saldrá 0
-                `METODO: ${d.metodo_pago || 'Efectivo'}\n` +
-                `REF. PAGO: ${referenciaManual}\n` + 
+                `ESTADO: ${esExoneracion ? 'EXONERADO' : 'PAGADO'}\n` +
+                `VALOR CUOTA: COP ${montoReal}\n` + 
+                `METODO: ${metodoFinal}\n` +
+                `${detalleReferencia}\n` + 
                 `FECHA: ${fecha}\n` +
                 `--------------------------------------------\n` +
                 `Comprobante generado por el sistema de gestión.`;
-              // 6. DESCARGA DEL ARCHIVO
-              const blob = new Blob([contenidoRecibo], { type: 'text/plain' });
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              // El nombre del archivo ahora coincide con el contenido
-              a.download = `Recibo_Ctrl_${nroControlFinal}_Uni_${unidad}.txt`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
 
-              // Alerta a la administradora con el número formateado
-              alert(`✅ Registrado con Control Interno: ${nroControlFinal}`);
+                // 6. DESCARGA DEL ARCHIVO
+                const blob = new Blob([contenidoRecibo], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const prefijoArchivo = esExoneracion ? 'Exoneracion' : 'Recibo';
+                a.download = `${prefijoArchivo}_Ctrl_${nroControlFinal}_Uni_${unidad}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
 
-              // 7. RESET Y RECARGA
-              formElement.reset();
-              if (window.cargarConductoresSelect) window.cargarConductoresSelect();
-              if (window.cargarEstadoSemana) window.cargarEstadoSemana();
+                alert(`✅ ${esExoneracion ? 'Exoneración registrada' : 'Pago registrado'} con Control Interno: ${nroControlFinal}`);
 
-          } catch (err) {
-              console.error("Error:", err);
-              alert("Error al procesar el pago o generar el soporte.");
-          }
-      });
-  }  
+                // 7. RESET Y RECARGA
+                formElement.reset();
+                // Reset visual del botón y campos tras el reset del form
+                if(selectNovedad) selectNovedad.dispatchEvent(new Event('change'));
+                
+                if (window.cargarConductoresSelect) window.cargarConductoresSelect();
+                if (window.cargarEstadoSemana) window.cargarEstadoSemana();
+
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Error al procesar el registro o generar el soporte.");
+            }
+            cargarHistorialPagos();
+        });
+    }  
   // ===================================================
     // 🚨 NUEVA ESCUCHA DE EVENTOS PARA EL MODAL DE INCIDENCIAS
     // ===================================================
@@ -925,7 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="px-4 py-2 text-gray-500 text-xs">${p.ref || 's/r'}</td>
             </tr>
         `).join('');
-        
+       
         console.log("✅ Tabla renderizada con éxito.");
     } catch (err) {
         console.error("❌ ERROR en la petición:", err);

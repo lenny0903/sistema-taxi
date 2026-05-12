@@ -19,16 +19,33 @@ def registrar_pago():
     conductor_id = data.get('conductor_id')
     MONTO_FIJO_VAL = 40000.0 
     
+    # NUEVO: Capturamos la novedad
+    tipo_novedad = data.get('tipo_novedad', 'PAGO_NORMAL')
+    es_exoneracion = tipo_novedad != 'PAGO_NORMAL'
+    
     id_usuario_jwt = get_jwt_identity()
     ahora = datetime.now()
     semana_actual = ahora.strftime('%Y-%U')
 
     try:
-        referencia_limpia = data.get('referencia', '').strip() or "EFECTIVO"
-        metodo = data.get('metodo', 'Efectivo')
-        monto_a_pagar = float(data.get('monto', MONTO_FIJO_VAL)) # Recibimos el monto del form
+        # Si es exoneración, forzamos la referencia con el motivo si viene vacío
+        motivo_novedad = tipo_novedad.replace('_', ' ')
+        referencia_limpia = data.get('referencia', '').strip()
+        
+        if es_exoneracion and not referencia_limpia:
+            referencia_limpia = f"EXONERADO: {motivo_novedad}"
+        elif not referencia_limpia:
+            referencia_limpia = "EFECTIVO"
 
-        # --- PASO 1: REGISTRAR EL ABONO EN EL HISTORIAL ---
+        metodo = data.get('metodo', 'Efectivo')
+        if es_exoneracion:
+            metodo = "EXONERACIÓN"
+
+        # IMPORTANTE: El monto para el saldo sigue siendo 40k para nivelar, 
+        # pero en reportes de caja (que usted hará luego) filtrará por 'metodo'
+        monto_a_pagar = float(data.get('monto_pagado', MONTO_FIJO_VAL)) 
+
+        # --- PASO 1: REGISTRAR EL ABONO (O EXONERACIÓN) ---
         nuevo_pago = PagoCuota(
             conductor_id=conductor_id,
             semana_anio=semana_actual,
@@ -39,42 +56,50 @@ def registrar_pago():
             fecha_pago=ahora
         )
         db.session.add(nuevo_pago)
-        
-        # Guardamos temporalmente para que la suma incluya este nuevo pago
         db.session.flush() 
 
-        # --- PASO 2: CALCULAR TOTAL PAGADO EN LA SEMANA ---
+        # --- PASO 2: CALCULAR TOTAL (Aquí la magia sigue igual) ---
         total_pagado = db.session.query(func.sum(PagoCuota.monto_pagado)).filter(
             PagoCuota.conductor_id == conductor_id,
             PagoCuota.semana_anio == semana_actual
         ).scalar() or 0
 
         # --- PASO 3: ACTUALIZAR EL ESTADO DE SOLVENCIA ---
+        
         cuota_control = CuotaSemanal.query.filter_by(
             conductor_id=conductor_id, 
             semana_anio=semana_actual
         ).first()
 
+
         if not cuota_control:
-            # Si no existe el registro de la semana, lo creamos
             cuota_control = CuotaSemanal(
                 conductor_id=conductor_id,
                 semana_anio=semana_actual,
                 monto_fijo=MONTO_FIJO_VAL
             )
             db.session.add(cuota_control)
-
-        # La lógica que mencionaste:
-        if total_pagado >= MONTO_FIJO_VAL:
-            cuota_control.pagado = True  # ¡SOLVENTE!
-        else:
-            cuota_control.pagado = False # PENDIENTE (Abono parcial)
         
-        cuota_control.fecha_pago = ahora
-        cuota_control.referencia_pago = referencia_limpia
+       # APLICAMOS LA LÓGICA DE SOLVENCIA E INCIDENCIAS
+        if es_exoneracion:
+            cuota_control.pagado = True  
+            cuota_control.es_exonerado = True
+            cuota_control.tipo_novedad = tipo_novedad
+            cuota_control.referencia_pago = f"EXONERADO: {tipo_novedad.replace('_', ' ')}"
+        else:
+            # Si completó el pago en dinero
+            if total_pagado >= MONTO_FIJO_VAL:
+                cuota_control.pagado = True  
+            else:
+                cuota_control.pagado = False 
+            
+            cuota_control.es_exonerado = False
+            cuota_control.tipo_novedad = 'PAGO_NORMAL'
+            cuota_control.referencia_pago = referencia_limpia
 
-       # --- PASO 4: COMMIT Y REFRESH ---
-        db.session.add(nuevo_pago)
+        # Datos comunes para ambos casos
+        cuota_control.fecha_pago = ahora
+
         db.session.commit()
         db.session.refresh(nuevo_pago) 
 
@@ -83,21 +108,19 @@ def registrar_pago():
 
         return jsonify({
             "status": "success", 
-            "id": nuevo_pago.id,  # <--- Esta es la llave que busca el JS
-            "message": f"✅ Registrado con Control Interno: {nuevo_pago.id:05d}",
+            "id": nuevo_pago.id,
+            "message": "✅ Registro exitoso",
             "monto": nuevo_pago.monto_pagado,
             "conductor": c.nombre,         
             "unidad": c.codigo,            
             "semana": nuevo_pago.semana_anio,
-            "fecha": ahora.strftime('%d/%m/%Y, %I:%M %p'),
-            "ref": nuevo_pago.referencia       
+            "es_exoneracion": es_exoneracion # <--- Info extra para el JS
         }), 201
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERROR: {str(e)}") 
         return jsonify({"status": "error", "message": str(e)}), 500
-    
+        
 @pagos_bp.route('/recientes', methods=['GET'])
 @jwt_required()
 def obtener_pagos_recientes():
@@ -119,77 +142,76 @@ def obtener_pagos_recientes():
 @jwt_required()
 def obtener_estado_semana():
     try:
+        # Obtenemos solo los conductores que deben aparecer en el Dashboard
         conductores_aptos = Conductor.query.filter(
             Conductor.estado.in_(["disponible", "ocupado", "activo"])
         ).all()
+        
         resultado = []
-
-        from datetime import datetime
+        semana_hoy = datetime.now().strftime('%Y-%U')
 
         for c in conductores_aptos:
-            # 1. Buscamos la cuota específica de la semana actual
-            semana_hoy = datetime.now().strftime('%Y-%U')
-            cuota_semanal = CuotaSemanal.query.filter_by(
-                conductor_id=c.id_conductor, 
-                semana_anio=semana_hoy
-            ).first()
-
-            # 2. Calculamos el saldo histórico total (Cargos - Abonos)
-            total_cargos = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-                .filter(CuotaSemanal.conductor_id == c.id_conductor).scalar() or 0.0
-            
-            total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
-                .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
-
-            # 3. Lógica de Saldo Inteligente
-            if total_cargos == 0:
-                # Si no hay registros previos, debe la semana actual
-                saldo_real = 40000.0 - total_abonos
-            else:
-                saldo_real = total_cargos - total_abonos
-
-            # 4. Verificación de Solvencia (Doble validación)
-            # Es solvente si el saldo es 0 O si la cuota semanal ya está marcada como pagada
-            esta_realmente_solvente = (saldo_real <= 0) or (cuota_semanal and cuota_semanal.pagado)
-
-            # Forzamos saldo 0 si la cuota ya está marcada como pagada
-            if esta_realmente_solvente:
-                saldo_real = 0.0
-
-            resultado.append({
-                "id_conductor": c.id_conductor,
-                "unidad": c.codigo,
-                "conductor": c.nombre,
-                "saldo": f"{saldo_real:,.2f}",
-                "pagado": esta_realmente_solvente,
-                "status_html": (
-                    '<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold text-xs">SOLVENTE</span>' 
-                    if esta_realmente_solvente else 
-                    '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
-                )
-            })
-
-        # Ordenar por el que más debe
-        def limpiar_saldo(x):
+            # --- INICIO DEL BLOQUE DE SEGURIDAD ---
             try:
-                # Quitamos comas y convertimos a float de forma segura
-                return float(str(x['saldo']).replace(',', ''))
-            except:
-                return 0.0
+                # 1. Buscamos cuota de la semana
+                cuota_semanal = CuotaSemanal.query.filter_by(
+                    conductor_id=c.id_conductor, 
+                    semana_anio=semana_hoy
+                ).first()
+
+                # 2. Sumatorias (Aquí es donde SQLite explota con los strings vacíos '')
+                total_cargos = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
+                    .filter(CuotaSemanal.conductor_id == c.id_conductor).scalar() or 0.0
+                
+                total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
+                    .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
+
+                # 3. Cálculo de saldo
+                saldo_real = total_cargos - total_abonos
+                
+                # Regla para nuevos
+                if total_cargos == 0 and total_abonos == 0:
+                    saldo_real = 40000.0 
+
+                # 4. Solvencia
+                esta_realmente_solvente = (saldo_real <= 0) or (cuota_semanal and cuota_semanal.pagado)
+
+                if esta_realmente_solvente and saldo_real > 0:
+                    saldo_real = 0.0
+
+                # 5. Construcción del objeto JSON (Solo si no hubo error arriba)
+                resultado.append({
+                    "id_conductor": c.id_conductor,
+                    "unidad": c.codigo,
+                    "conductor": c.nombre,
+                    "saldo": f"{max(0, saldo_real):,.2f}",
+                    "pagado": esta_realmente_solvente,
+                    "status_html": (
+                        '<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold text-xs">SOLVENTE</span>' 
+                        if esta_realmente_solvente else 
+                        '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
+                    )
+                })
+
+            except Exception as e:
+                # Si un conductor tiene basura en la DB, lo reportamos y SEGUIMOS
+                print(f"⚠️ Error en datos de {c.nombre} (ID {c.id_conductor}): {str(e)}")
+                continue 
+            # --- FIN DEL BLOQUE DE SEGURIDAD ---
+
+        # Ordenamiento: El que más debe primero
+        def limpiar_saldo(x):
+            try: return float(str(x['saldo']).replace(',', ''))
+            except: return 0.0
 
         resultado.sort(key=limpiar_saldo, reverse=True)
         
-        # ... (su lógica de ordenamiento) ...
-        resultado.sort(key=limpiar_saldo, reverse=True)
-        
-        print(f"DEBUG: Enviando {len(resultado)} conductores al JS")
-        return jsonify(resultado), 200 # <--- DEJE SOLO ESTE
+        return jsonify(resultado), 200
 
     except Exception as e:
-            db.session.rollback() # Siempre haga rollback en errores de consulta
-            print(f"❌ Error en estado_semana: {str(e)}")
-            return jsonify({"error": str(e)}), 500
-        
+        db.session.rollback()
+        print(f"❌ Error crítico en ruta /estado_semana: {str(e)}")
+        return jsonify({"error": "Error interno al procesar la lista"}), 500
 @pagos_bp.route('/inicializar_semana', methods=['POST'])
 @jwt_required()
 def inicializar_semana():
@@ -201,7 +223,9 @@ def inicializar_semana():
 
     try:
         # Solo conductores activos (disponibles)
-        conductores = Conductor.query.filter_by(estado="disponible").all()
+        conductores = Conductor.query.filter(
+            Conductor.estado.in_(["disponible", "ocupado", "activo"])
+        ).all()
         conteo = 0
 
         for c in conductores:

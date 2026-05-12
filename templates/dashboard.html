@@ -367,30 +367,44 @@
             </div>
 
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700">Monto Fijo de Cuota (COP)</label>
+              <label class="block text-sm font-medium text-purple-700 font-bold">Tipo de Proceso / Novedad</label>
+              <select id="tipo_novedad" name="tipo_novedad" class="w-full border-2 border-purple-200 rounded p-2 bg-purple-50">
+                <option value="PAGO_NORMAL" selected>✅ Pago Normal (Ingreso a Caja)</option>
+                <option value="ENFERMEDAD_CONDUCTOR">🏥 Enfermedad del Conductor</option>
+                <option value="ENFERMEDAD_FAMILIAR">👪 Enfermedad de un Familiar</option>
+                <option value="MUERTE_FAMILIAR">🕯️ Muerte de Familiar</option>
+                <option value="MANTENIMIENTO_AUTO">🔧 Auto en Mantenimiento</option>
+                <option value="ACCIDENTE_LABORAL">⚠️ Accidente Laboral</option>
+                 <option value="INGRESO_TARDIO">⏰ Ingreso Tardío</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700">Monto de la Cuota (COP)</label>
               <div class="relative">
                 <input type="text" value="40.000" readonly 
                       class="w-full border rounded p-2 bg-gray-100 font-bold text-blue-600 cursor-not-allowed">
                 <input type="hidden" name="monto_pagado" value="40000">
               </div>
-              <p class="text-[10px] text-gray-500 mt-1 italic">* Valor preestablecido por la administración.</p>
             </div>
 
-            <div class="mb-3">
-              <label class="block text-sm font-medium">Método</label>
-              <select name="metodo_pago" class="w-full border rounded p-2">
-                <option value="Efectivo">Efectivo</option>
-                <option value="Pago Móvil">Pago Móvil</option>
-                <option value="Transferencia">Transferencia</option>
-              </select>
+            <div id="seccion_pago_real">
+              <div class="mb-3">
+                <label class="block text-sm font-medium">Método</label>
+                <select name="metodo_pago" class="w-full border rounded p-2">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Pago Móvil">Pago Móvil</option>
+                  <option value="Transferencia">Transferencia</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="block text-sm font-medium">Referencia</label>
+                <input type="text" name="referencia" class="w-full border rounded p-2" placeholder="Nro de comprobante">
+              </div>
             </div>
 
-            <div class="mb-3">
-              <label class="block text-sm font-medium">Referencia</label>
-              <input type="text" name="referencia" class="w-full border rounded p-2" placeholder="Nro de comprobante">
-            </div>
-
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
+            <button type="submit" id="btnProcesar" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
               Procesar Pago (40.000 COP)
             </button>
           </form>
