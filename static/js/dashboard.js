@@ -1023,6 +1023,8 @@ window.prepararCobro = function(id, nombre) {
     
     const inputId = document.getElementById('modal_conductor_id');
     const elementoNombre = document.getElementById('modal_nombre_conductor');
+    const selectIngreso = document.getElementById('modal_semana_ingreso'); // NUEVO
+    const inputMonto = document.getElementById('modal_monto'); // NUEVO
     
     if (inputId) inputId.value = id;
     
@@ -1033,8 +1035,19 @@ window.prepararCobro = function(id, nombre) {
             elementoNombre.innerText = nombre;
         }
     }
+
+   
+    if (inputMonto) {
+        inputMonto.value = ""; // Limpiar el monto previo
+    }
+    // ----------------------------------------------------
     
-    document.getElementById('modalCargaInicial').classList.remove('hidden');
+    const modal = document.getElementById('modalCargaInicial');
+    if (modal) {
+        modal.classList.remove('hidden');
+    } else {
+        console.error("❌ Error fatal: No se encontró el modal 'modalCargaInicial'");
+    }
 };
 
 // El resto de sus funciones (cerrarModalCarga y onsubmit) se mantienen igual abajo...
@@ -1048,46 +1061,53 @@ window.cerrarModalCarga = function() {
 document.getElementById('formCargaInicial').onsubmit = async (e) => {
     e.preventDefault();
     
+    const selectSemana = document.getElementById('modal_semana_ingreso');
+    const valorSemana = selectSemana ? parseInt(selectSemana.value) : 1;
+    const montoRaw = document.getElementById('modal_monto').value;
+    const referenciaInput = document.getElementById('modal_referencia').value;
+
+    // LÓGICA DE EXONERACIÓN: 
+    // Si la semana es > 1 y el monto está vacío, mandamos 0 sin protestar.
+    let montoFinal = montoRaw;
+    if (valorSemana > 1 && (montoRaw === "" || montoRaw === null)) {
+        montoFinal = 0;
+    } else if (montoRaw === "") {
+        montoFinal = 0; // Por seguridad, siempre mandamos 0 si está vacío
+    }
+
     const datos = {
         conductor_id: document.getElementById('modal_conductor_id').value,
-        monto: document.getElementById('modal_monto').value,
-        referencia_pago: document.getElementById('modal_referencia').value
+        monto: montoFinal, 
+        referencia_pago: referenciaInput || (valorSemana > 1 ? `EXONERACIÓN DESDE SEM ${valorSemana}` : "NIVELACIÓN INICIAL"),
+        semana_inicio: valorSemana 
     };
+
+    console.log("🚀 Procesando:", valorSemana > 1 ? "Exoneración + Carga" : "Carga normal", datos);
 
     try {
         const response = await fetch('/pagos/carga_inicial_pagos', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}` // Si usa JWT
+                'Authorization': `Bearer ${localStorage.getItem('token')}` 
             },
             body: JSON.stringify(datos)
         });
 
         if (response.ok) {
-            alert('¡Nivelación exitosa!');
-            
-            // 1. Cerramos el modal de inmediato
+            alert(valorSemana > 1 ? '✅ Pasado exonerado y saldo nivelado.' : '✅ Saldo nivelado con éxito.');
             cerrarModalCarga();
             
-            // 2. Refrescamos la tabla de solvencia sin recargar la página
-            // Esta es la función que unificamos hace un momento
-            if (typeof cargarEstadoSemana === 'function') {
-                cargarEstadoSemana();
-            }
-
-            // 3. Opcional: Si tiene la tabla de "Pagos Recientes" abajo, la refrescamos también
-            if (typeof cargarPagosRecientes === 'function') {
-                cargarPagosRecientes();
-            }
-
-            console.log("✅ Vista de pagos actualizada mediante AJAX.");
+            if (typeof cargarEstadoSemana === 'function') cargarEstadoSemana();
+            if (typeof cargarPagosRecientes === 'function') cargarPagosRecientes();
+            
         } else {
             const err = await response.json();
-            alert('Error: ' + (err.error || 'No se pudo procesar el pago'));
+            alert('Error: ' + (err.error || 'No se pudo procesar'));
         }
     } catch (error) {
-        console.error('Error en la carga:', error);
+        console.error('Error:', error);
+        alert('Error de conexión');
     }
 };
 ///////Sección para modales de reportes de información (Clientes, Conductores, etc.)///////

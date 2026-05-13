@@ -2480,17 +2480,16 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     </div>
-<!-- Modal de Carga Inicial (Nivelación de Saldo) -->
-  <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+  <!-- Modal de Carga Inicial (Nivelación de Saldo) -->
+    <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
           <div class="mt-3">
               <div class="flex items-center justify-between border-b pb-3">
                   <h3 class="text-lg leading-6 font-bold text-gray-900">Nivelación de Saldo</h3>
-                  <button onclick="cerrarModalCarga()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                  <button type="button" onclick="cerrarModalCarga()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
               </div>
               
               <form id="formCargaInicial" class="mt-4 text-left">
-                  <!-- ID Oculto -->
                   <input type="hidden" id="modal_conductor_id">
                   
                   <div class="mb-4">
@@ -2498,16 +2497,47 @@ document.addEventListener("DOMContentLoaded", () => {
                       <div id="modal_nombre_conductor" class="p-2 bg-gray-100 rounded text-sm text-gray-600 font-semibold"></div>
                   </div>
 
+                  <div class="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
+                      <label class="block text-blue-800 text-xs font-bold mb-2" for="modal_semana_ingreso">¿Es Ingreso Tardío?</label>
+                     <select id="modal_semana_ingreso" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                          <option value="1">Semana 01 (01 Ene - 04 Ene)</option>
+                          <option value="2">Semana 02 (05 Ene - 11 Ene)</option>
+                          <option value="3">Semana 03 (12 Ene - 18 Ene)</option>
+                          <option value="4">Semana 04 (19 Ene - 25 Ene)</option>
+                          
+                          <option value="5">Semana 05 (26 Ene - 01 Feb)</option>
+                          <option value="6">Semana 06 (02 Feb - 08 Feb)</option>
+                          <option value="7">Semana 07 (09 Feb - 15 Feb)</option>
+                          <option value="8">Semana 08 (16 Feb - 22 Feb)</option>
+                          
+                          <option value="9">Semana 09 (23 Feb - 01 Mar)</option>
+                          <option value="10">Semana 10 (02 Mar - 08 Mar)</option>
+                          <option value="11">Semana 11 (09 Mar - 15 Mar)</option>
+                          <option value="12">Semana 12 (16 Mar - 22 Mar)</option>
+                          <option value="13">Semana 13 (23 Mar - 29 Mar)</option>
+                          
+                          <option value="14">Semana 14 (30 Mar - 05 Abr)</option>
+                          <option value="15">Semana 15 (06 Abr - 12 Abr)</option>
+                          <option value="16">Semana 16 (13 Abr - 19 Abr)</option>
+                          <option value="17">Semana 17 (20 Abr - 26 Abr)</option>
+                          
+                          <option value="18">Semana 18 (27 Abr - 03 May)</option>
+                          <option value="19">Semana 19 (04 May - 10 May)</option>
+                          <option value="20">Semana 20 (11 May - 17 May)</option>
+                    </select>
+                      <p class="text-[10px] text-blue-600 mt-1 italic">* Semanas anteriores serán exoneradas.</p>
+                  </div>
+
                   <div class="mb-4">
-                      <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_monto">Monto Total a Nivelar (COP):</label>
-                      <input type="number" id="modal_monto" step="0.01" required
-                          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                          placeholder="Ej: 640000">
+                      <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_monto">Monto en Efectivo (COP):</label>
+                      <input type="number" id="modal_monto" value="0" step="0.01" 
+                        class="w-full px-3 py-2 border rounded-md text-sm" 
+                        placeholder="0.00">
                   </div>
 
                   <div class="mb-4">
                       <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_referencia">Referencia de Auditoría:</label>
-                      <input type="text" id="modal_referencia" value="CARGA INICIAL 2026"
+                      <input type="text" id="modal_referencia" value="NIVELACIÓN INICIAL 2026"
                           class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                   </div>
 
@@ -2518,7 +2548,7 @@ document.addEventListener("DOMContentLoaded", () => {
                       </button>
                       <button type="submit"
                           class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 shadow-md transition-colors">
-                          PROCESAR NIVELACIÓN
+                          PROCESAR TODO
                       </button>
                   </div>
               </form>
