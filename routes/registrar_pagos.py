@@ -176,16 +176,51 @@ def obtener_pagos_recientes():
 @jwt_required()
 def obtener_estado_semana():
     try:
+        # Importamos el monto global
+        from app import MONTO_CUOTA_SEMANAL
+        
+        # --- BLOQUE DE AUTONOMÍA: EL "RELOJ" DEL VIERNES ---
+        ahora = datetime.now()
+        dia_semana = ahora.weekday() # 0=Lunes... 4=Viernes
+        semana_hoy = ahora.strftime('%Y-%U')
+
         conductores_aptos = Conductor.query.filter(
             Conductor.estado.in_(["disponible", "ocupado", "activo"])
         ).all()
+
+        # Si hoy es VIERNES (4), SÁBADO (5) o DOMINGO (6)
+        if dia_semana >= 4:
+            for c in conductores_aptos:
+                # Verificamos si ya tiene cargada la semana de hoy
+                existe = CuotaSemanal.query.filter_by(
+                    conductor_id=c.id_conductor, 
+                    semana_anio=semana_hoy
+                ).first()
+
+                if not existe:
+                    # 1. Definimos primero la variable
+                    tipo_novedad_actual = 'PAGO_NORMAL' 
+                    monto_a_cargar = MONTO_CUOTA_SEMANAL
+
+                    # 2. Ahora sí podemos evaluarla
+                    if tipo_novedad_actual == 'INGRESO_TARDIO':
+                        monto_a_cargar = 0
+                    # Cargamos la cuota automáticamente sin intervención humana
+                    nueva_cuota = CuotaSemanal(
+                        conductor_id=c.id_conductor,
+                        semana_anio=semana_hoy,
+                        monto_fijo=monto_a_cargar,
+                        pagado=False,
+                        tipo_novedad=tipo_novedad_actual
+                    )
+                    db.session.add(nueva_cuota)
+            db.session.commit() # Guardamos los nuevos cargos antes de calcular saldos
+        # --------------------------------------------------
         
         resultado = []
-        # Importante: No filtramos por semana_hoy para la solvencia global
-        
         for c in conductores_aptos:
             try:
-                # 1. Sumamos TODOS los cargos históricos del conductor
+                # 1. Sumamos TODOS los cargos históricos
                 total_cargos = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
                     .filter(CuotaSemanal.conductor_id == c.id_conductor).scalar() or 0.0
                 
@@ -193,19 +228,13 @@ def obtener_estado_semana():
                 total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
                     .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
 
-                # 3. Cálculo de saldo matemático puro
                 saldo_real = total_cargos - total_abonos
                 
-                # Regla para nuevos o casos sin registros
+                # Regla para nuevos: Si no tiene registros, su deuda base es la cuota actual
                 if total_cargos == 0 and total_abonos == 0:
-                    saldo_real = 40000.0 
+                    saldo_real = float(MONTO_CUOTA_SEMANAL)
 
-                # --- LA REGLA DE ORO INTEGRADA ---
-                # Un conductor SOLO es solvente si su saldo es 0 o negativo (favor)
                 esta_realmente_solvente = (saldo_real <= 0)
-
-                # Si es solvente pero el saldo es negativo (favor), mostramos 0 en la tabla
-                # para no confundir al usuario, pero mantenemos la lógica
                 saldo_mostrar = max(0, saldo_real)
 
                 resultado.append({
@@ -220,21 +249,18 @@ def obtener_estado_semana():
                         '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
                     )
                 })
-
             except Exception as e:
                 print(f"⚠️ Error en datos de {c.nombre}: {str(e)}")
                 continue 
 
-        # Ordenamiento: El que más debe primero
         resultado.sort(key=lambda x: float(x['saldo'].replace(',', '')), reverse=True)
-        
         return jsonify(resultado), 200
 
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error crítico en ruta /estado_semana: {str(e)}")
-        return jsonify({"error": "Error interno al procesar la lista"}), 500
-    
+        return jsonify({"error": "Error interno al procesar la lista"}), 500    
+
 @pagos_bp.route('/inicializar_semana', methods=['POST'])
 @jwt_required()
 def inicializar_semana():

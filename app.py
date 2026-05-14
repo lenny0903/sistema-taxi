@@ -1,6 +1,7 @@
 import shutil
 
 import eventlet
+
 from models.matriz_tarifas import MatrizTarifa
 from flask_apscheduler import APScheduler
 eventlet.monkey_patch() # Recomendado para modo 'eventlet'
@@ -17,6 +18,9 @@ from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from tasks.scheduler import iniciar_scheduler
 from datetime import datetime
+from models.matriz_tarifas import MatrizTarifa
+from models.cuota_semanal import CuotaSemanal
+from models.pago_cuotas import PagoCuota
 import os
 import config
 import sqlite3
@@ -121,6 +125,9 @@ def create_app():
     from routes.cola_despachos import cola_despachos_bp
     from routes.registrar_pagos import pagos_bp
     from routes.incidencias import incidencias_bp
+    from routes.registrar_pagos import pagos_bp
+    
+    
     
     
     app.register_blueprint(init_bp)

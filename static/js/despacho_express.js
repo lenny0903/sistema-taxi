@@ -293,6 +293,10 @@ let memoriaEdicionCola = {
     tarifas: {}
 };
 async function cargarColaClientes() {
+    // 🧹 LIMPIEZA DE MEMORIA FANTASMA
+    memoriaEdicionCola1.origenes = {};
+    memoriaEdicionCola1.destinos = {};
+    memoriaEdicionCola1.tarifas = {};
     const tbodyCola = document.getElementById("tablaColaClientes");
     if (!tbodyCola) return;
 
@@ -571,6 +575,7 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
             modal.classList.add("hidden");
 
             // Limpiar memoria
+            memoriaEdicionCola1.destinos = {}; 
             delete memoriaEdicionCola1.origenes[colaSeleccionada];
             // ... (restante de su limpieza)
 

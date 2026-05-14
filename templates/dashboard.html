@@ -1142,7 +1142,16 @@ async function cargarConductoresEnTurnoCrear() {
       }
 
       if (!encontrado) {
-          console.warn(`No se encontró auto con placa terminada en: ${codigoBusqueda}`);
+        // 1. Reseteamos la selección para evitar errores de despacho
+        selAuto.selectedIndex = 0;
+
+        // 2. Notificamos al usuario con su función personalizada
+        const mensajeError = `⚠️ Inconsistencia: No se halló auto para la unidad ${codigoBusqueda.toUpperCase()}. Revise la tabla de Autos.`;
+        
+        // Asumo que su función acepta (mensaje, tipo) o similar
+        mostrarToast(mensajeError, 'error'); 
+        
+        console.error(`Inconsistencia en conductor: ${selectedOption.textContent}`);
       }
     });
  
