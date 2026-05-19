@@ -427,3 +427,202 @@ def funcion_pdf_cierre_caja():
     except Exception as e:
         print(f"❌ ERROR PDF: {e}")
         return jsonify({"error": str(e)}), 500
+    
+@reporte_bp.route('/consolidado_pagos', methods=['GET'])
+def reporte_consolidado_pagos():
+    try:
+        # 1. Traer todos los conductores para cruzarlos
+        conductores = Conductor.query.order_by(Conductor.codigo).all()
+        
+        resultado_conductores = []
+        gran_total_dinero = 0.0
+        gran_total_semanas = 0
+
+        # 2. Procesar conductor por conductor
+        for c in conductores:
+            # Sumamos solo el dinero real pagado por este conductor
+            total_dinero_conductor = db.session.query(db.func.sum(CuotaSemanal.monto_fijo)) \
+                .filter(
+                    CuotaSemanal.conductor_id == c.id_conductor,
+                    CuotaSemanal.pagado == True,
+                    CuotaSemanal.es_exonerado == False  # 🎯 Dinero real
+                ).scalar() or 0.0
+
+            # Contamos TODAS las semanas cubiertas (Pagos + Exoneraciones)
+            total_semanas_conductor = CuotaSemanal.query.filter(
+                CuotaSemanal.conductor_id == c.id_conductor,
+                CuotaSemanal.pagado == True  # 🎯 Ya liberadas
+            ).count()
+
+            # Acumulamos para el Gran Total del reporte
+            gran_total_dinero += float(total_dinero_conductor)
+            gran_total_semanas += total_semanas_conductor
+
+            # Añadimos la fila del conductor si tiene movimientos (o lo muestra en cero si prefiere)
+            resultado_conductores.append({
+                "unidad": c.codigo,
+                "conductor": c.nombre,
+                "total_pagado_raw": float(total_dinero_conductor), # Para lógicas del JS si hiciera falta
+                "total_pagado": f"{total_dinero_conductor:,.2f}",
+                "semanas_cubiertas": total_semanas_conductor
+            })
+
+        # 3. Retornamos la data de los choferes Y los Totales Generales separados
+        return jsonify({
+            "status": "success",
+            "totales_generales": {
+                "gran_total_dinero": f"{gran_total_dinero:,.2f}",
+                "gran_total_semanas": gran_total_semanas
+            },
+            "data": resultado_conductores
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500    
+    
+
+
+@reporte_bp.route('/pdf_consolidado', methods=['GET'])
+def exportar_pdf_consolidado():
+    try:
+        # IMPORTACIONES LOCALES ABSOLUTAMENTE SEGURAS
+        from app import db
+        import io
+        from models import Conductor, CuotaSemanal
+        from datetime import datetime
+        
+        # 🎯 CONTROL DE IMPORTACIONES CON LAS RUTAS REALES DE REPORTLAB
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        # 1. Obtener los datos frescos de la Base de Datos
+        conductores = Conductor.query.order_by(Conductor.codigo).all()
+        gran_total_dinero = 0.0
+        gran_total_semanas = 0
+        
+        # Estilos de texto para las celdas
+        style_header = ParagraphStyle('H_Tab', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=1)
+        style_header_left = ParagraphStyle('H_TabL', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=0)
+        style_header_right = ParagraphStyle('H_TabR', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=2)
+        
+        style_cell = ParagraphStyle('Cell', fontName='Helvetica', fontSize=8.5, leading=11)
+        style_cell_center = ParagraphStyle('CellC', fontName='Helvetica', fontSize=8.5, alignment=1)
+        style_cell_right = ParagraphStyle('CellR', fontName='Helvetica-Bold', fontSize=8.5, alignment=2)
+        style_cell_nota = ParagraphStyle('CellN', fontName='Helvetica-Oblique', fontSize=7.5, textColor=colors.HexColor('#64748b'))
+
+        # Cabecera física de la tabla
+        tabla_datos = [[
+            Paragraph('<b>Unidad</b>', style_header),
+            Paragraph('<b>Conductor</b>', style_header_left),
+            Paragraph('<b>Total Pagado (COP)</b>', style_header_right),
+            Paragraph('<b>Semanas</b>', style_header),
+            Paragraph('<b>Observaciones de Auditoría</b>', style_header_left)
+        ]]
+
+        for c in conductores:
+            total_dinero = db.session.query(db.func.sum(CuotaSemanal.monto_fijo)) \
+                .filter(
+                    CuotaSemanal.conductor_id == c.id_conductor,
+                    CuotaSemanal.pagado == True,
+                    CuotaSemanal.es_exonerado == False
+                ).scalar() or 0.0
+
+            total_semanas = CuotaSemanal.query.filter(
+                CuotaSemanal.conductor_id == c.id_conductor,
+                CuotaSemanal.pagado == True
+            ).count()
+
+            gran_total_dinero += float(total_dinero)
+            gran_total_semanas += total_semanas
+
+            nota = "Sin movimientos"
+            if total_semanas > 0:
+                if total_dinero == 0:
+                    nota = f"{total_semanas} sem. exoneradas (Auditoría Limpia)"
+                else:
+                    nota = "Solvente en taquilla / Nivelaciones"
+
+            monto_formateado = f"${total_dinero:,.2f}" if total_dinero > 0 else "$0.00"
+
+            # Inyectamos strings planos procesados por Python, cero Jinja2
+            tabla_datos.append([
+                Paragraph(f"<b>{c.codigo}</b>", style_cell_center),
+                Paragraph(c.nombre or "Conductor sin nombre", style_cell),
+                Paragraph(monto_formateado, style_cell_right),
+                Paragraph(f"{total_semanas} sem", style_cell_center),
+                Paragraph(nota, style_cell_nota)
+            ])
+
+        # Formateamos los grandes totales con Python puro antes de pasarlos a ReportLab
+        gran_total_formateado = f"${gran_total_dinero:,.2f}"
+        
+        # Fila del Gran Total con colspan manual configurado en el TableStyle
+        tabla_datos.append([
+            Paragraph('<b>TOTAL CONSOLIDADO:</b>', ParagraphStyle('TotalL', fontName='Helvetica-Bold', fontSize=9, alignment=2)),
+            '', # Celda vacía requerida por el SPAN
+            Paragraph(gran_total_formateado, ParagraphStyle('TotalM', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#15803d'), alignment=2)),
+            Paragraph(f"{gran_total_semanas} sem", ParagraphStyle('TotalS', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#1d4ed8'), alignment=1)),
+            Paragraph('Consolidación de caja limpia y condonaciones.', style_cell_nota)
+        ])
+
+        # 2. Configurar el documento en memoria RAM
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=1.5*cm, rightMargin=1.5*cm,
+            topMargin=1.5*cm, bottomMargin=1.5*cm
+        )
+        
+        story = []
+
+        # Títulos e Identificación del Reporte
+        story.append(Paragraph("REPORTE CONSOLIDADO DE AUDITORÍA", ParagraphStyle('Title', fontName='Helvetica-Bold', fontSize=18, leading=22, spaceAfter=4)))
+        story.append(Paragraph("Control de Semanas vs. Montos Recaudados — Cooperativa SIM", ParagraphStyle('Sub', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#4f46e5'), spaceAfter=12)))
+        
+        fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M %p")
+        meta_text = f"<b>Fecha Emisión:</b> {fecha_actual} | <b>Filtro:</b> Año Fiscal 2026 | <b>Estado:</b> Cierre de Ciclo"
+        story.append(Paragraph(meta_text, ParagraphStyle('Meta', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#718096'), spaceAfter=15)))
+
+        # 3. Construir la Tabla Física con anchos medidos para A4 (~17.4 cm totales)
+        col_widths = [1.8*cm, 5.2*cm, 3.2*cm, 2.2*cm, 5.0*cm]
+        t = Table(tabla_datos, colWidths=col_widths, repeatRows=1)
+        
+        t_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')), # Cabecera oscura
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#e2e8f0')), # Rejillas internas
+            ('SPAN', (0, -1), (1, -1)), # Une la celda 0 y 1 de la última fila (TOTAL CONSOLIDADO)
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f1f5f9')), # Fila de totales
+            ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.HexColor('#94a3b8')),
+        ]
+        
+        # Alternar colores en las filas de datos para legibilidad (Cebrado)
+        for i in range(1, len(tabla_datos) - 1):
+            if i % 2 == 0:
+                t_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor('#f8fafc')))
+                
+        t.setStyle(TableStyle(t_style))
+        story.append(t)
+
+        # Renderizar estructura al buffer binario
+        doc.build(story)
+        buffer.seek(0)
+
+        # 4. Enviar el flujo binario como un archivo de descarga directa
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"Reporte_Consolidado_Auditoria_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        # Si algo falla, este print saldrá directo en tu terminal activa para verlo
+        print(f"❌ [ERROR CRÍTICO PDF]: {str(e)}")
+        return jsonify({"status": "error", "message": f"Error en ReportLab: {str(e)}"}), 500

@@ -12,6 +12,16 @@ class CuotaSemanal(db.Model):
     referencia_pago = db.Column(db.String(50))
 
     # 🆕 NUEVOS CAMPOS PARA EL REGISTRO DE INCIDENCIAS/EXONERACIONES
-    es_exonerado = db.Column(db.Boolean, default=False) # Para saber si el 'pagado' fue por dinero o gracia
-    tipo_novedad = db.Column(db.String(50), nullable=True) # Ej: 'MANTENIMIENTO_AUTO', 'ENFERMEDAD'
-    observaciones = db.Column(db.Text, nullable=True)     # Detalles adicionales
+    es_exonerado = db.Column(db.Boolean, default=False) 
+    tipo_novedad = db.Column(db.String(50), nullable=True) 
+    observaciones = db.Column(db.Text, nullable=True)     
+
+    # =========================================================================
+    # 🚨 EL ESCUDO DE ACERO: Restricción Única Compuesta NAtiva
+    # =========================================================================
+    # Esto le prohíbe terminantemente a SQLite duplicar la misma semana para el mismo chofer.
+    # Si la ráfaga intenta meter dos registros iguales en el mismo milisegundo,
+    # la base de datos aborta con un 'IntegrityError' y protege la contabilidad.
+    __table_args__ = (
+        db.UniqueConstraint('conductor_id', 'semana_anio', name='_conductor_semana_uc'),
+    )

@@ -311,6 +311,68 @@ document.addEventListener("DOMContentLoaded", () => {
  // --- Motor de Pagos ---
  // --- MOTOR DE PAGOS (Control Interno vs Referencia) ---
   // --- LÓGICA DE INTERFAZ PARA EXONERACIONES ---
+    // =========================================================================
+    // 📡 1. ESCUCHA ACTIVA DEL CONDUCTOR PARA CARGAR SUS SEMANAS PENDIENTES
+    // =========================================================================
+    const selectConductor = document.getElementById('pago_conductor_id');
+    const selectSemana = document.getElementById('reg_semana_pago');
+
+    if (selectConductor && selectSemana) {
+        selectConductor.addEventListener('change', async function() {
+            const conductorId = this.value;
+
+            if (!conductorId) {
+                selectSemana.innerHTML = '<option value="">-- Seleccione primero un conductor --</option>';
+                selectSemana.disabled = true;
+                return;
+            }
+
+            selectSemana.innerHTML = '<option value="">⏳ Consultando deudas en tiempo real...</option>';
+            selectSemana.disabled = true;
+
+            try {
+                // Consultamos al backend las semanas en mora de este conductor
+                const response = await apiFetch(`/pagos/semanas_pendientes/${conductorId}`, { method: 'GET' });
+                selectSemana.innerHTML = ''; 
+
+               if (response.semanas && response.semanas.length > 0) {
+                    response.semanas.forEach(semanaStr => {
+                        // 💡 Limpieza limpia: maneja formatos con "W" o con guion simple (Ej: "2026-21" -> "21")
+                        let numSemana = semanaStr;
+                        if (semanaStr.includes('-W')) numSemana = semanaStr.split('-W')[1];
+                        else if (semanaStr.includes('-')) numSemana = semanaStr.split('-')[1];
+
+                        const option = document.createElement('option');
+                        option.value = semanaStr; // Viaja limpio a Flask (Ej: "2026-21")
+                        
+                        // 🎯 REGLA ADAPTATIVA: Si el backend envía semanas futuras o el saldo es a favor
+                        // Cambiamos la etiqueta para que la administradora sepa qué está haciendo
+                        // Si la semana devuelta es mayor que la de corte actual o si es una predicción:
+                        if (response.es_adelanto) { // O una lógica equivalente basada en la respuesta
+                            option.innerText = `Semana ${numSemana} (Cuota Adelantada)`;
+                        } else {
+                            option.innerText = `Semana ${numSemana} (Pendiente)`;
+                        }
+                        
+                        selectSemana.appendChild(option);
+                    });
+                    selectSemana.disabled = false;
+                } else {
+                    // 🎯 Respaldo de seguridad si el array llega vacío
+                    selectSemana.innerHTML = '<option value="">✔️ CONDUCTOR COMPLETAMENTE SOLVENTE</option>';
+                    selectSemana.disabled = true;
+                }
+            } catch (error) {
+                console.error("❌ Error al recuperar semanas para taquilla:", error);
+                selectSemana.innerHTML = '<option value="">⚠️ Error al cargar semanas pendientes</option>';
+                selectSemana.disabled = true;
+            }
+        });
+    }
+
+    // =========================================================================
+    // 🎨 2. REACTIVIDAD DEL BOTÓN SEGÚN EL TIPO DE NOVEDAD
+    // =========================================================================
     const selectNovedad = document.getElementById('tipo_novedad');
     if (selectNovedad) {
         selectNovedad.addEventListener('change', (e) => {
@@ -332,38 +394,47 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- LOGICA DE ENVÍO Y GENERACIÓN DE RECIBO ---
+    // =========================================================================
+    // 🧠 3. ENVÍO, PROCESAMIENTO CONTABLE Y GENERACIÓN DE RECIBO
+    // =========================================================================
     const fPagos = document.getElementById('formRegistrarPago');
     if (fPagos) {
         fPagos.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formElement = e.target;
 
-            // 1. CAPTURA DE DATOS PREVIA
+            // Captura inicial de datos desde el formulario
             const d = Object.fromEntries(new FormData(formElement));
-            const referenciaManual = d.referencia_pago || d.referencia || "s/r";
             
-            // Verificamos si es exoneración para el recibo
+            // 🚨 ADUANA DE SEGURIDAD CRUCIAL EN EL FRONTEND
+            if (!d.semana_anio) {
+                alert("❌ Error: No se puede procesar el pago porque el conductor no posee semanas pendientes.");
+                return;
+            }
+
+            const referenciaManual = d.referencia || "s/r";
             const novedadTexto = selectNovedad ? selectNovedad.options[selectNovedad.selectedIndex].text : "PAGO NORMAL";
             const esExoneracion = d.tipo_novedad && d.tipo_novedad !== 'PAGO_NORMAL';
+            
+            // Limpiamos el texto de la semana para el recibo (Ej: de "2026-W18" nos quedamos con "18")
+            const numeroSemanaRecibo = d.semana_anio.includes('-W') ? d.semana_anio.split('-W')[1] : d.semana_anio;
 
             try {
-                // 2. REGISTRO EN EL SERVIDOR
-                const resultado = await apiFetch('/pagos/registrar', { 
+                // 📡 REGISTRO EN EL SERVIDOR (Ruta específica de taquilla que procesa la fila exacta)
+                const resultado = await apiFetch('/pagos/registrar_pago_ordinario', { 
                     method: 'POST', 
                     body: JSON.stringify(d) 
                 });
 
                 console.log("Respuesta Servidor:", resultado);
 
-                // 3. FORMATEO ÚNICO DEL CONTROL (00000)
                 const idDB = resultado.id || 0;
                 const nroControlFinal = idDB.toString().padStart(5, '0');
                 const montoReal = resultado.monto || "0"; 
 
-                // 4. DATOS DE LA UNIDAD Y CONDUCTOR
-                const selectConductor = formElement.querySelector('[name="conductor_id"]');
-                const textoConductor = selectConductor ? selectConductor.options[selectConductor.selectedIndex].text : "S/N";
+                // Datos de la unidad y conductor
+                const selectConductorNodo = formElement.querySelector('[name="conductor_id"]');
+                const textoConductor = selectConductorNodo ? selectConductorNodo.options[selectConductorNodo.selectedIndex].text : "S/N";
                 const unidad = textoConductor.match(/\[Uni\s+(.*?)\]/)?.[1] || "S/N";
                 const nombreConductor = textoConductor.split('] - ')[1] || textoConductor;
                 const fecha = new Date().toLocaleString('es-VE', { 
@@ -371,7 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     hour: '2-digit', minute: '2-digit', hour12: true 
                 });
 
-                // 5. DISEÑO DEL SOPORTE .TXT (ADAPTADO A EXONERACIÓN)
+                // Formateo del diseño del soporte .txt incorporando la semana auditada
                 const tituloRecibo = esExoneracion ? `COMPROBANTE DE EXONERACIÓN` : `RECIBO DE PAGO SEMANAL`;
                 const metodoFinal = esExoneracion ? `N/A (EXONERADO)` : (d.metodo_pago || 'Efectivo');
                 const detalleReferencia = esExoneracion ? `MOTIVO: ${novedadTexto}` : `REF. PAGO: ${referenciaManual}`;
@@ -383,6 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 `--------------------------------------------\n` +
                 `UNIDAD: ${unidad}\n` +
                 `CONDUCTOR: ${nombreConductor}\n` +
+                `SEMANA FACTURADA: Semana Num. ${numeroSemanaRecibo}\n` + // 🎯 ¡AQUÍ SE REFLEJA!
                 `ESTADO: ${esExoneracion ? 'EXONERADO' : 'PAGADO'}\n` +
                 `VALOR CUOTA: COP ${montoReal}\n` + 
                 `METODO: ${metodoFinal}\n` +
@@ -391,13 +463,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 `--------------------------------------------\n` +
                 `Comprobante generado por el sistema de gestión.`;
 
-                // 6. DESCARGA DEL ARCHIVO
+                // Descarga automática del archivo .txt para la ticketera
                 const blob = new Blob([contenidoRecibo], { type: 'text/plain' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 const prefijoArchivo = esExoneracion ? 'Exoneracion' : 'Recibo';
-                a.download = `${prefijoArchivo}_Ctrl_${nroControlFinal}_Uni_${unidad}.txt`;
+                a.download = `${prefijoArchivo}_Ctrl_${nroControlFinal}_Sem_${numeroSemanaRecibo}_Uni_${unidad}.txt`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -405,10 +477,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 alert(`✅ ${esExoneracion ? 'Exoneración registrada' : 'Pago registrado'} con Control Interno: ${nroControlFinal}`);
 
-                // 7. RESET Y RECARGA
+                // Reset completo del formulario y re-sincronización visual
                 formElement.reset();
-                // Reset visual del botón y campos tras el reset del form
                 if(selectNovedad) selectNovedad.dispatchEvent(new Event('change'));
+                if(selectConductor) selectConductor.dispatchEvent(new Event('change')); // Fuerza el bloqueo del select de semanas
                 
                 if (window.cargarConductoresSelect) window.cargarConductoresSelect();
                 if (window.cargarEstadoSemana) window.cargarEstadoSemana();
@@ -417,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Error:", err);
                 alert("Error al procesar el registro o generar el soporte.");
             }
-            cargarHistorialPagos();
+            if (typeof cargarHistorialPagos === 'function') cargarHistorialPagos();
         });
     }  
   // ===================================================
@@ -436,6 +508,54 @@ document.addEventListener("DOMContentLoaded", () => {
             validarFormularioIncidencia();
         });
     }
+  //////////Reporte consolidado de pagos semanales por conductor (Modal de Contabilidad)
+    document.getElementById('btnReporteConsolidado').addEventListener('click', async () => {
+        const btn = document.getElementById('btnReporteConsolidado');
+        const tabla = document.getElementById('tablaConsolidadoReporte');
+        const tbody = document.getElementById('tbodyConsolidadoReporte');
+        
+        // Feedback visual de carga en el botón
+        btn.innerHTML = '⏳ Generando...';
+        btn.disabled = true;
+
+        try {
+            // Ejecutamos la petición usando su estructura de rutas
+            const response = await apiFetch('/reportes/consolidado_pagos');
+            
+            if (response.status === 'success') {
+                tbody.innerHTML = ''; // Limpiamos residuos viejos
+                
+                // 1. Renderizar los conductores uno a uno
+                response.data.forEach(c => {
+                    const fila = document.createElement('tr');
+                    fila.className = 'hover:bg-gray-50 transition-colors';
+                    fila.innerHTML = `
+                        <td class="p-3 text-center font-semibold border-r bg-gray-50/50">${c.unidad}</td>
+                        <td class="p-3 font-medium text-gray-800">${c.conductor}</td>
+                        <td class="p-3 text-right font-semibold text-gray-700 border-l">$${c.total_pagado}</td>
+                        <td class="p-3 text-center font-semibold text-blue-600 border-l">${c.semanas_cubiertas} sem</td>
+                    `;
+                    tbody.appendChild(fila);
+                });
+
+                // 2. Inyectar los Grandes Totales en el tfoot
+                document.getElementById('totalConsolidadoDinero').innerText = `$${response.totales_generales.gran_total_dinero}`;
+                document.getElementById('totalConsolidadoSemanas').innerText = `${response.totales_generales.gran_total_semanas} semanas`;
+
+                // 3. Hacer visible la tabla quitándole el 'hidden' de Tailwind
+                tabla.classList.remove('hidden');
+            } else {
+                alert('⚠️ Error al obtener el consolidado: ' + response.message);
+            }
+        } catch (error) {
+            console.error('Error en reporte consolidado:', error);
+            alert('❌ Error de conexión con el servidor de reportes.');
+        } finally {
+            // Restaurar estado del botón original
+            btn.innerHTML = '🔄 Generar Consolidado Anual';
+            btn.disabled = false;
+        }
+    });  
 });  
   // -------------------------------
   // 📌 Funciones auxiliares
@@ -912,10 +1032,10 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // PRUEBA ESTA RUTA EXACTA (con el prefijo del blueprint)
             const data = await apiFetch('/pagos/estado_semana'); 
-            
-            select.innerHTML = '<option value="">Seleccione Unidad / Conductor...</option>';
-
+                      
+            data.sort((a, b) => a.unidad.localeCompare(b.unidad, undefined, {numeric: true, sensitivity: 'base'}));
             if (Array.isArray(data)) {
+                select.innerHTML = '<option value="">Seleccione Unidad / Conductor...</option>';
                 data.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c.id_conductor;
@@ -998,6 +1118,7 @@ async function cargarEstadoSemana() {
                     <td class="p-2 text-sm">${nombreValue}</td>
                     <td class="p-2 text-right font-mono font-bold">$${c.saldo}</td>
                     <td class="p-2 text-center">${c.status_html}</td>
+                    <td class="p-2 font-semibold text-gray-700">${c.semanas_progreso || 'N/A'}</td>
                     <td class="p-2 text-center">
                         ${parseFloat(c.saldo) > 0 ? 
                             `<button onclick="prepararCobro('${idValue}', '${nombreValue}')"
@@ -1018,16 +1139,63 @@ async function cargarEstadoSemana() {
 // Hacerla global
 window.cargarEstadoSemana = cargarEstadoSemana;
 
+// 🚀 Variable de control de tiempo fuera de la función
+let ultimoDisparoTiempo = 0;
+
 window.prepararCobro = function(id, nombre) {
-    console.log("PUENTE ACTIVADO -> ID:", id, "Nombre:", nombre);
+    const ahora = Date.now();
     
+    // 1️⃣ DEBOUNCE: Control de ráfagas físicas de clics
+    if (ahora - ultimoDisparoTiempo < 500) {
+        console.warn("⚠️ Intento de ejecución duplicada frenado por seguridad de tiempo (Debounce).");
+        return;
+    }
+    
+    ultimoDisparoTiempo = ahora;
+    console.log("🚀 PUENTE ACTIVADO REAL Y ÚNICO -> ID:", id, "Nombre:", nombre);
+
+    window.conductorTieneSemana1 = false; // Inicialización por defecto
+
+    // 🎯 CALCULO DINÁMICO DEL AÑO: Evitamos dejar "2026-01" fijo
+    const anioActual = new Date().getFullYear(); 
+    const semana1Dinamica = `${anioActual}-01`; // Genera "2026-01", "2027-01", etc.
+
+    if (typeof window.matrizConductores !== 'undefined') {
+        const conductorData = window.matrizConductores.find(c => String(c.id) === String(id));
+        
+        if (conductorData) {
+            // Evaluamos la semana inicial de forma totalmente dinámica
+            if (conductorData.semana_anio === semana1Dinamica) {
+                window.conductorTieneSemana1 = true;
+            } 
+            
+            console.log(`📊 Auditoría local: ¿${nombre} tiene la semana '${semana1Dinamica}'? ->`, window.conductorTieneSemana1);
+        }
+    }
+
+    // CAPTURA DE NODOS DEL DOM
     const inputId = document.getElementById('modal_conductor_id');
     const elementoNombre = document.getElementById('modal_nombre_conductor');
-    const selectIngreso = document.getElementById('modal_semana_ingreso'); // NUEVO
-    const inputMonto = document.getElementById('modal_monto'); // NUEVO
-    
+    const inputMonto = document.getElementById('modal_monto'); 
+    const selectExonerar = document.getElementById('modal_exonerar_sn');
+    const selectIngreso = document.getElementById('modal_semana_ingreso');
+    const inputReferencia = document.getElementById('modal_referencia');
+
+    // 2️⃣ RESETEAR ESTADOS POR DEFECTO DEL FORMULARIO
+    if (selectExonerar) selectExonerar.value = ""; 
+    if (selectIngreso) selectIngreso.value = "1";
+    if (inputMonto) {
+        inputMonto.value = ""; 
+        inputMonto.disabled = false; // Aseguramos que empiece liberado
+        inputMonto.classList.remove('bg-gray-100', 'cursor-not-allowed');
+    }
+    if (inputReferencia) {
+        inputReferencia.value = "";
+        inputReferencia.placeholder = `Ej: NIVELACIÓN INICIAL ${anioActual}`;
+    }
+
+    // INYECCIÓN DE DATOS DEL CONDUCTOR
     if (inputId) inputId.value = id;
-    
     if (elementoNombre) {
         if (elementoNombre.tagName === 'INPUT') {
             elementoNombre.value = nombre;
@@ -1036,12 +1204,32 @@ window.prepararCobro = function(id, nombre) {
         }
     }
 
-   
-    if (inputMonto) {
-        inputMonto.value = ""; // Limpiar el monto previo
+    // =========================================================================
+    // 🎛️ ESCUCHADOR INTERACTIVO (EVITAR QUE ESCRIBAN MONTO SI EXONERAN)
+    // =========================================================================
+    if (selectExonerar && inputMonto) {
+        // Removemos cualquier listener viejo clonando el nodo (evita acumular eventos si reabren el modal)
+        const nuevoSelect = selectExonerar.cloneNode(true);
+        selectExonerar.parentNode.replaceChild(nuevoSelect, selectExonerar);
+
+        nuevoSelect.addEventListener('change', function() {
+            if (this.value === 'SI') {
+                // 🔒 Bloqueo inmediato: Es una gracia, no maneja dinero en caja
+                inputMonto.value = '0';
+                inputMonto.disabled = true;
+                inputMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
+                if (inputReferencia) inputReferencia.placeholder = "Ej: EXONERACIÓN POR REINGRESO / TALLER";
+            } else {
+                // 🔓 Liberación: Es un cobro o abono normal
+                inputMonto.value = '';
+                inputMonto.disabled = false;
+                inputMonto.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                if (inputReferencia) inputReferencia.placeholder = `Ej: NIVELACIÓN INICIAL ${anioActual}`;
+            }
+        });
     }
-    // ----------------------------------------------------
-    
+   
+    // APERTURA DEL MODAL
     const modal = document.getElementById('modalCargaInicial');
     if (modal) {
         modal.classList.remove('hidden');
@@ -1049,7 +1237,6 @@ window.prepararCobro = function(id, nombre) {
         console.error("❌ Error fatal: No se encontró el modal 'modalCargaInicial'");
     }
 };
-
 // El resto de sus funciones (cerrarModalCarga y onsubmit) se mantienen igual abajo...
 
 window.cerrarModalCarga = function() {
@@ -1057,65 +1244,10 @@ window.cerrarModalCarga = function() {
     document.getElementById('formCargaInicial').reset();
 };
 
-// Manejador del envío del formulario del Modal
-document.getElementById('formCargaInicial').onsubmit = async (e) => {
-    e.preventDefault();
-    
-    const selectSemana = document.getElementById('modal_semana_ingreso');
-    const valorSemana = selectSemana ? parseInt(selectSemana.value) : 1;
-    const montoRaw = document.getElementById('modal_monto').value;
-    const referenciaInput = document.getElementById('modal_referencia').value;
 
-    // LÓGICA DE EXONERACIÓN: 
-    // Si la semana es > 1 y el monto está vacío, mandamos 0 sin protestar.
-    let montoFinal = montoRaw;
-    if (valorSemana > 1 && (montoRaw === "" || montoRaw === null)) {
-        montoFinal = 0;
-    } else if (montoRaw === "") {
-        montoFinal = 0; // Por seguridad, siempre mandamos 0 si está vacío
-    }
 
-    const datos = {
-        conductor_id: document.getElementById('modal_conductor_id').value,
-        monto: montoFinal, 
-        referencia_pago: referenciaInput || (valorSemana > 1 ? `EXONERACIÓN DESDE SEM ${valorSemana}` : "NIVELACIÓN INICIAL"),
-        semana_inicio: valorSemana 
-    };
 
-    console.log("🚀 Procesando:", valorSemana > 1 ? "Exoneración + Carga" : "Carga normal", datos);
 
-    try {
-        const response = await fetch('/pagos/carga_inicial_pagos', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}` 
-            },
-            body: JSON.stringify(datos)
-        });
-
-        if (response.ok) {
-            alert(valorSemana > 1 ? '✅ Pasado exonerado y saldo nivelado.' : '✅ Saldo nivelado con éxito.');
-            cerrarModalCarga();
-            
-            if (typeof cargarEstadoSemana === 'function') cargarEstadoSemana();
-            if (typeof cargarPagosRecientes === 'function') cargarPagosRecientes();
-            
-        } else {
-            const err = await response.json();
-            alert('Error: ' + (err.error || 'No se pudo procesar'));
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    }
-};
-///////Sección para modales de reportes de información (Clientes, Conductores, etc.)///////
-// Abre el modal de incidencias inyectando los datos del despacho seleccionado
-// Variables globales temporales para asegurar el guardado de IDs
-// Variables globales temporales para asegurar el guardado de IDs
-// Variables de control absoluto
-// Variables de control global absoluto
 let idDespachoGlobal = null;
 let idClienteGlobal = null;
 let idConductorGlobal = null;
@@ -1550,3 +1682,167 @@ window.forzarReporte = async function() {
         }
     }
 };
+
+// =========================================================================
+// 🚀 PROCESAMIENTO ÚNICO DE CARGA INICIAL (BLINDADO Y GLOBAL)
+// =========================================================================
+
+// 1. Conservamos e inmunizamos la función legítima de cierre
+window.cerrarModalCarga = function() {
+    const modal = document.getElementById('modalCargaInicial');
+    const form = document.getElementById('formCargaInicial');
+    if (modal) modal.classList.add('hidden');
+    if (form) form.reset();
+};
+
+// 2. Bandera única de control de concurrencia en memoria
+// 🚨 ASEGURAMOS LA INICIALIZACIÓN GLOBAL FUERA DE LA FUNCIÓN
+if (typeof window.peticionEnCurso === 'undefined') {
+    window.peticionEnCurso = false;
+}
+// 🔄 CONTROLADOR DE ESTADOS DINÁMICOS (Péguelo donde maneja el cambio del select)
+document.getElementById('modal_exonerar_sn').addEventListener('change', function() {
+    const elMonto = document.getElementById('modal_monto');
+    const elRef = document.getElementById('modal_referencia');
+    
+    if (this.value === 'NO') {
+        // 🔓 LIBERAMOS EL MONTO REAL
+        elMonto.disabled = false;
+        elMonto.classList.remove('bg-gray-100', 'cursor-not-allowed'); // Limpia estilos de bloqueo si usa Tailwind
+        elMonto.value = "";             // Limpiamos cualquier residuo vacío
+        elMonto.placeholder = "0.00";
+        elMonto.focus();                // Forzamos el foco del teclado aquí
+        
+        // Limpiamos la referencia para que reciba texto real
+        elRef.value = "";
+        elRef.placeholder = "Ej: NIVELACIÓN INICIAL 2026";
+    } else {
+        // 🔒 BLOQUEAMOS EL MONTO EN 0 PARA EXONERACIÓN
+        elMonto.value = "0";
+        elMonto.disabled = true;
+        elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
+        
+        elRef.placeholder = "Ej: EXONERACIÓN POR REINGRESO / TALLER";
+    }
+});
+window.ejecutarCargaInicial = async function(e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // =========================================================================
+    // 🚦 EL SEMÁFORO ABSOLUTO (PRIMERA ADUANA)
+    // =========================================================================
+    if (window.peticionEnCurso) {
+        console.warn("⛔ [SEMÁFORO] Bloqueado: Ya existe un envío contable hacia el servidor.");
+        return; 
+    }
+
+    // 🔬 AUDITORÍA EN VIVO DE LOS NODOS HTML (Justo en el momento del clic)
+    const elExonerar = document.getElementById('modal_exonerar_sn');
+    const elSemana = document.getElementById('modal_semana_ingreso');
+    const elMonto = document.getElementById('modal_monto');
+    const elRef = document.getElementById('modal_referencia');
+
+    console.log("📊 [AUDITORÍA FORMULARIO]");
+    console.log("-> Select Exonerar Nodo:", elExonerar, "| Valor Real:", elExonerar ? elExonerar.value : 'NO EXISTE');
+    console.log("-> Select Semana Nodo:", elSemana, "| Valor Real:", elSemana ? elSemana.value : 'NO EXISTE');
+    console.log("-> Input Monto Nodo:", elMonto, "| Valor Real:", elMonto ? elMonto.value : 'NO EXISTE');
+    console.log("-> Input Referencia Nodo:", elRef, "| Valor Real:", elRef ? elRef.value : 'NO EXISTE');
+
+    // 📥 RECOLECCIÓN Y EXTRACCIÓN DE DATOS DE LOS INPUTS
+    const aplicaExoneracion = elExonerar ? elExonerar.value : '';
+    const selectSemana = elSemana;
+    const montoRaw = elMonto ? elMonto.value : '';
+    const referenciaInput = elRef ? elRef.value : '';
+
+    if (!aplicaExoneracion) {
+        alert("⚠️ Operación abortada: Debe seleccionar si aplica o no la Exoneración.");
+        return;
+    }
+
+    // 🧮 CÁLCULO Y VALIDACIÓN MATEMÁTICA DEL MONTO
+    let montoFinal = montoRaw === "" ? 0 : parseFloat(montoRaw);
+    const TARIFA_SEMANAL = window.TARIFA_SEMANAL_SISTEMA || 40000;
+
+    if (montoFinal > 0 && (montoFinal % TARIFA_SEMANAL !== 0)) {
+        alert(`❌ Monto Inválido: El valor ingresado debe ser un múltiplo exacto de ${TARIFA_SEMANAL.toLocaleString()} COP.`);
+        return;
+    }
+    // 🛡️ ADUANA ANTIMICROPAGOS: Bloquea si meten exactamente una cuota (40.000 COP)
+    if (aplicaExoneracion === "NO" && montoFinal === TARIFA_SEMANAL) {
+        alert(`⚠️ Operación Rechazada: Para registrar una sola cuota (${TARIFA_SEMANAL.toLocaleString()} COP), por favor use el módulo de Pago por Semanas en la taquilla ordinaria.`);
+        return;
+    }
+    // --- PASÓ LAS ADUANAS CLÍNICAS: RESOLVEMOS LOS VALORES DE VIAJE ---
+    const btn = document.getElementById('btnEnviarCarga');
+    
+    // 🧠 SU LÓGICA INTELIGENTE: Si seleccionó "NO", forzamos semana 1
+    const valorSemana = aplicaExoneracion === "NO" ? 1 : (selectSemana ? parseInt(selectSemana.value) : 1);
+
+    // 📦 CONSTRUCCIÓN DEL PAYLOAD FINAL (Ahora sí, con todas las variables declaradas)
+    const datos = {
+        conductor_id: document.getElementById('modal_conductor_id').value,
+        monto: montoFinal,
+        referencia_pago: referenciaInput || (valorSemana > 1 ? `EXONERACIÓN DESDE SEM ${valorSemana}` : "NIVELACIÓN INICIAL"),
+        semana_inicio: valorSemana,
+        es_exonerado: aplicaExoneracion // Enviamos este flag para que Python decida
+    };
+
+    try {
+        window.peticionEnCurso = true; // 🔴 Encendido inmediato del semáforo
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "Procesando...";
+        }
+
+        console.log("🎯 PETICIÓN VERIFICADA Y ENVIADA CON ÉXITO:", datos);
+
+        const response = await fetch('/pagos/carga_inicial_pagos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(datos)
+        });
+
+        if (response.ok) {
+            alert('✅ Operación contable registrada con éxito.');
+            window.cerrarModalCarga();
+            if (typeof window.cargarEstadoSemana === 'function') await window.cargarEstadoSemana();
+        } else {
+            const err = await response.json();
+            alert('❌ Error: ' + (err.error || 'No se pudo procesar'));
+        }
+
+    } catch (error) {
+        console.error('❌ Error fatal en procesamiento:', error);
+        alert('Error de conexión con el servidor');
+    } finally {
+        // --- LIBERAMOS EL SEMÁFORO SOLAMENTE AL TERMINAR DE RESPONDER ---
+        window.peticionEnCurso = false; // 🟢 Luz verde
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "PROCESAR TODO";
+        }
+    }
+};
+//////Botón reporte consolidado/////
+document.getElementById('btnImprimirConsolidadoPDF').addEventListener('click', function() {
+    const btn = this;
+    const textoOriginal = btn.innerHTML;
+    
+    btn.innerHTML = '⏳ Generando PDF...';
+    btn.disabled = true;
+
+    // Abrimos directamente el endpoint en una ventana/pestaña oculta para disparar la descarga nativa
+    window.location.href = '/reportes/pdf_consolidado';
+
+    // Restauramos el botón después de un pequeño delay técnico
+    setTimeout(() => {
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+    }, 2000);
+});

@@ -77,7 +77,7 @@ def create_app():
     app.config['DEBUG'] = config.DEBUG
     print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
-    migrate = Migrate(app, db)
+    migrate = Migrate(app, db, render_as_batch=True)
     
     # ELIMINA O COMENTA ESTA LÍNEA (Genera conflicto con la de arriba)
     # app.secret_key = "clave_super_secreta_unica"   
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     
     # 2. Programar la tarea
     # Se recomienda usar 'replace_existing=True' por si reinicias la app
-    scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=1, replace_existing=True)
+    scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
     
     # 3. Iniciar
     scheduler.start()
