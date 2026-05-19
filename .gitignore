@@ -1,9 +1,20 @@
-__pycache__/
+# Entorno virtual de Python
 venv/
+.venv/
+env/
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variables de entorno (Claves secretas)
 .env
-instance/
-*.db
-*.sqlite
-*.db-shm
-*.db-wal
-*.sqbpro
+
+# IDEs
+.vscode/
+
+# Base de datos local (Opcional, si prefiere que no se suba la data real de taxis)
+# *.db
+# *.sqlite3
