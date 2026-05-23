@@ -1097,18 +1097,29 @@ async function cargarEstadoSemana() {
 
     try {
         console.log("📡 Consultando solvencia semanal...");
-        const conductores = await apiFetch('/pagos/estado_semana');
+        let conductores = await apiFetch('/pagos/estado_semana');
         
-        // Limpiar tabla
+        // 🎯 ORDENAMIENTO ALFANUMÉRICO DIRECTO EN EL FRONTEND
+        if (conductores && conductores.length > 0) {
+            conductores.sort((a, b) => {
+                // Compara la propiedad 'unidad' (Ej: B1, B2, B10, B26) de forma natural humana
+                return a.unidad.localeCompare(b.unidad, undefined, {
+                    numeric: true,
+                    sensitivity: 'base'
+                });
+            });
+            console.log("📌 Tabla ordenada alfanuméricamente por código de unidad.");
+        }
+
+        // Limpiar tabla después de tener los datos listos y ordenados
         tbody.innerHTML = '';
 
         if (!conductores || conductores.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay datos para esta semana.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay datos para esta semana.</td></tr>';
             return;
         }
 
         conductores.forEach(c => {
-            // Usamos las llaves que confirmamos en su consola
             const idValue = c.id_conductor; 
             const nombreValue = c.conductor;
 
@@ -1135,7 +1146,6 @@ async function cargarEstadoSemana() {
         console.error('❌ Error al cargar estado_semana:', error);
     }
 }
-
 // Hacerla global
 window.cargarEstadoSemana = cargarEstadoSemana;
 
@@ -1238,14 +1248,6 @@ window.prepararCobro = function(id, nombre) {
     }
 };
 // El resto de sus funciones (cerrarModalCarga y onsubmit) se mantienen igual abajo...
-
-window.cerrarModalCarga = function() {
-    document.getElementById('modalCargaInicial').classList.add('hidden');
-    document.getElementById('formCargaInicial').reset();
-};
-
-
-
 
 
 let idDespachoGlobal = null;
@@ -1684,15 +1686,34 @@ window.forzarReporte = async function() {
 };
 
 // =========================================================================
-// 🚀 PROCESAMIENTO ÚNICO DE CARGA INICIAL (BLINDADO Y GLOBAL)
+// 🧼 1. FUNCIÓN LEGÍTIMA DE CIERRE UNIFICADA Y BLINDADA (EVITA DUPLICIDAD)
 // =========================================================================
-
-// 1. Conservamos e inmunizamos la función legítima de cierre
 window.cerrarModalCarga = function() {
     const modal = document.getElementById('modalCargaInicial');
     const form = document.getElementById('formCargaInicial');
-    if (modal) modal.classList.add('hidden');
-    if (form) form.reset();
+    
+    // Ocultamos el modal de la vista
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Limpiamos el formulario y reseteamos el estado de los componentes visuales
+    if (form) {
+        form.reset();
+        
+        // 🧼 Apagamos de raíz el contenedor dinámico de semanas para que no sufra de fricción al reabrirse
+        const elSemana = document.getElementById('modal_semana_ingreso');
+        const contenedorSemana = elSemana ? elSemana.closest('.mb-4') : null;
+        
+        if (contenedorSemana) {
+            contenedorSemana.style.display = 'none';
+        }
+        
+        if (elSemana) {
+            elSemana.disabled = true;
+            elSemana.innerHTML = ''; // Limpiamos las options cargadas dinámicamente del servidor
+        }
+    }
 };
 
 // 2. Bandera única de control de concurrencia en memoria
@@ -1700,29 +1721,103 @@ window.cerrarModalCarga = function() {
 if (typeof window.peticionEnCurso === 'undefined') {
     window.peticionEnCurso = false;
 }
-// 🔄 CONTROLADOR DE ESTADOS DINÁMICOS (Péguelo donde maneja el cambio del select)
-document.getElementById('modal_exonerar_sn').addEventListener('change', function() {
-    const elMonto = document.getElementById('modal_monto');
-    const elRef = document.getElementById('modal_referencia');
-    
-    if (this.value === 'NO') {
-        // 🔓 LIBERAMOS EL MONTO REAL
-        elMonto.disabled = false;
-        elMonto.classList.remove('bg-gray-100', 'cursor-not-allowed'); // Limpia estilos de bloqueo si usa Tailwind
-        elMonto.value = "";             // Limpiamos cualquier residuo vacío
-        elMonto.placeholder = "0.00";
-        elMonto.focus();                // Forzamos el foco del teclado aquí
+// =========================================================================
+// 🔄 DELEGACIÓN DE EVENTOS GLOBAL (INMUNE A CAMBIOS DE VISTA Y ASINCRONISMO)
+// =========================================================================
+document.addEventListener('change', async function(event) {
+    // 🎯 Capturamos el evento únicamente si el elemento que cambió es nuestro select
+    if (event.target && event.target.id === 'modal_exonerar_sn') {
         
-        // Limpiamos la referencia para que reciba texto real
-        elRef.value = "";
-        elRef.placeholder = "Ej: NIVELACIÓN INICIAL 2026";
-    } else {
-        // 🔒 BLOQUEAMOS EL MONTO EN 0 PARA EXONERACIÓN
-        elMonto.value = "0";
-        elMonto.disabled = true;
-        elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
+        console.log("🎯 [DELEGACIÓN] Cambio detectado en 'modal_exonerar_sn' de forma dinámica.");
         
-        elRef.placeholder = "Ej: EXONERACIÓN POR REINGRESO / TALLER";
+        const elSelect = event.target;
+        const elMonto = document.getElementById('modal_monto');
+        const elRef = document.getElementById('modal_referencia');
+        const elSemana = document.getElementById('modal_semana_ingreso');
+        const contenedorSemana = document.getElementById('contenedor_semana_ingreso');
+        const conductorId = document.getElementById('modal_conductor_id') ? document.getElementById('modal_conductor_id').value : '';
+        
+        if (elSelect.value === 'NO') {
+            } else if (elSelect.value === 'SI') {
+            if (elSemana) {
+                // ⏳ Ponemos el selector en estado de verificación
+                elSemana.disabled = true; 
+                elSemana.innerHTML = '<option value="">⏳ Validando antecedentes en base de datos...</option>';
+                
+                if (!conductorId) {
+                    alert("❌ Error: Conductor no identificado.");
+                    elSelect.value = ""; // Reseteamos el selector general a neutro
+                    return;
+                }
+
+                try {
+                    // 📡 ALCABALA DE SEGURIDAD: Consultamos el historial real en SQLite
+                    const response = await fetch(`/pagos/semanas_pendientes/${conductorId}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+
+                    if (response.ok) {
+                        const datos = await response.json();
+
+                        // 🚨 VALIDACIÓN CRÍTICA: Si ya tiene historial (el servidor devuelve semanas procesadas/pendientes)
+                        if (datos.semanas && datos.semanas.length > 0) {
+                            
+                            // 💥 DETENCIÓN FULMINANTE
+                            alert(`🚫 Operación denegada: El conductor ya posee un historial contable activo o cargas masivas previas en el sistema.`);
+                            
+                            // Reseteamos la interfaz a estado neutro seguro
+                            elSelect.value = ""; 
+                            if (contenedorSemana) contenedorSemana.classList.add('hidden');
+                            elSemana.innerHTML = '';
+                            return; // Rompemos la ejecución aquí, no se genera el cronograma
+                        }
+
+                        // 🔓 CASO SEGURO: Si el array viene vacío ([]), el conductor está limpio.
+                        elSemana.innerHTML = ''; 
+
+                        // 📅 Cálculo matemático de semanas del año (2026)
+                        const hoy = new Date();
+                        const inicioAño = new Date(hoy.getFullYear(), 0, 1);
+                        const diasPasados = Math.floor((hoy - inicioAño) / (24 * 60 * 60 * 1000));
+                        const semanaActualDelAño = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
+
+                        console.log(`🆕 Conductor virgen confirmado. Desplegando semanas del año hasta la ${semanaActualDelAño}`);
+
+                        // Mostramos el contenedor azul
+                        if (contenedorSemana) contenedorSemana.classList.remove('hidden');
+
+                        // Poblamos el select limpio desde la 01
+                        for (let i = 1; i <= semanaActualDelAño; i++) {
+                            const option = document.createElement('option');
+                            option.value = i;
+                            option.innerText = `Semana ${String(i).padStart(2, '0')} (Disponible desde 01/01)`;
+                            elSemana.appendChild(option);
+                        }
+                        
+                        elSemana.disabled = false; // Se libera para la administradora
+
+                    } else {
+                        throw new Error("Fallo en la respuesta del servidor");
+                    }
+                } catch (error) {
+                    console.error("❌ Error en alcabala contable:", error);
+                    alert("⚠️ No se pudo verificar el historial debido a un problema de conexión.");
+                    elSelect.value = "";
+                    if (contenedorSemana) contenedorSemana.classList.add('hidden');
+                }
+            }
+
+            // Parámetros de amnistía por defecto si pasa la validación
+            if (elMonto) {
+                elMonto.value = "0";
+                elMonto.disabled = true;
+                elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
+            }
+            if (elRef) {
+                elRef.placeholder = "Ej: EXONERACIÓN POR REINGRESO";
+            }
+        }
     }
 });
 window.ejecutarCargaInicial = async function(e) {

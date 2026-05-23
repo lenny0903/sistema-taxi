@@ -687,9 +687,9 @@
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto max-h-[400px] overflow-y-auto border">
                     <table class="w-full border-collapse border mt-2 hidden" id="tablaPagosReporte">
-                        <thead class="bg-gray-200">
+                        <thead class="bg-gray-200 sticky top-0 bg-white z-10">
                             <tr>
                                 <th class="border p-2">Fecha/Hora</th>
                                 <th class="border p-2">Unidad</th>
@@ -717,27 +717,31 @@
                   </button>
               </div>
 
-              <div class="overflow-x-auto rounded-lg shadow border border-gray-200 bg-white">
-                  <table class="w-full text-left border-collapse hidden" id="tablaConsolidadoReporte">
-                      <thead>
-                          <tr class="bg-gray-100 text-gray-700 uppercase text-xs font-bold border-b border-gray-200">
-                              <th class="p-3 text-center border-r">Unidad</th>
-                              <th class="p-3">Conductor</th>
-                              <th class="p-3 text-right border-l">Total Pagado (COP)</th>
-                              <th class="p-3 text-center border-l">Semanas Cubiertas</th>
-                          </tr>
-                      </thead>
-                      <tbody id="tbodyConsolidadoReporte" class="divide-y divide-gray-200 text-sm text-gray-600">
-                          </tbody>
-                      <tfoot class="bg-gray-50 border-t-2 border-gray-300 text-sm font-bold text-gray-900">
-                          <tr>
-                              <td colspan="2" class="p-3 text-right text-gray-700 uppercase tracking-wider">Gran Total Consolidado:</td>
-                              <td id="totalConsolidadoDinero" class="p-3 text-right text-green-700 text-base font-extrabold border-l">$0.00</td>
-                              <td id="totalConsolidadoSemanas" class="p-3 text-center text-blue-700 border-l">0 semanas</td>
-                          </tr>
-                      </tfoot>
-                  </table>
-              </div>
+             <div class="overflow-x-auto rounded-lg shadow border border-gray-200 bg-white max-h-[450px] overflow-y-auto">
+                <table class="w-full text-left border-collapse hidden" id="tablaConsolidadoReporte">
+                    
+                    <thead class="sticky top-0 bg-gray-100 z-10 shadow-sm">
+                        <tr class="text-gray-700 uppercase text-xs font-bold border-b border-gray-200">
+                            <th class="p-3 text-center border-r">Unidad</th>
+                            <th class="p-3">Conductor</th>
+                            <th class="p-3 text-right border-l">Total Pagado (COP)</th>
+                            <th class="p-3 text-center border-l">Semanas Cubiertas</th>
+                        </tr>
+                    </thead>
+                    
+                    <tbody id="tbodyConsolidadoReporte" class="divide-y divide-gray-200 text-sm text-gray-600">
+                    </tbody>
+                    
+                    <tfoot class="sticky bottom-0 bg-gray-50 border-t-2 border-gray-300 text-sm font-bold text-gray-900 z-10 shadow-[0_-2px_5px_rgba(0,0,0,0.05)]">
+                        <tr>
+                            <td colspan="2" class="p-3 text-right text-gray-700 uppercase tracking-wider">Gran Total Consolidado:</td>
+                            <td id="totalConsolidadoDinero" class="p-3 text-right text-green-700 text-base font-extrabold border-l">$0.00</td>
+                            <td id="totalConsolidadoSemanas" class="p-3 text-center text-blue-700 border-l">0 semanas</td>
+                        </tr>
+                    </tfoot>
+
+                </table>
+            </div>
           </div>
       </section>
       <!-- Sección: Respaldo -->
@@ -2540,73 +2544,52 @@ document.addEventListener("DOMContentLoaded", () => {
                   <button type="button" onclick="cerrarModalCarga()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
               </div>
               
-              <form id="formCargaInicial" class="mt-4 text-left" autocomplete="off">
-                  <input type="hidden" id="modal_conductor_id">
-                  
-                  <div class="mb-4">
-                      <label class="block text-gray-700 text-xs font-bold mb-2">Conductor:</label>
-                      <div id="modal_nombre_conductor" class="p-2 bg-gray-100 rounded text-sm text-gray-600 font-semibold"></div>
-                  </div>
+             <form id="formCargaInicial" class="mt-4 text-left" autocomplete="off">
+                <input type="hidden" id="modal_conductor_id">
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-xs font-bold mb-2">Conductor:</label>
+                    <div id="modal_nombre_conductor" class="p-2 bg-gray-100 rounded text-sm text-gray-600 font-semibold text-gray-800"></div>
+                </div>
 
-                  <div class="mb-4">
-                      <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_exonerar_sn">¿Aplica Exoneración de Semanas?</label>
-                      <select id="modal_exonerar_sn" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-white font-semibold text-gray-700">
-                          <option value="">-- Seleccione una opción obligatoria --</option>
-                          <option value="SI">SÍ (Ingreso Tardío - Exonerar semanas anteriores)</option>
-                          <option value="NO">NO (Cargar Deuda Completa)</option>
-                      </select>
-                  </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_exonerar_sn">¿Aplica Exoneración de Semanas?</label>
+                    <select id="modal_exonerar_sn" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-white font-semibold text-gray-700">
+                        <option value="">-- Seleccione una opción obligatoria --</option>
+                        <option value="SI">SÍ (Ingreso Tardío - Exonerar semanas anteriores)</option>
+                        <option value="NO">NO (Cargar Deuda Completa)</option>
+                    </select>
+                </div>
 
-                  <div class="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
+                <div id="contenedor_semana_ingreso" class="hidden mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
                       <label class="block text-blue-800 text-xs font-bold mb-2" for="modal_semana_ingreso">¿Es Ingreso Tardío?</label>
-                      <select id="modal_semana_ingreso" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-                          <option value="1">Semana 01 (01 Ene - 04 Ene)</option>
-                          <option value="2">Semana 02 (05 Ene - 11 Ene)</option>
-                          <option value="3">Semana 03 (12 Ene - 18 Ene)</option>
-                          <option value="4">Semana 04 (19 Ene - 25 Ene)</option>
-                          
-                          <option value="5">Semana 05 (26 Ene - 01 Feb)</option>
-                          <option value="6">Semana 06 (02 Feb - 08 Feb)</option>
-                          <option value="7">Semana 07 (09 Feb - 15 Feb)</option>
-                          <option value="8">Semana 08 (16 Feb - 22 Feb)</option>
-                          
-                          <option value="9">Semana 09 (23 Feb - 01 Mar)</option>
-                          <option value="10">Semana 10 (02 Mar - 08 Mar)</option>
-                          <option value="11">Semana 11 (09 Mar - 15 Mar)</option>
-                          <option value="12">Semana 12 (16 Mar - 22 Mar)</option>
-                          <option value="13">Semana 13 (23 Mar - 29 Mar)</option>
-                          
-                          <option value="14">Semana 14 (30 Mar - 05 Abr)</option>
-                          <option value="15">Semana 15 (06 Abr - 12 Abr)</option>
-                          <option value="16">Semana 16 (13 Abr - 19 Abr)</option>
-                          <option value="17">Semana 17 (20 Abr - 26 Abr)</option>
-                          
-                          <option value="18">Semana 18 (27 Abr - 03 May)</option>
-                          <option value="19">Semana 19 (04 May - 10 May)</option>
-                          <option value="20">Semana 20 (11 May - 17 May)</option>
+                      
+                      <select id="modal_semana_ingreso" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-white text-gray-700" disabled>
+                          <option value="">⏳ Buscando cronograma en el servidor...</option>
                       </select>
-                      <p class="text-[10px] text-blue-600 mt-1 italic">* Semanas anteriores serán exoneradas.</p>
-                  </div>
+                      
+                      <p class="text-[10px] text-blue-600 mt-2 italic">* Semanas anteriores serán exoneradas de las cuentas del conductor.</p>
+                </div>
 
-                  <div class="mb-4">
-                      <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_monto">Monto en Efectivo (COP):</label>
-                      <input type="number" id="modal_monto" step="0.01" class="w-full px-3 py-2 border rounded-md text-sm" placeholder="0.00">
-                  </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_monto">Monto en Efectivo (COP):</label>
+                    <input type="number" id="modal_monto" step="0.01" class="w-full px-3 py-2 border rounded-md text-sm bg-gray-100 cursor-not-allowed" placeholder="0.00" disabled>
+                </div>
 
-                  <div class="mb-4">
-                      <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_referencia">Referencia de Auditoría:</label>
-                      <input type="text" id="modal_referencia" placeholder="Ej: NIVELACIÓN INICIAL 2026" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                  </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-xs font-bold mb-2" for="modal_referencia">Referencia de Auditoría:</label>
+                    <input type="text" id="modal_referencia" placeholder="Ej: NIVELACIÓN INICIAL 2026" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
 
-                  <div class="flex items-center justify-end mt-6 space-x-3">
-                      <button type="button" onclick="cerrarModalCarga()" class="px-4 py-2 bg-gray-200 text-gray-800 text-xs font-bold rounded hover:bg-gray-300 transition-colors">
-                          CANCELAR
-                      </button>
-                      <button type="button" id="btnEnviarCarga" onclick="ejecutarCargaInicial(event)" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 shadow-md transition-colors">
-                          PROCESAR TODO
-                      </button>
-                  </div>
-              </form> 
+                <div class="flex items-center justify-end mt-6 space-x-3">
+                    <button type="button" onclick="cerrarModalCarga()" class="px-4 py-2 bg-gray-200 text-gray-800 text-xs font-bold rounded hover:bg-gray-300 transition-colors">
+                        CANCELAR
+                    </button>
+                    <button type="button" id="btnEnviarCarga" onclick="ejecutarCargaInicial(event)" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 shadow-md transition-colors">
+                        PROCESAR TODO
+                    </button>
+                </div>
+             </form>
           </div>
       </div>
     </div>
