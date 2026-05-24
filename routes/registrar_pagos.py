@@ -240,6 +240,7 @@ def obtener_estado_semana():
         # Importamos el monto global
         from app import MONTO_CUOTA_SEMANAL
         
+        
         # --- BLOQUE DE AUTONOMÍA: EL "RELOJ" DEL VIERNES ---
         ahora = datetime.now()
         dia_semana = ahora.weekday() # 0=Lunes... 4=Viernes
@@ -282,89 +283,69 @@ def obtener_estado_semana():
         resultado = []
         for c in conductores_aptos:
             try:
-              # 🎯 1. Cargos Históricos Limpios: Sumamos todas las cuotas (pasadas o en mora) pero EXCLUIMOS adelantos futuros
-                monto_cargado_puro = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-                    .filter(
-                        CuotaSemanal.conductor_id == c.id_conductor,
-                        db.or_(CuotaSemanal.pagado == False, CuotaSemanal.semana_anio < semana_hoy) # 👈 Filtro protector de adelantos
-                    ).scalar() or 0.0
-
-                # Sumamos el dinero que la línea le perdonó en este periodo transcurrido
-                monto_exonerado = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-                    .filter(
-                        CuotaSemanal.conductor_id == c.id_conductor,
-                        CuotaSemanal.semana_anio <= semana_hoy,
-                        CuotaSemanal.es_exonerado == 1  # 🎯 Ubica filas como la de la semana 20
-                    ).scalar() or 0.0
-
-                # El cargo real neto que el chofer debió pagar por ley de la línea
-                total_cargos = monto_cargado_puro - monto_exonerado
-                
-                # 2. Sumamos TODOS los abonos históricos (Aquí entran los 40k del adelanto actual sin restricciones)
-                total_abonos = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
-                    .filter(PagoCuota.conductor_id == c.id_conductor).scalar() or 0.0
-
-                # 3. Saldo en mora real (Celdas en falso que aún debe en el sistema)
-                saldo_real = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-                    .filter(
-                        CuotaSemanal.conductor_id == c.id_conductor,
-                        CuotaSemanal.pagado == False
-                    ).scalar() or 0.0
-                
-                # 📊 AUDITORÍA CRONOLÓGICA DE SEMANAS ANUALIZADA
+                # 📊 1. AUDITORÍA CRONOLÓGICA REAL (Basada en el Reloj)
                 anio_actual = ahora.strftime('%Y')
+                semana_actual_calendario = int(ahora.strftime('%V'))
+                if semana_actual_calendario == 0:
+                    semana_actual_calendario = 1
 
-                # Contamos cuántas semanas del año actual tiene pagadas de verdad
+                # 2. Contamos estrictamente cuántas semanas del año actual están pagadas en la BD
                 semanas_saldadas = CuotaSemanal.query.filter(
                     CuotaSemanal.conductor_id == c.id_conductor, 
                     CuotaSemanal.pagado == True,
                     CuotaSemanal.semana_anio.like(f"{anio_actual}-%")
                 ).count()
-                
-                # Las semanas totales del periodo real (las que debería tener pagadas obligatoriamente hoy)
-                semanas_totales = CuotaSemanal.query.filter(
-                    CuotaSemanal.conductor_id == c.id_conductor,
-                    CuotaSemanal.semana_anio.like(f"{anio_actual}-%"),
-                    db.or_(CuotaSemanal.pagado == False, CuotaSemanal.semana_anio < semana_hoy)
-                ).count()
 
-                # Regla de oro para nuevos ingresos
-                if total_cargos == 0 and total_abonos == 0:
-                    saldo_real = float(MONTO_CUOTA_SEMANAL)
-                    semanas_saldadas = 0
-                    semanas_totales = 1
-                                                
-                # 🎯 CÁLCULO DE ADELANTADO CONTABLE (Basado en la realidad de las celdas)
-                esta_realmente_solvente = (saldo_real <= 0)
-                
-                # Buscamos si tiene cuotas pagadas de esta semana o semanas futuras (Adelantos reales)
-                cuotas_futuras_pagas = CuotaSemanal.query.filter(
-                    CuotaSemanal.conductor_id == c.id_conductor,
-                    CuotaSemanal.semana_anio >= semana_hoy,
-                    CuotaSemanal.pagado == True
-                ).count()
+                # 3. La meta obligatoria a la fecha actual
+                semanas_totales = semana_actual_calendario
 
-                # 💡 Si tiene cuotas pagas del futuro, está ADELANTADO
-                if cuotas_futuras_pagas > 0:
-                    # El monto a favor es simplemente el número de cuotas adelantadas por el valor de la cuota
-                    monto_favor = float(cuotas_futuras_pagas * MONTO_CUOTA_SEMANAL)
-                    
-                    # El progreso real es las semanas del año que debió pagar más las que adelantó
-                    semanas_saldadas_mostrar = semanas_totales + cuotas_futuras_pagas
-                    metrica_semanas = f"{semanas_saldadas_mostrar} / {semanas_totales}"
-                    
-                    saldo_mostrar_str = f"-{monto_favor:,.2f}" 
-                    status_html_dinamico = '<span class="px-2 py-1 rounded bg-blue-100 text-blue-700 font-bold text-xs">ADELANTADO</span>'
-                    esta_realmente_solvente = True  
+                # 4. Saldo en mora real (Dinero estricto de celdas vencidas que debe en la taquilla)
+                saldo_en_mora = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
+                    .filter(
+                        CuotaSemanal.conductor_id == c.id_conductor,
+                        CuotaSemanal.semana_anio <= semana_hoy, # Solo del presente hacia el pasado
+                        CuotaSemanal.pagado == False
+                    ).scalar() or 0.0
+
+                # 5. Regla de oro para nuevos ingresos (Conductores vírgenes sin movimientos)
+                # Buscamos si tiene alguna transacción real en el sistema
+                tiene_movimientos = CuotaSemanal.query.filter_by(conductor_id=c.id_conductor).first()
+                if not tiene_movimientos:
+                    saldo_mostrar_str = f"{MONTO_CUOTA_SEMANAL:,.2f}"
+                    metrica_semanas = "0 / 1"
+                    esta_solvente = False
+                    status_html = '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
+                
                 else:
-                    # Caso Deudor o Solvente Exacto (Lógica original intacta)
-                    metrica_semanas = f"{semanas_saldadas} / {semanas_totales}"
-                    saldo_mostrar_str = f"{saldo_real:,.2f}" 
-                    status_html_dinamico = (
-                        '<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold text-xs">SOLVENTE</span>' 
-                        if esta_realmente_solvente else 
-                        '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
-                    )
+                    # 🧮 MATEMÁTICA CONTABLE DETERMINISTA
+                    # Evaluamos si el chofer pagó más allá de la meta del calendario actual
+                    if semanas_saldadas > semanas_totales:
+                        # Caso: ADELANTADO
+                        cuotas_adelantadas = semanas_saldadas - semanas_totales
+                        monto_favor = float(cuotas_adelantadas * MONTO_CUOTA_SEMANAL)
+                        
+                        metrica_semanas = f"{semanas_saldadas} / {semanas_totales}"
+                        saldo_mostrar_str = f"-{monto_favor:,.2f}"
+                        esta_solvente = True
+                        status_html = '<span class="px-2 py-1 rounded bg-blue-100 text-blue-700 font-bold text-xs">ADELANTADO</span>'
+                    
+                    elif semanas_saldadas == semanas_totales:
+                        # Caso: SOLVENTE EXACTO
+                        metrica_semanas = f"{semanas_saldadas} / {semanas_totales}"
+                        saldo_mostrar_str = "0.00"
+                        esta_solvente = True
+                        status_html = '<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold text-xs">SOLVENTE</span>'
+                    
+                    else:
+                        # Caso: DEUDOR (Tiene semanas rezagadas)
+                        # El saldo se calcula multiplicando las semanas que le faltan por la tarifa
+                        semanas_debe = semanas_totales - semanas_saldadas
+                        saldo_calculado = float(semanas_debe * MONTO_CUOTA_SEMANAL)
+                        
+                        metrica_semanas = f"{semanas_saldadas} / {semanas_totales}"
+                        saldo_mostrar_str = f"{saldo_calculado:,.2f}"
+                        esta_solvente = False
+                        status_html = '<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold text-xs">DEUDOR</span>'
 
                 resultado.append({
                     "id_conductor": c.id_conductor,
@@ -372,8 +353,8 @@ def obtener_estado_semana():
                     "conductor": c.nombre,
                     "saldo": saldo_mostrar_str,          
                     "semanas_progreso": metrica_semanas,  
-                    "pagado": esta_realmente_solvente,
-                    "status_html": status_html_dinamico  
+                    "pagado": esta_solvente,
+                    "status_html": status_html  
                 })
                 
             except Exception as e:
@@ -448,7 +429,7 @@ def carga_inicial_pagos():
         referencia = data.get('referencia_pago') or "NIVELACIÓN INICIAL"
         
         ahora = datetime.now()
-        semana_actual_num = int(ahora.strftime('%U'))
+        semana_actual_num = int(ahora.strftime('%V'))
         if semana_actual_num == 0:
             semana_actual_num = 1
         año_actual = datetime.now().year    
@@ -457,35 +438,46 @@ def carga_inicial_pagos():
         TARIFA_SEMANAL = float(MONTO_CUOTA_SEMANAL)
 
         # =========================================================================
-        # 🛡️ EL CANDADO DEFINITIVO DE LA LÓGICA DE NEGOCIO (CORREGIDO)
+        # 🛡️ EL CANDADO DEFINITIVO DE LA LÓGICA DE NEGOCIO (REFORMADO CON SU REGLA)
         # =========================================================================
-        # 1. Buscamos específicamente si ya tiene un ingreso tardío asentado en su historia
+        # 📅 Detectamos la clave estricta de la primera semana del año actual
+        año_actual = datetime.now().year
+        semana_uno_label = f"{año_actual}-01"
+
+        # Buscamos qué hay registrado en la casilla de la Semana 1
+        registro_semana_uno = CuotaSemanal.query.filter_by(
+            conductor_id=conductor_id,
+            semana_anio=semana_uno_label
+        ).first()
+
+        # También verificamos si el conductor ya tiene un ingreso tardío asentado en su historia para la deducción posterior
         ya_tiene_exoneracion = CuotaSemanal.query.filter_by(
             conductor_id=conductor_id,
             tipo_novedad='INGRESO_TARDIO'
         ).first()
 
-        # 2. Buscamos si ya empezó a pagar cuotas ordinarias reales en la taquilla ordinaria
-        tiene_pagos_reales = CuotaSemanal.query.filter_by(
-            conductor_id=conductor_id,
-            tipo_novedad='CUOTA_ORDINARIA',
-            pagado=True
-        ).first()
-
         if es_exonerated_front == 'SI':
-            # 🚨 SI YA TIENE UN INGRESO TARDÍO REGISTRADO, NO SE PUEDE VOLVER A EXONERAR. ¡TIRO ÚNICO!
+            # 🎯 REGLA DEL INGENIERO: Si la semana 1 ya existe y NO es un ingreso tardío (es decir, fue pagada o es cuota ordinaria), NO califica.
+            if registro_semana_uno and registro_semana_uno.tipo_novedad != 'INGRESO_TARDIO':
+                return jsonify({
+                    "error": "Operación Denegada: El conductor registra actividad ordinaria en la Semana 01. No califica para Ingreso Tardío."
+                }), 400
+                
+            # 🚨 Doble seguro pasivo: Si ya tiene registros de ingreso tardío y no se quiere sobreescribir
             if ya_tiene_exoneracion is not None:
+                # Opcional: Puede dejar que re-exonere si se equivocó, o bloquearlo. 
+                # Si prefiere permitir correcciones, simplemente comente estas dos líneas:
                 return jsonify({
                     "error": "Operación Denegada: Este conductor ya tiene una exoneración de ingreso asentada."
                 }), 400
         else:
-            # 🚨 SI VA A METER PLATA, SOLO SE BLOQUEA SI YA TIENE PAGOS REALES EN TAQUILLA
-            if tiene_pagos_reales is not None:
+            # 🚨 SI VA A METER PLATA ("NO"): Bloqueamos si la semana 1 ya está pagada como ordinaria
+            if registro_semana_uno and registro_semana_uno.pagado and registro_semana_uno.tipo_novedad == 'CUOTA_ORDINARIA':
                 return jsonify({
-                    "error": "Operación Denegada: El conductor ya tiene pagos ordinarios registrados en taquilla."
+                    "error": "Operación Denegada: El conductor ya tiene pagos ordinarios registrados en la taquilla."
                 }), 400
         # =========================================================================
-
+        
         # -------------------------------------------------------------------------
         # 🧠 DEDUCCIÓN DE LA SEMANA DE ARRANQUE REAL (SU LÓGICA INTELIGENTE)
         # -------------------------------------------------------------------------

@@ -1692,26 +1692,25 @@ window.cerrarModalCarga = function() {
     const modal = document.getElementById('modalCargaInicial');
     const form = document.getElementById('formCargaInicial');
     
-    // Ocultamos el modal de la vista
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
     
-    // Limpiamos el formulario y reseteamos el estado de los componentes visuales
     if (form) {
         form.reset();
         
-        // 🧼 Apagamos de raíz el contenedor dinámico de semanas para que no sufra de fricción al reabrirse
+        const elMonto = document.getElementById('modal_monto');
         const elSemana = document.getElementById('modal_semana_ingreso');
-        const contenedorSemana = elSemana ? elSemana.closest('.mb-4') : null;
+        const contenedorSemana = document.getElementById('contenedor_semana_ingreso');
         
-        if (contenedorSemana) {
-            contenedorSemana.style.display = 'none';
-        }
-        
+        // Retornamos todo a estado Neutro Seguro de fábrica
+        if (contenedorSemana) contenedorSemana.classList.add('hidden');
         if (elSemana) {
             elSemana.disabled = true;
-            elSemana.innerHTML = ''; // Limpiamos las options cargadas dinámicamente del servidor
+            elSemana.innerHTML = '';
+        }
+        if (elMonto) {
+            elMonto.value = '';
+            elMonto.disabled = true;
+            elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
         }
     }
 };
@@ -1725,7 +1724,6 @@ if (typeof window.peticionEnCurso === 'undefined') {
 // 🔄 DELEGACIÓN DE EVENTOS GLOBAL (INMUNE A CAMBIOS DE VISTA Y ASINCRONISMO)
 // =========================================================================
 document.addEventListener('change', async function(event) {
-    // 🎯 Capturamos el evento únicamente si el elemento que cambió es nuestro select
     if (event.target && event.target.id === 'modal_exonerar_sn') {
         
         console.log("🎯 [DELEGACIÓN] Cambio detectado en 'modal_exonerar_sn' de forma dinámica.");
@@ -1737,21 +1735,47 @@ document.addEventListener('change', async function(event) {
         const contenedorSemana = document.getElementById('contenedor_semana_ingreso');
         const conductorId = document.getElementById('modal_conductor_id') ? document.getElementById('modal_conductor_id').value : '';
         
+        // 🧼 Estado de Limpieza Inmediata antes de evaluar escenarios
+        if (contenedorSemana) contenedorSemana.classList.add('hidden');
+        if (elSemana) { elSemana.disabled = true; elSemana.innerHTML = ''; }
+        if (elMonto) {
+            elMonto.value = "0";
+            elMonto.disabled = true;
+            elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
+        }
+
+        // ❌ ESCENARIO "NO": Cargar Deuda Completa (Carga Masiva Estándar)
         if (elSelect.value === 'NO') {
-            } else if (elSelect.value === 'SI') {
+            console.log("💼 Activando Modo: Carga Masiva Estándar.");
+            if (elMonto) {
+                elMonto.value = ""; // Se limpia el cero para que digite el monto real
+                elMonto.disabled = false;
+                elMonto.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                elMonto.focus();
+            }
+            if (elRef) {
+                elRef.placeholder = "Ej: NIVELACIÓN INICIAL 2026";
+            }
+        } 
+        
+        // ✅ ESCENARIO "SI": Ingreso Tardío (Exonerar semanas anteriores)
+        else if (elSelect.value === 'SI') {
+            console.log("⏳ Activando Modo: Validación de Ingreso Tardío.");
+            
             if (elSemana) {
-                // ⏳ Ponemos el selector en estado de verificación
                 elSemana.disabled = true; 
                 elSemana.innerHTML = '<option value="">⏳ Validando antecedentes en base de datos...</option>';
+                if (contenedorSemana) contenedorSemana.classList.remove('hidden');
                 
                 if (!conductorId) {
                     alert("❌ Error: Conductor no identificado.");
-                    elSelect.value = ""; // Reseteamos el selector general a neutro
+                    elSelect.value = "";
+                    if (contenedorSemana) contenedorSemana.classList.add('hidden');
                     return;
                 }
 
                 try {
-                    // 📡 ALCABALA DE SEGURIDAD: Consultamos el historial real en SQLite
+                    // 📡 ALCABALA DE SEGURIDAD: Consultamos las semanas en base de datos
                     const response = await fetch(`/pagos/semanas_pendientes/${conductorId}`, {
                         method: 'GET',
                         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -1759,43 +1783,73 @@ document.addEventListener('change', async function(event) {
 
                     if (response.ok) {
                         const datos = await response.json();
+                        // 💡 Ajustamos la lectura: Dependiendo de cómo responda su endpoint, 
+                        // si devuelve un objeto con la propiedad semanas o directamente el Array.
+                        const listaSemanas = (datos && datos.semanas && Array.isArray(datos.semanas)) 
+                            ? datos.semanas 
+                            : (Array.isArray(datos) ? datos : []);
 
-                        // 🚨 VALIDACIÓN CRÍTICA: Si ya tiene historial (el servidor devuelve semanas procesadas/pendientes)
-                        if (datos.semanas && datos.semanas.length > 0) {
+                        // 📅 Detectamos las etiquetas del año actual
+                        const anioActual = new Date().getFullYear();
+                        const semanaUnoLabel = `${anioActual}-01`;
+
+                        // 🎯 REGLA DEL INGENIERO EN JS: 
+                        // Buscamos si en la lista de semanas ya existe la semana 1 modificada, o si el backend 
+                        // reporta que ya no está pendiente porque ya fue procesada previamente.
+                        
+                        // Evalúa si la semana 1 ya no figura como pendiente limpia, o si viene marcada.
+                        // (Flexibilizamos a doble igual == para cubrir si viene como 1, "1" o true)
+                        const tieneHistorialSemanaUno = listaSemanas.some(reg => {
+                            if (reg.semana_anio === semanaUnoLabel) {
+                                // Si la semana 1 existe en la lista pero ya está marcada como pagada o exonerada
+                                return reg.pagado == true || reg.pagado == 1 || reg.es_exonerado == 1 || reg.es_exonerado == "SI";
+                            }
+                            return false;
+                        });
+
+                        // 🚨 SEGUNDO SEGURO CONTABLE: Si el endpoint de pendientes NO devuelve la semana 1, 
+                        // significa que Flask ya la procesó, la saldó y la sacó de la lista de mora.
+                        const semanaUnoAusente = !listaSemanas.some(reg => reg.semana_anio === semanaUnoLabel);
+
+                        // Si tiene historial asentado o ya se consolidó (ausente en deudas), se corta el flujo
+                        if (tieneHistorialSemanaUno || (listaSemanas.length > 0 && semanaUnoAusente)) {
                             
-                            // 💥 DETENCIÓN FULMINANTE
-                            alert(`🚫 Operación denegada: El conductor ya posee un historial contable activo o cargas masivas previas en el sistema.`);
+                            alert(`🚫 Operación denegada:\n\nEl conductor ya posee un historial contable activo o cargas masivas previas en el sistema.\n\nNo es posible aplicar una exoneración masiva por Ingreso Tardío si ya cuenta con registros en la Semana 01.`);
                             
-                            // Reseteamos la interfaz a estado neutro seguro
                             elSelect.value = ""; 
                             if (contenedorSemana) contenedorSemana.classList.add('hidden');
                             elSemana.innerHTML = '';
-                            return; // Rompemos la ejecución aquí, no se genera el cronograma
+                            return; 
                         }
 
-                        // 🔓 CASO SEGURO: Si el array viene vacío ([]), el conductor está limpio.
+                        // 🔓 CASO SEGURO (Ender Fulá y conductores limpios): Reconstruimos el select
                         elSemana.innerHTML = ''; 
 
-                        // 📅 Cálculo matemático de semanas del año (2026)
+                        // 📅 Cálculo dinámico de semanas del año (2026)
                         const hoy = new Date();
                         const inicioAño = new Date(hoy.getFullYear(), 0, 1);
                         const diasPasados = Math.floor((hoy - inicioAño) / (24 * 60 * 60 * 1000));
                         const semanaActualDelAño = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
-                        console.log(`🆕 Conductor virgen confirmado. Desplegando semanas del año hasta la ${semanaActualDelAño}`);
+                        console.log(`🆕 Conductor apto verificado. Desplegando semanas desde la 02 hasta la ${semanaActualDelAño}`);
 
-                        // Mostramos el contenedor azul
-                        if (contenedorSemana) contenedorSemana.classList.remove('hidden');
+                        // Inyectamos opción neutra obligatoria
+                        const optDefault = document.createElement('option');
+                        optDefault.value = "";
+                        optDefault.innerText = "-- Seleccione Semana de Ingreso Real --";
+                        optDefault.disabled = true;
+                        optDefault.selected = true;
+                        elSemana.appendChild(optDefault);
 
-                        // Poblamos el select limpio desde la 01
-                        for (let i = 1; i <= semanaActualDelAño; i++) {
+                        // 📌 RELLENADO DE SEMANAS DESDE LA NRO 2 (Ingreso Tardío Estricto) hasta la actual
+                        for (let i = 2; i <= semanaActualDelAño; i++) {
                             const option = document.createElement('option');
                             option.value = i;
-                            option.innerText = `Semana ${String(i).padStart(2, '0')} (Disponible desde 01/01)`;
+                            option.innerText = `Ingresó en la Semana ${String(i).padStart(2, '0')}`;
                             elSemana.appendChild(option);
                         }
                         
-                        elSemana.disabled = false; // Se libera para la administradora
+                        elSemana.disabled = false; // Se libera para la interacción de la administradora
 
                     } else {
                         throw new Error("Fallo en la respuesta del servidor");
@@ -1808,47 +1862,32 @@ document.addEventListener('change', async function(event) {
                 }
             }
 
-            // Parámetros de amnistía por defecto si pasa la validación
-            if (elMonto) {
-                elMonto.value = "0";
-                elMonto.disabled = true;
-                elMonto.classList.add('bg-gray-100', 'cursor-not-allowed');
-            }
             if (elRef) {
-                elRef.placeholder = "Ej: EXONERACIÓN POR REINGRESO";
+                elRef.placeholder = "Ej: EXONERACIÓN POR INGRESO TARDÍO";
             }
         }
     }
 });
+// =========================================================================
+// 🚀 PROCESAMIENTO GENERAL DE LA CARGA (CON ADUANAS CLÍNICAS)
+// =========================================================================
 window.ejecutarCargaInicial = async function(e) {
     if (e && typeof e.preventDefault === 'function') {
         e.preventDefault();
         e.stopPropagation();
     }
 
-    // =========================================================================
-    // 🚦 EL SEMÁFORO ABSOLUTO (PRIMERA ADUANA)
-    // =========================================================================
     if (window.peticionEnCurso) {
-        console.warn("⛔ [SEMÁFORO] Bloqueado: Ya existe un envío contable hacia el servidor.");
+        console.warn("⛔ [SEMÁFORO] Bloqueado: Ya existe un envío contable en proceso.");
         return; 
     }
 
-    // 🔬 AUDITORÍA EN VIVO DE LOS NODOS HTML (Justo en el momento del clic)
     const elExonerar = document.getElementById('modal_exonerar_sn');
     const elSemana = document.getElementById('modal_semana_ingreso');
     const elMonto = document.getElementById('modal_monto');
     const elRef = document.getElementById('modal_referencia');
 
-    console.log("📊 [AUDITORÍA FORMULARIO]");
-    console.log("-> Select Exonerar Nodo:", elExonerar, "| Valor Real:", elExonerar ? elExonerar.value : 'NO EXISTE');
-    console.log("-> Select Semana Nodo:", elSemana, "| Valor Real:", elSemana ? elSemana.value : 'NO EXISTE');
-    console.log("-> Input Monto Nodo:", elMonto, "| Valor Real:", elMonto ? elMonto.value : 'NO EXISTE');
-    console.log("-> Input Referencia Nodo:", elRef, "| Valor Real:", elRef ? elRef.value : 'NO EXISTE');
-
-    // 📥 RECOLECCIÓN Y EXTRACCIÓN DE DATOS DE LOS INPUTS
     const aplicaExoneracion = elExonerar ? elExonerar.value : '';
-    const selectSemana = elSemana;
     const montoRaw = elMonto ? elMonto.value : '';
     const referenciaInput = elRef ? elRef.value : '';
 
@@ -1857,42 +1896,52 @@ window.ejecutarCargaInicial = async function(e) {
         return;
     }
 
-    // 🧮 CÁLCULO Y VALIDACIÓN MATEMÁTICA DEL MONTO
+    // 🚨 VALIDACIÓN ESPECÍFICA PARA ESCENARIO "SÍ" (Ingreso Tardío)
+    if (aplicaExoneracion === "SI" && (!elSemana || !elSemana.value)) {
+        alert("⚠️ Operación abortada: Debe seleccionar la semana real en la que ingresó el conductor.");
+        return;
+    }
+
     let montoFinal = montoRaw === "" ? 0 : parseFloat(montoRaw);
     const TARIFA_SEMANAL = window.TARIFA_SEMANAL_SISTEMA || 40000;
 
-    if (montoFinal > 0 && (montoFinal % TARIFA_SEMANAL !== 0)) {
-        alert(`❌ Monto Inválido: El valor ingresado debe ser un múltiplo exacto de ${TARIFA_SEMANAL.toLocaleString()} COP.`);
-        return;
+    // VALIDACIONES DEL ESCENARIO "NO"
+    if (aplicaExoneracion === "NO") {
+        if (isNaN(montoFinal) || montoFinal <= 0) {
+            alert("❌ Error: En el escenario de Carga Completa debe ingresar un monto válido en efectivo.");
+            return;
+        }
+        if (montoFinal % TARIFA_SEMANAL !== 0) {
+            alert(`❌ Monto Inválido: El valor ingresado debe ser un múltiplo exacto de ${TARIFA_SEMANAL.toLocaleString()} COP.`);
+            return;
+        }
+        if (montoFinal === TARIFA_SEMANAL) {
+            alert(`⚠️ Operación Rechazada: Para registrar una sola cuota (${TARIFA_SEMANAL.toLocaleString()} COP), use el módulo de taquilla ordinaria.`);
+            return;
+        }
     }
-    // 🛡️ ADUANA ANTIMICROPAGOS: Bloquea si meten exactamente una cuota (40.000 COP)
-    if (aplicaExoneracion === "NO" && montoFinal === TARIFA_SEMANAL) {
-        alert(`⚠️ Operación Rechazada: Para registrar una sola cuota (${TARIFA_SEMANAL.toLocaleString()} COP), por favor use el módulo de Pago por Semanas en la taquilla ordinaria.`);
-        return;
-    }
-    // --- PASÓ LAS ADUANAS CLÍNICAS: RESOLVEMOS LOS VALORES DE VIAJE ---
+
     const btn = document.getElementById('btnEnviarCarga');
     
-    // 🧠 SU LÓGICA INTELIGENTE: Si seleccionó "NO", forzamos semana 1
-    const valorSemana = aplicaExoneracion === "NO" ? 1 : (selectSemana ? parseInt(selectSemana.value) : 1);
+    // 🧠 ASIGNACIÓN INTELIGENTE DE SEMANA SEGÚN ESCENARIO
+    const valorSemana = aplicaExoneracion === "NO" ? 1 : parseInt(elSemana.value);
 
-    // 📦 CONSTRUCCIÓN DEL PAYLOAD FINAL (Ahora sí, con todas las variables declaradas)
-    const datos = {
+    const payloadFinal = {
         conductor_id: document.getElementById('modal_conductor_id').value,
         monto: montoFinal,
-        referencia_pago: referenciaInput || (valorSemana > 1 ? `EXONERACIÓN DESDE SEM ${valorSemana}` : "NIVELACIÓN INICIAL"),
+        referencia_pago: referenciaInput.trim() || (aplicaExoneracion === "SI" ? `EXONERACIÓN DESDE SEM ${valorSemana}` : "NIVELACIÓN INICIAL DEUDA"),
         semana_inicio: valorSemana,
-        es_exonerado: aplicaExoneracion // Enviamos este flag para que Python decida
+        es_exonerado: aplicaExoneracion 
     };
 
     try {
-        window.peticionEnCurso = true; // 🔴 Encendido inmediato del semáforo
+        window.peticionEnCurso = true; 
         if (btn) {
             btn.disabled = true;
             btn.innerText = "Procesando...";
         }
 
-        console.log("🎯 PETICIÓN VERIFICADA Y ENVIADA CON ÉXITO:", datos);
+        console.log("🎯 PAYLOAD VERIFICADO DESTINO FLASK:", payloadFinal);
 
         const response = await fetch('/pagos/carga_inicial_pagos', {
             method: 'POST',
@@ -1900,7 +1949,7 @@ window.ejecutarCargaInicial = async function(e) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify(datos)
+            body: JSON.stringify(payloadFinal)
         });
 
         if (response.ok) {
@@ -1909,15 +1958,14 @@ window.ejecutarCargaInicial = async function(e) {
             if (typeof window.cargarEstadoSemana === 'function') await window.cargarEstadoSemana();
         } else {
             const err = await response.json();
-            alert('❌ Error: ' + (err.error || 'No se pudo procesar'));
+            alert('❌ Error del Servidor: ' + (err.error || 'No se pudo procesar la carga inicial.'));
         }
 
     } catch (error) {
         console.error('❌ Error fatal en procesamiento:', error);
         alert('Error de conexión con el servidor');
     } finally {
-        // --- LIBERAMOS EL SEMÁFORO SOLAMENTE AL TERMINAR DE RESPONDER ---
-        window.peticionEnCurso = false; // 🟢 Luz verde
+        window.peticionEnCurso = false; 
         if (btn) {
             btn.disabled = false;
             btn.innerText = "PROCESAR TODO";
