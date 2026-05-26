@@ -4,8 +4,8 @@ from extensions import db
 class CuotaSemanal(db.Model):
     __tablename__ = 'cuotas_semanales'
     id = db.Column(db.Integer, primary_key=True)
-    conductor_id = db.Column(db.Integer, db.ForeignKey('conductores.id_conductor'), nullable=False)
-    semana_anio = db.Column(db.String(10), nullable=False) 
+    conductor_id = db.Column(db.Integer, db.ForeignKey('conductores.id_conductor'), index=True, nullable=False)
+    semana_anio = db.Column(db.String(10), index=True, nullable=False)
     monto_fijo = db.Column(db.Float, default=40000.0)
     pagado = db.Column(db.Boolean, default=False)
     fecha_pago = db.Column(db.DateTime, nullable=True)

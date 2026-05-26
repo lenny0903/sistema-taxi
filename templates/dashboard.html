@@ -767,36 +767,48 @@
   <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
   <script>
     // Función para mostrar toasts(mensajes flotantes)
-    function mostrarToast(mensaje, tipo="info") {
-      const container = document.getElementById("toastContainer");
+  function mostrarToast(mensaje, tipo="info") {
+    console.log(`📢 Inyectando en la raíz del navegador (${tipo}): ${mensaje}`);
 
-      // Crear el toast
-      const toast = document.createElement("div");
-      toast.textContent = mensaje;
-      toast.style.background = tipo === "error" ? "#e74c3c" : "#2ecc71";
-      toast.style.color = "#fff";
-      toast.style.padding = "10px 20px";
-      toast.style.marginTop = "10px";
-      toast.style.borderRadius = "5px";
-      toast.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-      toast.style.fontWeight = "bold";
-      toast.style.fontFamily = "sans-serif";
-      toast.style.opacity = "0";
-      toast.style.transition = "opacity 0.3s ease";
+    // 1. Buscamos si ya existe la alerta para no duplicarla
+    let toastExistente = document.getElementById("toastRaizAbsoluto");
+    if (toastExistente) { toastExistente.remove(); }
 
-      container.appendChild(toast);
+    // 2. Creamos la caja de la alerta
+    const toast = document.createElement("div");
+    toast.id = "toastRaizAbsoluto";
+    toast.textContent = mensaje;
 
-      // Animar aparición
-      requestAnimationFrame(() => {
-        toast.style.opacity = "1";
-      });
+    // 📍 ESTILOS DE IMPACTO TOTAL (Independientes de formularios y modales)
+    toast.style.position = "fixed";
+    toast.style.top = "30px";             // Bien arriba en el centro
+    toast.style.left = "50%";
+    toast.style.transform = "translateX(-50%)"; // Centrado perfecto en la laptop
+    
+    // Colores vivos
+    toast.style.background = tipo === "error" ? "#dc3545" : "#28a745"; 
+    toast.style.color = "#ffffff";
+    toast.style.padding = "16px 32px";
+    toast.style.borderRadius = "8px";
+    toast.style.fontWeight = "bold";
+    toast.style.fontSize = "16px";
+    toast.style.textAlign = "center";
+    toast.style.boxShadow = "0 8px 24px rgba(0,0,0,0.4)";
+    toast.style.fontFamily = "sans-serif";
+    
+    // 🚨 SEGURIDAD RADICAL: Por encima de absolutamente todo, e inmune a destrucciones de vistas
+    toast.style.zIndex = "2147483647"; 
+    toast.style.display = "block";
 
-      // Desaparecer después de 6 segundos
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
+    // 🎯 EL TRUCO SUPREMO: Lo pegamos en el nodo raíz del documento, no en el body ni en secciones
+    document.documentElement.appendChild(toast);
+    console.log("🚀 Alerta clavada en la raíz del árbol HTML del navegador.");
+
+    // Desaparece solo a los 6 segundos
+    setTimeout(() => {
+        if (toast) toast.remove();
+    }, 6000);
+  }
     function abrirModalCambio() {
       var modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));
       modal.show();
@@ -947,28 +959,44 @@
     }
     
 
-    // Validación centralizada de teléfonos
-    function validarTelefono(campoId) {
-      const campo = document.getElementById(campoId);
-      if (!campo) return;
-
-      campo.addEventListener('input', e => {
-        let valor = e.target.value.replace(/\D/g, ''); // solo números
-        e.target.value = valor;
-
-        const longitudValida = valor.length === 11;
-        const esFijo = valor.startsWith("0276");
-        const esMovil = valor.startsWith("04");
-
-        if (!(esFijo || esMovil)) {
-          campo.setCustomValidity("Debe comenzar con 0276 (fijo) o 04 (móvil)");
-        } else if (!longitudValida) {
-          campo.setCustomValidity("El número debe tener exactamente 11 dígitos");
-        } else {
-          campo.setCustomValidity("");
+    // Esta función limpia cualquier residuo
+    function normalizarWhatsApp(input) {
+        let numero = input.replace(/\D/g, '');
+        if (numero.length === 10) {
+            numero = '0' + numero;
         }
-      });
-    }
+        return numero;
+     }
+
+    // Integración maestra
+    function validarTelefono(campoId) {
+        const campo = document.getElementById(campoId);
+        if (!campo) return;
+
+        // 1. Escuchar el evento 'paste' (específico para cuando pegan datos)
+        campo.addEventListener('paste', e => {
+            // Usamos setTimeout para esperar a que el valor pegado realmente esté en el campo
+            setTimeout(() => {
+                let valor = campo.value.replace(/\D/g, ''); 
+                
+                // Si tiene 10 dígitos y empieza por 4, ponemos el 0
+                if (valor.length === 10 && valor.startsWith("4")) {
+                    campo.value = '0' + valor;
+                } else {
+                    campo.value = valor; // Aseguramos que solo queden números
+                }
+            }, 10); // Milisegundos de espera para que el valor "aterrice"
+        });
+
+        // 2. Mantener la lógica de 'input' por si escriben a mano
+        campo.addEventListener('input', e => {
+            let valor = e.target.value.replace(/\D/g, '');
+            if (valor.length === 10 && valor.startsWith("4")) {
+                valor = '0' + valor;
+            }
+            e.target.value = valor;
+        });
+     }
 
     // Validación centralizada de nombres
     function validarNombre(nombre) {
@@ -2012,28 +2040,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // === NUEVA VALIDACIÓN: Bloqueo por Deuda con Rol de Usuario ===
           const optConductor = cSel.options[cSel.selectedIndex];
-          const saldo = parseFloat(optConductor.getAttribute("data-saldo") || 0);
           const excepcion = optConductor.getAttribute("data-excepcion") === "1";
           
           // Extraemos el rol guardado en el login
           const rolUsuario = localStorage.getItem("rol"); 
           
-          console.log("Saldo parsed:", saldo, "Es excepción:", excepcion, "Rol actual:", rolUsuario);
+          // 🔍 EXTRAPOLACIÓN DIRECTA DESDE LA GRILLA VISUAL:
+          // Obtenemos el texto seleccionado del select (Ej: "B10 - Yeison Suarez") y extraemos el código "B10"
+          const codigoConductor = optConductor.text.split("-")[0].trim(); 
 
-          // Si el conductor tiene deuda y NO es una excepción:
-          if (saldo > 0 && !excepcion) {
+          // Buscamos en todo el documento el texto de la grilla que corresponda a este conductor
+          const celdasDeudor = Array.from(document.querySelectorAll("td, span, div")).find(el => 
+              el.textContent.includes(codigoConductor) && el.textContent.includes("DEUDOR")
+          );
+
+          // Si el texto en la grilla dice DEUDOR, asumimos que tiene saldo pendiente real
+          const tieneDeudaReal = !!celdasDeudor;
+
+          console.log(`Conductor: ${codigoConductor} | ¿Deudor en Grilla?:`, tieneDeudaReal, "Es excepción:", excepcion, "Rol actual:", rolUsuario);
+
+          // Si el conductor tiene deuda real según la grilla y NO es una excepción:
+          if (tieneDeudaReal && !excepcion) {
             // Verificamos si es "administrador" o "admin"
             if (rolUsuario !== "administrador" && rolUsuario !== "admin") {
-              console.log("El usuario NO es Administrador. Se bloquea por deuda.");
-              mostrarToast(`🚫 Bloqueado: El conductor presenta deuda de $${saldo.toLocaleString('es-VE')} y usted no tiene permisos para autorizarlo.`, "error");
+              console.log("El usuario NO es Administrador. Se bloquea por deuda real verificada en grilla.");
+              mostrarToast(`🚫 Bloqueado: El conductor presenta deuda activa en el sistema y usted no tiene permisos para autorizarlo.`, "error");
               return; // Detiene la ejecución aquí mismo y NO envía el POST
             }
 
-            // Si pasa el 'if', es porque sí es Administrador o admin:
             console.log("El usuario es Administrador. Se permite ignorar el saldo deudor en el frontend.");
           }
           // =============================================================
-
+          
           // 3. Guardamos el punto ACTUAL antes de enviar nada
           const puntoParaMantener = pSel.value;
 
@@ -2087,11 +2125,37 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log("✅ Refresco secuencial completado");
               }, 600);
 
-          } catch (err) {
+         } catch (err) {
               btn.style.pointerEvents = "auto";
               btn.style.opacity = "1";
-              console.error("❌ Error:", err.message);
-              mostrarToast("📍 Error: " + err.message, "error");
+              
+              console.log("🔍 CONTENIDO EXACTO DE err.message:", typeof err.message, `"${err.message}"`);
+              console.error("❌ Error atrapado en el botón:", err.message);
+
+              let mensajeError = "📍 Error al iniciar el turno.";
+              const textoOriginal = err.message || "";
+
+              // 🎯 EXTRACCIÓN POR FUERZA BRUTA (Sin importar saltos de línea ni JSON)
+              if (textoOriginal.includes('{"error":')) {
+                  // Buscamos lo que está entre '"error":"' y '."}' o '"}'
+                  // Esto corta directamente el texto humano
+                  const partes = textoOriginal.split('"error":"');
+                  if (partes.length > 1) {
+                      // Agarramos la segunda parte y la picamos donde cierran las comillas del JSON
+                      mensajeError = partes[1].split('"}')[0];
+                      // Limpiamos comillas dobles residuales por si acaso
+                      mensajeError = mensajeError.replace(/\\"/g, '"').trim();
+                  }
+              } else if (textoOriginal.includes("Error 403:")) {
+                  // Si no viene con formato JSON claro, limpiamos el prefijo 403
+                  mensajeError = textoOriginal.replace("Error 403:", "").trim();
+              } else {
+                  mensajeError = textoOriginal;
+              }
+
+              // 🚀 Alerta directa a la pantalla del operador
+              console.log("📢 Enviando al Toast:", mensajeError);
+              mostrarToast(`🚫 ${mensajeError}`, "error");
           }
         };
     }

@@ -22,14 +22,26 @@ def crear_turno():
         auto_id = data.get("auto_id")
         punto_id = data.get("point_id") or data.get("punto_id")  # Soporta ambos nombres
 
-        # --- VALIDACIÓN DE SOLVENCIA SEGÚN EL ROL ---
+       # --- VALIDACIÓN DE SOLVENCIA SEGÚN EL ROL ---
         claims = get_jwt()
-        rol_usuario = claims.get("rol_nombre") or claims.get("rol")  # Captura "Administrador" u "Operador"
+        rol_raw = claims.get("rol_nombre") or claims.get("rol") or ""
+        rol_usuario = rol_raw.lower().strip() # Forzamos a minúsculas ("administrador", "operador")
         
+        # 💡 OPCIÓN B: Consultar directamente el cálculo real por semanas en mora
         solvente, saldo_pendiente = es_solvente(conductor_id)
         
-        # 🚨 EL CAMBIO CLAVE: Solo bloqueamos si NO es solvente Y el usuario NO es Administrador.
-        if not solvente and rol_usuario != "Administrador":
+        # 🎯 CONTROL ADAPTATIVO: Si sospecha que 'es_solvente' arrastra saldos fantasmas, 
+        # puede sobreescribir la lógica aquí llamando a su función interna de semanas:
+        # semanas = ObtenerSemanasPendientesDesdeBD(conductor_id)
+        # if len(semanas) == 0:
+        #     solvente = True
+        #     saldo_pendiente = 0
+        
+        # 🚨 EL CANDADO BLINDADO: Solo bloquea si NO es solvente Y el usuario NO es admin
+        if not solvente and rol_usuario not in ["administrador", "admin"]:
+            # 🕵️‍♂️ Auditoría para ingeniería en la consola de la laptop:
+            print(f"🚫 BLOQUEADO: Conductor {conductor_id} rechazado por saldo fantasma de ${saldo_pendiente}")
+            
             return jsonify({
                 "error": f"Bloqueo Administrativo: El conductor presenta un saldo deudor de ${saldo_pendiente:,.2f}."
             }), 403

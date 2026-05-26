@@ -226,34 +226,43 @@ def listar_conductores_disponibles():
 
 # --- ÚNICA FUNCIÓN DE VALIDACIÓN DE SOLVENCIA ---
 def es_solvente(conductor_id):
+    from app import MONTO_CUOTA_SEMANAL # Importamos la tarifa global
+    
     conductor = Conductor.query.get(conductor_id)
     if not conductor:
         return True, 0
 
-    permitir = getattr(conductor, 'permitir_deudor', 0)
-    if permitir == 1:
+    # 1. Excepción manual activa en BD
+    if getattr(conductor, 'permitir_deudor', 0) == 1:
         return True, 0
 
-    hoy = datetime.now()
-    semana_actual_num = int(hoy.strftime('%U'))
+    # 📊 2. AUDITORÍA CRONOLÓGICA IDENTICA A LA GRILLA
+    ahora = datetime.now()
+    anio_actual = ahora.strftime('%Y')
+    semana_actual_calendario = int(ahora.strftime('%V'))
+    if semana_actual_calendario == 0:
+        semana_actual_calendario = 1
 
-    deuda_total_acumulada = semana_actual_num * MONTO_CUOTA_SEMANAL
-    
-    total_pagado_historico = db.session.query(db.func.sum(PagoCuota.monto_pagado))\
-        .filter(PagoCuota.conductor_id == conductor_id).scalar() or 0.0
-    
-    total_historico_cuotas = db.session.query(db.func.sum(CuotaSemanal.monto_fijo))\
-        .filter(CuotaSemanal.conductor_id == conductor_id, 
-                CuotaSemanal.semana_anio == "HISTORICO-2026").scalar() or 0.0
+    # 3. Contamos estrictamente cuántas semanas tiene saldadas (Igual que su bucle)
+    semanas_saldadas = CuotaSemanal.query.filter(
+        CuotaSemanal.conductor_id == conductor_id, 
+        CuotaSemanal.pagado == True,
+        CuotaSemanal.semana_anio.like(f"{anio_actual}-%")
+    ).count()
 
-    saldo_real = deuda_total_acumulada - (total_pagado_historico + total_historico_cuotas)
+    semanas_totales = semana_actual_calendario
 
-    if saldo_real < 0:
-        saldo_real = 0.0
-
-    # Retorna (Es solvente?, Saldo restante)
-    return saldo_real <= 0, saldo_real
-
+    # 4. Aplicamos la misma regla de tres del Caso: DEUDOR
+    if semanas_saldadas >= semanas_totales:
+        # Está solvente exacto o adelantado
+        return True, 0.0
+    else:
+        # Tiene semanas rezagadas
+        semanas_debe = semanas_totales - semanas_saldadas
+        saldo_calculado = float(semanas_debe * MONTO_CUOTA_SEMANAL)
+        
+        # Retorna False (Bloqueado) y el saldo exacto que le falta para empatar la meta
+        return False, saldo_calculado
 
 @conductores_bp.route("/en_turno", methods=["GET"])
 def listar_conductores_en_turno():
