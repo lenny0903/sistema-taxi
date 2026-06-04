@@ -316,50 +316,60 @@ def reporte_pagos_contabilidad():
         inicio_dt = datetime.strptime(inicio, "%Y-%m-%d")
         fin_dt = datetime.strptime(fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
 
-        # 🔎 REVISIÓN: Usamos CuotaSemanal (NO PagoCuota)
+        # 🎯 CAMBIO CLAVE: Consultamos PagoCuota (Dinero real que entró)
         resultados = db.session.query(
-            CuotaSemanal, 
+            PagoCuota, 
             Conductor
-        ).join(Conductor, CuotaSemanal.conductor_id == Conductor.id_conductor)\
+        ).join(Conductor, PagoCuota.conductor_id == Conductor.id_conductor)\
          .filter(
-            CuotaSemanal.pagado == True,
-            CuotaSemanal.fecha_pago >= inicio_dt,
-            CuotaSemanal.fecha_pago <= fin_dt
+            PagoCuota.fecha_pago >= inicio_dt,
+            PagoCuota.fecha_pago <= fin_dt
+        ).order_by(
+            Conductor.codigo.asc(),
+            PagoCuota.fecha_pago.asc()
         ).all()
 
         lista_pagos = []
-        total_acumulado = 0.0
+        total_efectivo = 0.0
+        total_exonerado = 0.0
 
-        for cuota, conductor in resultados:
-            # Usamos monto_fijo que es el nombre en su modelo
-            monto = float(cuota.monto_fijo) if cuota.monto_fijo else 0.0
-            total_acumulado += monto
+        for pago, conductor in resultados:
+            monto = float(pago.monto_pagado)
+            
+            # Acumulamos según sea dinero real o exoneración
+            if pago.es_exoneracion:
+                total_exonerado += 0 # Las exoneraciones no suman dinero a caja
+            else:
+                total_efectivo += monto
             
             lista_pagos.append({
-                "fecha_pago": cuota.fecha_pago.strftime("%Y-%m-%d %H:%M") if cuota.fecha_pago else "-",
+                "fecha_pago": pago.fecha_pago.strftime("%Y-%m-%d %H:%M"),
                 "conductor": f"{conductor.codigo} - {conductor.nombre}",
                 "numero_unidad": getattr(conductor, 'id_unidad', '-'), 
                 "monto": monto,
-                "metodo_pago": "Registrado", 
-                "referencia": cuota.referencia_pago or "-"
+                "metodo_pago": pago.metodo_pago, 
+                "referencia": pago.referencia or "-",
+                "es_exoneracion": pago.es_exoneracion # Útil para tu frontend
             })
+        # Esto te dirá cuántos conductores tienen algún movimiento de pago o exoneración
+        # en el periodo, comparado con el total de conductores en tu base de datos.
+        total_conductores = Conductor.query.count()
+        pagos_en_periodo = PagoCuota.query.filter(PagoCuota.fecha_pago >= inicio_dt).count()
 
+        print(f"Total conductores: {total_conductores}")
+        print(f"Movimientos procesados: {pagos_en_periodo}")
         return jsonify({
             "pagos": lista_pagos,
             "totales": {
-                "efectivo": total_acumulado,
-                "transferencia": 0.0,
-                "total_general": total_acumulado
+                "efectivo": total_efectivo,
+                "exonerado": total_exonerado,
+                "total_general": total_efectivo # El total real es solo el efectivo
             }
         })
 
     except Exception as e:
-        # Ahora current_app funcionará porque lo importamos arriba
         current_app.logger.error(f"❌ Error en contabilidad: {str(e)}")
-        # También lo imprimimos en la consola para verlo rápido
-        print(f"❌ ERROR EN REPORTE PAGOS: {str(e)}")
-        return jsonify({"error": "Error interno al procesar pagos"}), 500
-    
+        return jsonify({"error": "Error interno al procesar pagos"}), 500    
 
 @reporte_bp.route("/generar_cierre_pdf", methods=["GET"]) # <-- CAMBIAMOS NOMBRE PARA EVITAR CACHE
 #@jwt_required()
@@ -387,6 +397,11 @@ def funcion_pdf_cierre_caja():
             CuotaSemanal.pagado == True,
             CuotaSemanal.fecha_pago >= inicio_dt,
             CuotaSemanal.fecha_pago <= fin_dt
+        # Asegúrate de escribirlo tal cual:
+        
+        ).order_by(
+            Conductor.codigo.asc(),        
+            CuotaSemanal.fecha_pago.asc() 
         ).all()
 
         filepath = f"/tmp/cierre_{inicio}.pdf"
@@ -412,13 +427,13 @@ def funcion_pdf_cierre_caja():
         
         data.append(["", "", "TOTAL GENERAL:", f"{total:,.0f} COP"])
 
-        t = Table(data, colWidths=[80, 200, 100, 100])
+        t = Table(data, colWidths=[None, None, None, None]) # El None permite el cálculo dinámico
+
+        # 2. Asegúrate de que el estilo de la tabla permita que la fila crezca si el texto es largo
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'), # TOP permite que el texto crezca hacia abajo
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            # ... otros estilos
         ]))
         elements.append(t)
         doc.build(elements)

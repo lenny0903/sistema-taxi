@@ -1,6 +1,11 @@
 import uuid
+import json
+import os
+import sqlite3  
+from engineio import payload
 from flask import Blueprint, app, request, jsonify
 from extensions import db
+from models.cola_notificaciones import ColaNotificaciones
 from models import despachos
 from models.despachos import Despacho
 from models.turnos import Turno
@@ -27,6 +32,7 @@ from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de 
 def crear_despacho():
     try:
         data = request.get_json()
+        print(f"DEBUG: Contenido total recibido del frontend: {data}")
         
         # 1. Extraer y validar
         origen = data.get("origen_despacho")
@@ -76,17 +82,100 @@ def crear_despacho():
                 grupo_id=data.get("grupo_id")
             )
             db.session.add(nuevo_despacho)
+            db.session.flush() # Genera el ID del nuevo despacho
+            
+            # --- OBTENCIÓN SEGURA DE DATOS ---
+            cliente_obj = Cliente.query.get(cliente_id)
+            conductor_obj = Conductor.query.get(conductor_id)
+            
+            c_tel = data.get("cliente_telefono") or (cliente_obj.telefono if cliente_obj else "0000000")
+            c_nom = cliente_obj.nombre if cliente_obj else "Cliente"
+            con_tel = data.get("conductor_telefono") or (conductor_obj.nro_telefono if conductor_obj else "0000000")
+            con_nom = conductor_obj.nombre if conductor_obj else "Conductor"
+            
+            # 🚖 NUEVO: Obtener el código de conductor de la base de datos de forma segura
+            con_cod = conductor_obj.codigo if conductor_obj else "S/C"
 
+            # 🌐 NUEVO: Definir el dominio base de la aplicación para las imágenes públicas
+            # Reemplaza con tu URL de Ngrok en desarrollo o tu dominio en producción
+            DOMINIO_APP = "https://uhvbb-201-221-113-19.run.pinggy-free.link"  
+
+            # 🖼️ NUEVO: Construcción de la URL del flayer basada en el código (ej: b15.png)
+            # (Líneas 101 a 103 de tu captura)
+            # 🚀 NUEVO: Construcción de la URL del flayer basada en el código (ej: b15.png)
+            codigo_minicla = con_cod.lower()
+            url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
+            print(f"DEBUG URL ENVIADA A N8N ===> {url_flayer}")
+            # Determinar escenario basándonos en el teléfono del cliente
+            escenario_final = "CON_WHATSAPP" if c_tel.startswith('04') else "SIN_WHATSAPP"
+            
+            # AJUSTE: Carga útil con la estructura idónea para n8n
+            payload = {
+                "turno_id": nuevo_despacho.id_despacho,
+                "escenario": escenario_final,
+                "cliente": {
+                    "nombre": c_nom, 
+                    "telefono": c_tel
+                },
+                "conductor": {
+                    "nombre": con_nom, 
+                    "telefono": con_tel,
+                    "codigo": con_cod       # <-- Enviamos el código a n8n
+                },
+                "servicio": {
+                    "origen": origen, 
+                    "destino": data.get("destino_despacho"), 
+                    "tarifa": tarifa_val,
+                    "flayer_url": url_flayer # <-- Enviamos la URL del flayer lista
+                }
+            }
+            
+            notificacion = ColaNotificaciones(
+                turno_id=nuevo_despacho.id_despacho,
+                tipo_mensaje='DESPACHO_AUTOMATICO',
+                destinatario_telefono=str(c_tel),
+                contenido_json=json.dumps(payload),
+                estado='PENDIENTE'
+            )
+            db.session.add(notificacion)
+            
             # Borrado de Cola
-            cola_id = data.get("cola_id")
+            cola_id = data.get("id_notificacion")
             if cola_id:
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
-        # UN SOLO COMMIT FINAL
         db.session.commit()
-
+        
+        # 🚨 NUEVO: Leer si el operador quiere enviar el WhatsApp automático
+        debe_notificar = data.get("notificar_whatsapp", True) # Por defecto True si no viene
+        
+        if debe_notificar:
+            # Envío asíncrono hacia n8n con timeout (Modo Automático)
+            try:
+                import requests
+                requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
+                print("🤖 MODO AUTOMÁTICO: Despacho enviado a n8n para WhatsApp.")
+            except Exception as e:
+                print(f"⚠️ Error enviando a n8n: {e}")
+        else:
+            # Modo Manual: Se guarda en base de datos pero NO gasta saldo de Whapi
+            print("👤 MODO MANUAL: Despacho creado solo en sistema. No se envió WhatsApp.")
+        notificar_whatsapp = data.get("notificar_whatsapp", True) # Viene del front
+    
+        if notificar_whatsapp:
+            try:
+                import requests
+                # Esta es la llamada que gasta créditos de Whapi a través de n8n
+                requests.post("http://localhost:5678/webhook-test/notificar-despacho", 
+                            json=payload, timeout=2)
+                print("🤖 Envío Automático: ACTIVADO")
+            except Exception as e:
+                print(f"⚠️ Error enviando a n8n: {e}")
+        else:
+            # Si el usuario puso el switch en MANUAL desde el menú lateral:
+            print("👤 Envío Automático: DESACTIVADO. Operación en modo manual.")
         return jsonify({
-            "msg": "Despacho creado",
+            "msg": "Despacho creado exitosamente",
             "id_despacho": nuevo_despacho.id_despacho
         }), 201
 
@@ -94,7 +183,7 @@ def crear_despacho():
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-    
+        
 @despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID
@@ -225,7 +314,7 @@ def candelar_despacho(id):
 @despachos_bp.route("/activos", methods=["GET"])
 def listar_despachos_activos():
     try:
-        # 🔹 Solo despachos en curso
+        # 🔹 Corregido: Buscamos tanto los que están 'en curso' como los 'notificado'
         despachos = Despacho.query.filter_by(estado_despacho="en curso").all()
         resultado = []
         
@@ -233,13 +322,11 @@ def listar_despachos_activos():
             # 1. Extraer ID del cliente con seguridad
             c_id = None
             if d.cliente:
-                # Intenta obtener id_cliente, si no existe usa id
                 c_id = getattr(d.cliente, 'id_cliente', getattr(d.cliente, 'id', None))
             
             # 2. Extraer ID del conductor con seguridad
             cond_id = None
             if d.conductor:
-                # Intenta obtener id_conductor, si no existe usa id
                 cond_id = getattr(d.conductor, 'id_conductor', getattr(d.conductor, 'id', None))
 
             resultado.append({
@@ -253,7 +340,7 @@ def listar_despachos_activos():
                 "tarifa": d.tarifa,
                 "estado_despacho": d.estado_despacho,
                 
-                # ⚠️ Los IDs extraídos con total seguridad:
+                # IDs extraídos con total seguridad para el frontend:
                 "cliente_id": c_id,
                 "conductor_id": cond_id
             })
@@ -374,3 +461,59 @@ def crear_despacho_multiple():
 
 
 
+def registrar_notificacion_despacho(turno, cliente_telefono, conductor_telefono):
+    # Preparamos el payload que n8n va a recibir
+    payload = {
+        "turno_id": turno.id,
+        "cliente": {"nombre": turno.cliente_nombre, "telefono": cliente_telefono},
+        "conductor": {"nombre": turno.conductor_nombre, "telefono": conductor_telefono},
+        "servicio": {"origen": turno.origen, "destino": turno.destino, "tarifa": float(turno.tarifa)}
+    }
+    
+    # Creamos la orden en la cola
+    nueva_notificacion = ColaNotificaciones(
+        turno_id=turno.id,
+        tipo_mensaje='DESPACHO_AUTOMATICO',
+        destinatario_telefono=cliente_telefono, # O conductor, según prefieras
+        contenido_json=json.dumps(payload),
+        estado='PENDIENTE'
+    )
+    
+    db.session.add(nueva_notificacion)
+    db.session.commit()
+
+@despachos_bp.route('/webhook/status_whatsapp', methods=['POST'])
+def status_whatsapp():
+    datos = request.json
+    print("📝 Datos recibidos desde n8n:", datos)
+
+    id_viaje = datos.get('turno_id')
+    estado = datos.get('status') 
+    error_msg = datos.get('error', 'Sin detalles')
+
+    try:
+        # 🚖 Buscamos el despacho usando SQLAlchemy (Evita choques de archivos .db)
+        despacho_obj = Despacho.query.get(id_viaje)
+        
+        if despacho_obj:
+            if estado == 'fallido':
+                print(f"🚨 ALERTA: El flayer para el viaje {id_viaje} NO se envió. Motivo: {error_msg}")
+                despacho_obj.estado_despacho = 'fallido'
+            else:
+                print(f"✅ CONFIRMACIÓN: El flayer para el viaje {id_viaje} fue enviado con éxito.")
+                # Si quieres que siga saliendo en tu tabla que busca 'en curso', déjalo 'en curso'
+                # despacho_obj.estado_despacho = 'en curso' 
+                
+                # O si prefieres dejarlo como 'notificado', recuerda activar el .in_() en /activos
+                despacho_obj.estado_despacho = 'notificado'
+            
+            db.session.commit()
+            print(f"💾 Estado del despacho {id_viaje} actualizado con éxito en SQLAlchemy.")
+        else:
+            print(f"⚠️ No se encontró el despacho con ID {id_viaje} en la BD.")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error actualizando estatus en webhook: {e}")
+    
+    return jsonify({"status": "recibido", "msg": "Estatus procesado"}), 200

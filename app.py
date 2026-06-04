@@ -1,32 +1,29 @@
-import shutil
-
 import eventlet
+eventlet.monkey_patch()  # ¡PRIMERÍSIMA LÍNEA ACTIVA! Nada de Flask puede ir arriba de esto
 
-from models.matriz_tarifas import MatrizTarifa
-from flask_apscheduler import APScheduler
-eventlet.monkey_patch() # Recomendado para modo 'eventlet'
-from flask_jwt_extended import JWTManager   # <-- importa JWTManager
-from flask import Flask, render_template, url_for, redirect
+import os
+import shutil
+import sqlite3
+from datetime import datetime
+
+# Ahora sí, imports de Flask y extensiones de forma segura
+from flask import Flask, jsonify, render_template, url_for, redirect, request, send_from_directory
+from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
-from extensions import db
-import routes
-from routes.views import views_bp
-from flask import send_from_directory
-from models.turnos import Turno
-from flask_sqlalchemy import SQLAlchemy
+from flask_apscheduler import APScheduler
+from flask_socketio import SocketIO
 from sqlalchemy import event, text 
 from sqlalchemy.engine import Engine
-from tasks.scheduler import iniciar_scheduler
-from datetime import datetime
+
+# Imports de base de datos y modelos locales
+from extensions import db
+from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
-import os
+import routes
 import config
-import sqlite3
-
-
-from flask_socketio import SocketIO
+from tasks.scheduler import iniciar_scheduler
 MONTO_CUOTA_SEMANAL = 40000
 
 socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
@@ -90,6 +87,7 @@ def create_app():
     with app.app_context():
         import models
         from models.lista_espera import ListaEspera
+        from models.cola_notificaciones import ColaNotificaciones
         db.create_all()
          # 🔹 Activar WAL mode en cada conexión SQLite
         @event.listens_for(db.engine, "connect")

@@ -4,6 +4,39 @@
 // ===============================
 
 document.addEventListener("DOMContentLoaded", () => {
+    // --- AQUÍ PEGAS TU CÓDIGO NUEVO ---
+    const switchGlobal = document.getElementById("switchGlobalWhatsApp");
+    const textGlobal = document.getElementById("textGlobalWhatsApp");
+    const bgGlobal = document.getElementById("bgGlobalWhatsApp");
+    const circleGlobal = document.getElementById("circleGlobalWhatsApp");
+
+    function actualizarEstiloGlobal(activo) {
+        if (!bgGlobal || !circleGlobal || !textGlobal) return;
+        if (activo) {
+            textGlobal.innerText = "🤖 API: AUTOMÁTICA";
+            bgGlobal.className = "w-9 h-5 bg-green-600 rounded-full transition-colors relative";
+            circleGlobal.className = "absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-4";
+        } else {
+            textGlobal.innerText = "👤 API: MANUAL";
+            bgGlobal.className = "w-9 h-5 bg-gray-300 rounded-full transition-colors relative";
+            circleGlobal.className = "absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-0";
+        }
+    }
+
+    if (switchGlobal) {
+        const estadoGuardado = localStorage.getItem("global_whatsapp_activo") !== "false";
+        switchGlobal.checked = estadoGuardado;
+        actualizarEstiloGlobal(estadoGuardado);
+
+        switchGlobal.addEventListener("change", (e) => {
+            const activo = e.target.checked;
+            localStorage.setItem("global_whatsapp_activo", activo);
+            actualizarEstiloGlobal(activo);
+            if (typeof mostrarToast === 'function') {
+                mostrarToast(activo ? "🤖 WhatsApp en modo Automático" : "👤 WhatsApp en modo Manual", "info");
+            }
+        });
+    }
 
   const token = localStorage.getItem('token');
   const rol = localStorage.getItem('rol');
@@ -252,25 +285,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 const contenedorResumen = document.getElementById("resumenCaja");
 
                 if (data && data.pagos && data.pagos.length > 0) {
-                // Llenamos la tabla dinámicamente
-                contenedorTabla.innerHTML = data.pagos.map(p => `
-                    <tr class="text-sm hover:bg-gray-50">
-                    <td class="border p-2">${p.fecha_pago}</td>
-                    <td class="border p-2 font-bold">${p.numero_unidad}</td>
-                    <td class="border p-2">${p.conductor}</td>
-                    <td class="border p-2 text-right">${p.monto.toLocaleString()}</td>
-                    <td class="border p-2 text-center">
-                        <span class="px-2 py-1 rounded text-xs ${p.metodo_pago.toLowerCase() === 'efectivo' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
-                        ${p.metodo_pago}
-                        </span>
-                    </td>
-                    <td class="border p-2 text-xs text-gray-500">${p.referencia || '-'}</td>
-                    </tr>
-                `).join('');
+                contenedorTabla.innerHTML = data.pagos.map(p => {
+                    // Ahora usamos la propiedad booleana que viene del backend
+                    const esExoneracion = p.es_exoneracion; 
+                    const montoSaldo = esExoneracion ? 0 : p.monto;
+                    
+                    return `
+                        <tr class="text-sm hover:bg-gray-50">
+                            <td class="border p-2">${p.fecha_pago}</td>
+                            <td class="border p-2 font-bold">${p.numero_unidad}</td>
+                            <td class="border p-2">${p.conductor}</td>
+                            <td class="border p-2 text-right">${p.monto.toLocaleString()}</td> 
+                            <td class="border p-2 text-right font-bold ${esExoneracion ? 'text-green-600' : 'text-red-600'}">
+                                ${montoSaldo.toLocaleString()}
+                            </td> 
+                            <td class="border p-2 text-center">
+                                <span class="px-2 py-1 rounded text-xs ${esExoneracion ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}">
+                                    ${p.metodo_pago}
+                                </span>
+                            </td>
+                            <td class="border p-2 text-xs text-gray-500">${p.referencia || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
 
-                // Actualizamos las tarjetas de totales (Resumen)
+                // Actualizamos el resumen con los datos calculados en el backend
+                // Nota: Como ahora el backend envía 'efectivo' y 'total_general' limpios, 
+                // úsalos directamente para evitar errores.
                 document.getElementById("totalEfectivo").innerText = data.totales.efectivo.toLocaleString() + " COP";
-                document.getElementById("totalTransf").innerText = data.totales.transferencia.toLocaleString() + " COP";
+                document.getElementById("totalExonerado").innerText = data.totales.exonerado.toLocaleString() + " COP";
+                // Si tu resumen tiene 'transferencia' y quieres mostrarlo, asegúrate que el backend lo envíe
+                if(document.getElementById("totalTransf")) {
+                    document.getElementById("totalTransf").innerText = (data.totales.transferencia || 0).toLocaleString() + " COP";
+                }
+                
                 document.getElementById("totalGeneral").innerText = data.totales.total_general.toLocaleString() + " COP";
 
                 // Mostramos la tabla y el resumen (quitamos 'hidden')

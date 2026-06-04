@@ -109,6 +109,19 @@
             </a>
         </li>
       </ul>
+      <div class="mt-auto border-t border-gray-700 bg-gray-800 p-4">
+          <div class="flex items-center justify-between">
+              <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  🤖 API: AUTOMÁTICA
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
+                  <div id="bgGlobalWhatsApp" class="w-9 h-5 bg-green-600 rounded-full transition-colors relative">
+                      <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-4"></div>
+                  </div>
+              </label>
+          </div>
+       </div>
     </nav>
 
     
@@ -681,21 +694,24 @@
                         <p class="text-sm text-blue-700 font-bold">TRANSFERENCIA (COP)</p>
                         <h4 id="totalTransf" class="text-2xl font-black">0</h4>
                     </div>
+                    <div class="bg-purple-100 p-4 rounded border border-purple-200 shadow-sm">
+                        <p class="text-sm text-purple-700 font-bold">TOTAL EXONERADO (COP)</p>
+                        <h4 id="totalExonerado" class="text-2xl font-black">0</h4>
+                    </div>
                     <div class="bg-gray-100 p-4 rounded border border-gray-200 shadow-sm">
                         <p class="text-sm text-gray-700 font-bold">TOTAL GENERAL</p>
                         <h4 id="totalGeneral" class="text-2xl font-black">0</h4>
                     </div>
                 </div>
 
-                <div class="overflow-x-auto max-h-[400px] overflow-y-auto border">
+               <div class="overflow-x-auto max-h-[400px] overflow-y-auto border">
                     <table class="w-full border-collapse border mt-2 hidden" id="tablaPagosReporte">
                         <thead class="bg-gray-200 sticky top-0 bg-white z-10">
                             <tr>
                                 <th class="border p-2">Fecha/Hora</th>
                                 <th class="border p-2">Unidad</th>
                                 <th class="border p-2">Conductor</th>
-                                <th class="border p-2">Monto (COP)</th>
-                                <th class="border p-2">Método</th>
+                                <th class="border p-2">Tarifa Nominal</th> <th class="border p-2">Saldo a Pagar</th>   <th class="border p-2">Método</th>
                                 <th class="border p-2">Referencia</th>
                             </tr>
                         </thead>
@@ -2555,50 +2571,32 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
    <!-- Modal para asignar despacho -->
     <div id="modalCrearDespacho"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-xl w-96">
-        <h3 class="text-xl font-bold mb-4">Asignar despacho</h3>
-        <!-- Campos ocultos para cliente y origen -->
-        <input type="hidden" id="modalClienteIdDespacho">
-        <input type="hidden" id="modalOrigenDespacho">
-        <input type="hidden" id="modalDestinoDespacho">
-        <input type="hidden" id="modalTarifaDespacho">
+          class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+          <h3 class="text-xl font-bold mb-4">Asignar despacho</h3>
+          <input type="hidden" id="modalClienteIdDespacho">
+          <input type="hidden" id="modalOrigenDespacho">
+          <input type="hidden" id="modalDestinoDespacho">
+          <input type="hidden" id="modalTarifaDespacho">
 
-        <!-- Select de conductores -->
-        <label class="block mb-2">Conductor:</label>
-        <select id="selectConductor"
-                class="border p-2 w-full mb-3 rounded">
-          <!-- Opciones dinámicas cargadas por JS -->
-          <!-- Ejemplo:
-          <option value="1">Pedro Gómez</option>
-          <option value="2">María López</option>
-          -->
-        </select>
+          <label class="block mb-2">Conductor:</label>
+          <select id="selectConductor" class="border p-2 w-full mb-3 rounded">
+            </select>
 
-        <!-- Select de autos -->
-        <label class="block mb-2">Auto:</label>
-        <select id="selectAuto"
-                class="border p-2 w-full mb-3 rounded">
-          <!-- Opciones dinámicas cargadas por JS -->
-          <!-- Ejemplo:
-          <option value="10">Toyota Corolla - ABC123</option>
-          <option value="11">Chevrolet Aveo - XYZ789</option>
-          -->
-        </select>
-
-        <!-- Botones -->
-        <div class="flex justify-end gap-2 mt-4">
-          <button id="btnCancelarDespacho"
-                  class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
-            Cancelar
-          </button>
-          <button id="btnConfirmarDespacho"
-                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-            Despachar
-          </button>
+          <label class="block mb-2">Auto:</label>
+          <select id="selectAuto" class="border p-2 w-full mb-3 rounded">
+            </select>
+          
+          <div class="flex justify-end gap-2 mt-4">
+            <button id="btnCancelarDespacho" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+              Cancelar
+            </button>
+            <button id="btnConfirmarDespacho" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+              Despachar
+            </button>
+          </div>
         </div>
       </div>
-    </div>
   <!-- Modal de Carga Inicial (Nivelación de Saldo) -->
     <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">

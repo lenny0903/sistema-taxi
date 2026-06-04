@@ -562,7 +562,7 @@ document.getElementById("btnConfirmarDespacho").onclick = async () => {
             destino_despacho: destinoVal,
             tarifa: parseFloat(tarifaVal),
             estado_despacho: "en curso",
-            cola_id: parseInt(colaSeleccionada) 
+            id_notificacion: parseInt(colaSeleccionada) 
         };
 
         const result = await apiFetch("/despachos/", {
