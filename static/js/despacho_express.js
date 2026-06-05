@@ -15,6 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     telefonoInput?.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
+            // 🛡️ NUEVA GUARDIA DE SEGURIDAD
+            const telActual = telefonoInput.value.trim();
+            if (telActual === "") {
+                console.log("🚫 Enter ignorado: Campo vacío.");
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return; // <--- AQUÍ TERMINA TODO. No sigue adelante.
+            }
             event.preventDefault();
             event.stopImmediatePropagation();
 
@@ -28,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // 🚩 RESETEAR EL SEMÁFORO AQUÍ 
             // Esto asegura que si el operador cambió el número a mitad de camino, 
             // el sistema no intente un envío directo con datos viejos.
-            const telActual = telefonoInput.value.trim();
+            //const telActual = telefonoInput.value.trim();
 
             const inputNom = document.getElementById("desNombre");
             const inputOri = document.getElementById("desOrigen");
@@ -139,6 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             } else {
                 // 🆕 CLIENTE NUEVO: Abrir modal
+                console.trace("¿Quién llamó a esta función?"); // ESTO IMPRIMIRÁ LA RUTA DE QUIÉN DISPARA LA FUNCIÓN
                 console.log("🆕 Cliente no encontrado.");
                 if (typeof abrirModalCliente === 'function') {
                     abrirModalCliente(telActual, null);
@@ -608,7 +617,6 @@ let motivoSuspensionGlobal = "";
 async function validarClienteExpreso() {
     const telInput = document.getElementById('desTelefono');
     if (!telInput) return { valido: false, motivo: "Input no encontrado" };
-    
     const tel = telInput.value.trim();
     if (!tel) return { valido: false, motivo: "Teléfono vacío" };
     if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "";

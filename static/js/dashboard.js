@@ -2,7 +2,24 @@
 // dashboard.js
 // Archivo central de lógica del dashboard
 // ===============================
-
+// --- GUARDIA DE SEGURIDAD GLOBAL ---
+(function() {
+    const rol = (localStorage.getItem("rol") || "").trim().toLowerCase();
+    
+    // Si el rol es operador, hackeamos el historial y la carga inicial
+    if (rol === 'operador') {
+        const observer = new MutationObserver(() => {
+            const clientesSec = document.getElementById('clientesSection');
+            if (clientesSec && !clientesSec.classList.contains('hidden')) {
+                console.warn("🚫 Intento de carga ilegal detectado. Bloqueando...");
+                clientesSec.classList.add('hidden');
+                clientesSec.style.display = 'none';
+                mostrarSeccion('despachos'); // Redirección forzada
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+})();
 document.addEventListener("DOMContentLoaded", () => {
     // --- AQUÍ PEGAS TU CÓDIGO NUEVO ---
     const switchGlobal = document.getElementById("switchGlobalWhatsApp");
@@ -51,12 +68,15 @@ document.addEventListener("DOMContentLoaded", () => {
     roleSpan.textContent = `Rol: ${rol}`;
   }
 
-  if (rol && rol.toLowerCase() === 'admin') {
-    abrirVista('despachos') // ✅ usa la función unificada
-  } else {
-    abrirVista('clientesSection'); // ✅ usa la función unificada
-    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
-  }
+    if (rol && rol.toLowerCase() === 'admin') {
+        abrirVista('despachos'); 
+    } else {
+        // CAMBIO: Abre 'despachos' o cualquier vista pública para el operador
+        abrirVista('despachos'); 
+        
+        // Ocultar elementos admin
+        document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+    }
   // Modifica tu listener de teclado para que cargue los datos
   document.addEventListener("keydown", (e) => {
       // ... otros atajos ...
@@ -351,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "F2") { e.preventDefault(); abrirVista("despachosActivos"); }
     if (e.key === "F3") { e.preventDefault(); abrirVista("turnosActivos"); }
     if (e.key === "F4") { e.preventDefault(); abrirVista("autos"); }
-    if (e.key === "F5") { e.preventDefault(); abrirVista("clientes"); }
+    //if (e.key === "F5") { e.preventDefault(); abrirVista("clientes"); }
     if (e.key === "F6") { e.preventDefault(); abrirVista("pagos"); }
     if (e.key === "F7") { e.preventDefault(); abrirVista("conductores"); }
   });
@@ -1019,46 +1039,51 @@ document.addEventListener("DOMContentLoaded", () => {
    
 
    function abrirVista(idVista) {
-        // 1. Ocultar todas las secciones usando su clase común
-        document.querySelectorAll(".seccion-contenido").forEach(sec => {
-            sec.classList.add("hidden");
-        });
+        //console.trace("DEBUG: ¿Quién llamó a abrirVista?:", idVista);
+        const rolRaw = localStorage.getItem("rol");
+        const rol = (rolRaw || "").trim().toLowerCase();
+        
+        // AGREGA ESTO PARA DEPURAR
+        console.log("DEBUG: Rol detectado en localStorage:", rolRaw, "Procesado:", rol);
+        
+              
+        // 1. Normalizar ID
+        let idReal = (idVista === 'clientes' || idVista === 'clientesSection') ? 'clientesSection' : idVista;
+        
+        // 2. Control de seguridad
+        if (idReal === 'clientesSection' && rol !== 'admin') {
+            console.warn("⚠️ Acceso denegado: Vista de clientes requiere rol admin.");
+            idReal = 'despachos'; 
+        }
 
-        // 🚀 EL TRUCO DE SEGURIDAD: Mapeo de nombres alternativos
-        // Si llega 'clientes', lo convertimos internamente en 'clientesSection'
-        let idReal = idVista;
-        if (idVista === 'clientes') idReal = 'clientesSection';
-
-        // 2. Intentar capturar la sección solicitada
+        // 3. OBTENER EL ELEMENTO REAL (Aquí estaba el fallo)
         const vista = document.getElementById(idReal);
 
+        // 4. Lógica de activación
         if (vista) {
+            // Ocultar todas las secciones antes de mostrar la seleccionada
+            document.querySelectorAll('.seccion').forEach(s => s.classList.add('hidden'));
+            
             vista.classList.remove("hidden");
-            console.log(`✅ Vista abierta: ${idReal}`);
+            vista.style.display = 'block';
+            
+            if (window.vistaActual !== idReal) {
+                console.log(`✅ Vista activa: ${idReal}`);
+                window.vistaActual = idReal;
+            }
 
-            // Gatillo de recarga de datos
-            if (idReal.toLowerCase() === 'pagos') { 
-                console.log("⚙️ Ejecutando recarga de datos para 'Los Patriotas'...");
-                
-                if (typeof window.cargarConductoresSelect === 'function') {
-                    window.cargarConductoresSelect();
-                }
-                if (typeof window.cargarHistorialPagos === 'function') {
-                    window.cargarHistorialPagos();
-                }
-                if (typeof window.cargarEstadoSemana === 'function') {
-                    window.cargarEstadoSemana();
-                }
+            // Carga de datos condicional
+            if (idReal === 'pagos') {
+                if (window.cargarConductoresSelect) window.cargarConductoresSelect();
+                if (window.cargarHistorialPagos) window.cargarHistorialPagos();
+                if (window.cargarEstadoSemana) window.cargarEstadoSemana();
             }
-        } else {
-            // Solo avisamos si el ID no es nulo y realmente no existe ni con el mapeo
-            if (idVista) {
-                console.warn(`⚠️ Ojo: El ID '${idVista}' (mapeado como '${idReal}') no existe en el HTML.`);
-            }
+        } else if (idReal !== 'despachos') {
+            // Fallback si la vista no existe
+            abrirVista('despachos');
         }
     }
-  window.abrirVista = abrirVista;
-
+    window.abrirVista = abrirVista;
    async function registrarAuditoriaAcceso(evento) {
     const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
     try {

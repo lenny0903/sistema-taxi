@@ -65,36 +65,42 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Listener de teléfono en modalReserva
   // -------------------------------
- const telefonoInput = document.getElementById("resTelefono");
+  const telefonoInput = document.getElementById("resTelefono");
   if (telefonoInput) {
     telefonoInput.addEventListener("keydown", async (event) => {
       if (event.key === "Enter") {
-        event.preventDefault();
+        event.preventDefault(); // Evita que se recargue o se envíe el form
+        
         const telefono = telefonoInput.value.trim();
-        const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
+        
+        // 1. VALIDACIÓN: Si está vacío, no hacemos nada (ignora el Enter)
+        if (telefono === "") {
+            console.log("Input vacío, se ignora el Enter.");
+            return;
+        }
 
+        // 2. VALIDACIÓN DE FORMATO
+        const regexTelefono = /^(0276[0-9]{7}|04[0-9]{9})$/;
         if (!regexTelefono.test(telefono)) {
           mostrarToast("⚠️ Número de teléfono inválido.", "error");
           return;
         }
 
         try {
-          // 1. apiFetch ya nos devuelve el objeto con los datos del cliente
           const dataCliente = await apiFetch(`/clientes/telefono/${telefono}`);
 
-          // 2. Validamos directamente dataCliente (asumiendo que apiFetch maneja el éxito/error)
           if (dataCliente && dataCliente.existe) {
             document.getElementById("resCliente").value = dataCliente.nombre || "";
             document.getElementById("resOrigen").value = dataCliente.direccion || "";
             document.getElementById("resCliente").setAttribute("readonly", true);
             document.getElementById("resOrigen").setAttribute("readonly", true);
-            mostrarToast("✅ Cliente encontrado. Completa destino, fecha y hora.", "success");
+            mostrarToast("✅ Cliente encontrado.", "success");
           } else {
             document.getElementById("resCliente").removeAttribute("readonly");
             document.getElementById("resOrigen").removeAttribute("readonly");
             document.getElementById("resCliente").value = "";
             document.getElementById("resOrigen").value = "";
-            mostrarToast("ℹ️ Cliente nuevo. Ingresa todos los datos.", "info");
+            mostrarToast("ℹ️ Cliente nuevo. Ingresa los datos.", "info");
           }
         } catch (err) {
           console.error("Error buscando cliente:", err);

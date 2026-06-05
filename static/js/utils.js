@@ -1,8 +1,9 @@
-// utils.js
-async function apiFetch(endpoint, options = {}) {
-  const baseUrl = "http://127.0.0.1:5000";
-  const token = localStorage.getItem("token");
+/// utils.js
 
+const BASE_URL = "http://127.0.0.1:5000";
+
+async function apiFetch(endpoint, options = {}) {
+  const token = localStorage.getItem("token");
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
@@ -10,20 +11,30 @@ async function apiFetch(endpoint, options = {}) {
   };
 
   try {
-    const res = await fetch(baseUrl + endpoint, { ...options, headers });
+    const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+
+    // --- MANEJO INTELIGENTE DEL ERROR 401 ---
+    if (res.status === 401) {
+      console.warn("⚠️ Sesión expirada. Redirigiendo a login...");
+      // Opcional: localStorage.removeItem('token');
+      window.location.href = '/login'; // O tu ruta de login
+      throw new Error("Token expirado");
+    }
 
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Error ${res.status}: ${text}`);
     }
 
-    // 🔥 VITAL: Debes retornar el JSON ya resuelto
-    return await res.json(); 
+    return await res.json();
   } catch (err) {
-    console.error("❌ Error en apiFetch:", err);
+    console.error(`❌ Error en ${endpoint}:`, err);
     throw err;
   }
 }
+
+// Hacemos que sea global para usarla en todo tu sistema
+window.apiFetch = apiFetch;
 
 
 function validarNombre(nombre) {

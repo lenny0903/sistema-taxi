@@ -108,20 +108,21 @@
                 <span>Gestionar Tarifas</span>
             </a>
         </li>
+        <li class="mt-auto border-t border-gray-700 bg-gray-800 p-4">
+            <div class="flex items-center justify-between">
+                <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    🤖 API: AUTOMÁTICA
+                </span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
+                    <div id="bgGlobalWhatsApp" class="w-9 h-5 bg-green-600 rounded-full transition-colors relative">
+                        <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-4"></div>
+                    </div>
+                </label>
+            </div>
+        </li>
       </ul>
-      <div class="mt-auto border-t border-gray-700 bg-gray-800 p-4">
-          <div class="flex items-center justify-between">
-              <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  🤖 API: AUTOMÁTICA
-              </span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
-                  <div id="bgGlobalWhatsApp" class="w-9 h-5 bg-green-600 rounded-full transition-colors relative">
-                      <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-4"></div>
-                  </div>
-              </label>
-          </div>
-       </div>
+      
     </nav>
 
     
@@ -1033,25 +1034,31 @@
 
 
 
-// 2. AHORA SÍ, LA LÓGICA DE INICIO (Esto sí va en el DOMContentLoaded)
-document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    const rol = localStorage.getItem('rol');
+  // 2. AHORA SÍ, LA LÓGICA DE INICIO (Esto sí va en el DOMContentLoaded)
+  document.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('token');
+      const rol = (localStorage.getItem('rol') || "").toLowerCase().trim();
 
-    if (!token) {
-      window.location.href = '/index.html';
-      return;
-    }
+      if (!token) {
+          window.location.href = '/index.html';
+          return;
+      }
 
-    const roleSpan = document.getElementById('userRole');
-    if (roleSpan) roleSpan.textContent = `Rol: ${rol}`;
+      const roleSpan = document.getElementById('userRole');
+      if (roleSpan) roleSpan.textContent = `Rol: ${rol}`;
 
-    if (rol && rol.toLowerCase() === 'operador') {
-      document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
-    }
-    
-    console.log("✅ Sistema de seguridad y apiFetch inicializados.");
-});
+      // CAMBIO AQUÍ: Si el rol NO es 'admin', ocultamos todo lo que tenga menu-admin
+      if (rol !== 'admin') {
+          console.log("🔒 Modo restringido activado para:", rol);
+          document.querySelectorAll('.menu-admin').forEach(el => {
+              el.style.display = 'none';
+          });
+      } else {
+          console.log("🔓 Modo administrador activo.");
+      }
+      
+      console.log("✅ Sistema de seguridad y apiFetch inicializados.");
+  });
   async function cargarPuntos() {
     const resp = await fetch("/api/puntos_espera");
     const puntos = await resp.json();
@@ -1307,103 +1314,80 @@ async function cargarConductoresEnTurnoCrear() {
   }
 
 
-    function mostrarSeccion(id) {
-        // 1. Normalizamos el rol a minúsculas para evitar errores de mayúsculas/minúsculas
-        const rolRaw = localStorage.getItem("rol") || "";
-        const rol = rolRaw.trim().toLowerCase(); 
-        
-        let idLimpio = id.trim();
-
-        // 2. Definimos las listas de control (en minúsculas)
-        const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
-        const seccionesProhibidas = [...seccionesAdmin, 'clientes', 'clientesSection'];
-
-        // 🚀 REDIRECCIÓN INTELIGENTE: Si es operador y va a algo prohibido, lo mandamos a despachos
-        if (rol === "operador" && seccionesProhibidas.includes(idLimpio)) {
-            console.log(`🔄 Redirigiendo ${rol} desde ${idLimpio} hacia despachos...`);
-            idLimpio = 'despachos'; 
-        }
-
-        // 3. SEGURIDAD ADICIONAL: Bloqueo estricto para el rol operador
-        if (rol === "operador" && seccionesAdmin.includes(idLimpio)) {
-            console.warn(`🚫 Acceso denegado: El rol ${rol} no puede ver ${idLimpio}`);
-            return;
-        }
-
-        // 4. BLOQUEO UNIVERSAL: Nadie ve Clientes
-        if (idLimpio === 'clientes' || idLimpio === 'clientesSection') {
-            console.warn("🚫 Sección Clientes deshabilitada globalmente.");
-            return;
-        }
-
-        // 5. LÓGICA DE VISUALIZACIÓN
-       document.querySelectorAll('.seccion, #pagos, #despachos, #turnosActivos, #reportes, #usuarios').forEach(sec => {
-          sec.classList.add('hidden');
-          sec.style.display = 'none'; // 🔥 Esto asegura que desaparezca sí
-       });  
-       const target = document.getElementById(idLimpio); 
-        if (target) {
-           target.classList.remove('hidden');
-           target.style.display = 'block'; // 🚀 Esto obliga a que la sección elegida se vea
-           console.log("✅ VISTA CORREGIDA. Mostrando:", idLimpio);
-            // 4. CARGA DE DATOS SEGÚN LA SECCIÓN
-            switch (idLimpio) {
-                case 'usuarios':
-                    cargarUsuarios();
-                    break;
-                case 'autos': 
-                    cargarAutosTabla(); 
-                    break;
-                case 'conductores':
-                    console.log("👤 Cargando lista de conductores...");
-                    cargarConductores(); 
-                    break;
-               case 'turnosActivos':
-                  console.log("🚕 Refrescando Turnos Activos...");
-                  cargarTurnos();
-                  cargarConductoresEnTurnoCrear();
-                  cargarAutosDisponiblesSelect();
-                  cargarPuntos();
-                  break;
-                case 'pagos': 
-                    console.log("💰 Detectada sección de pagos. Cargando datos completos...");
-                    // 1. Carga el select de conductores (el que ya tenías)
-                    cargarConductoresSelect(); 
-                    
-                    // 2. 🚀 EL GATILLO QUE FALTA: Carga la tabla de solvencia semanal
-                    if (typeof window.cargarEstadoSemana === 'function') {
-                        window.cargarEstadoSemana();
-                    } else {
-                        console.error("❌ La función cargarEstadoSemana no está disponible globalmente");
-                    }
-
-                    // 3. Opcional: Carga el historial de pagos de abajo
-                    if (typeof window.cargarHistorialPagos === 'function') {
-                        window.cargarHistorialPagos();
-                    }
-                    break;
-                // 👆 HASTA AQUÍ   
-                case 'reportes':
-                  console.log("📊 Sección de reportes abierta. Verificando integridad...");
-                  // Aquí podría llamar a una función para limpiar reportes viejos si quisiera
-                  setTimeout(inicializarBotonImpresion, 100);
-                  break; 
-                case 'despachosActivos':
-                    cargarDespachosActivos();
-                    break;
-                case 'despachos':
-                    // Aquí puedes cargar datos iniciales para crear despacho si es necesario
-                    break;
-              }
-          // 🎯 AQUÍ ES DONDE DEBE IR EL CANDADO
-         if (id === 'reportes') {
-              console.log("🔍 Entrando a reportes, verificando seguridad...");
-              restringirAccesoPorRol(); 
+        function mostrarSeccion(id) {
+          if (!id) return;
+          if (id === 'clientesSection') {
+              console.trace("🚨 ¡Atrapado! La función mostrarSeccion('clientesSection') fue llamada por:");
           }
-        } else {
-            console.error(`⚠️ Sección ${idLimpio} no encontrada en el HTML`);
+          // 1. Variables de seguridad
+          const rol = (localStorage.getItem("rol") || "").trim().toLowerCase();
+          const idLimpio = id.trim();
+          const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
+          const seccionesProhibidas = [...seccionesAdmin, 'clientes', 'clientesSection'];
+
+          // 2. BLOQUEO Y REDIRECCIÓN CORREGIDO
+          if (seccionesProhibidas.includes(idLimpio)) {
+              // Si es Operador Y la vista está en la lista de prohibidas, mándalo a despachos
+              if (rol === "operador") {
+                  console.warn(`🚫 Acceso denegado a ${idLimpio} para Operador. Redirigiendo...`);
+                  return mostrarSeccion('despachos'); 
+              }
+              // Si llega aquí, es porque es ADMIN o una sección permitida, continúa normal.
+          }
+
+          // 3. SEGURIDAD ADICIONAL (Operadores)
+          if (rol === "operador" && seccionesAdmin.includes(idLimpio)) {
+              console.warn(`🚫 Acceso denegado: ${rol} no puede ver ${idLimpio}`);
+              return;
+          }
+
+          // 4. LÓGICA DE VISUALIZACIÓN (Limpiamos todo)
+          document.querySelectorAll('.seccion, #pagos, #despachos, #turnosActivos, #reportes, #usuarios').forEach(sec => {
+              sec.classList.add('hidden');
+              sec.style.display = 'none';
+          });
+
+          // 5. MOSTRAR LA SECCIÓN CORRECTA
+          const target = document.getElementById(idLimpio); 
+          if (target) {
+              target.classList.remove('hidden');
+              target.style.display = 'block';
+              console.log("✅ VISTA MOSTRADA:", idLimpio);
+
+              // 6. CARGA DE DATOS SEGÚN LA SECCIÓN
+              switch (idLimpio) {
+                  case 'usuarios': cargarUsuarios(); break;
+                  case 'autos': cargarAutosTabla(); break;
+                  case 'conductores':
+                      console.log("👤 Cargando lista de conductores...");
+                      cargarConductores(); 
+                      break;
+                  case 'turnosActivos':
+                      console.log("🚕 Refrescando Turnos Activos...");
+                      cargarTurnos();
+                      cargarConductoresEnTurnoCrear();
+                      cargarAutosDisponiblesSelect();
+                      cargarPuntos();
+                      break;
+                  case 'pagos': 
+                      console.log("💰 Cargando pagos...");
+                      cargarConductoresSelect(); 
+                      if (typeof window.cargarEstadoSemana === 'function') window.cargarEstadoSemana();
+                      if (typeof window.cargarHistorialPagos === 'function') window.cargarHistorialPagos();
+                      break;
+                  case 'reportes':
+                      console.log("📊 Verificando reportes...");
+                      setTimeout(inicializarBotonImpresion, 100);
+                      restringirAccesoPorRol();
+                      break; 
+                  case 'despachosActivos':
+                      cargarDespachosActivos();
+                      break;
+              }
+          } else {
+              console.error(`⚠️ Sección ${idLimpio} no encontrada en el HTML`);
+          }
         }
-      }
       
    
     //Actualizar autos disponibles para el select de crear turno
@@ -2828,9 +2812,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on("connect", () => {
         console.log("✅ Conectado al sistema de alertas en tiempo real");
-        console.log("📡 Transporte activo:", socket.io.engine.transport.name); // Para verificar si usa polling o ws
-    });
+        console.log("📡 Transporte activo:", socket.io.engine.transport.name); 
 
+        // 🛡️ EL BLOQUEADOR: 
+        // Si detectamos que el sistema intenta abrir "clientes" tras la conexión,
+        // lo abortamos inmediatamente y forzamos "despachos".
+        
+        // Esperamos 500ms tras la conexión por si algún script tiene un "setTimeout" escondido
+        setTimeout(() => {
+            const vistaActual = document.querySelector('.seccion:not(.hidden)')?.id;
+            if (vistaActual === 'clientesSection') {
+                console.warn("🚫 ¡ALERTA! Un script intentó forzar la apertura de Clientes tras conectar. Bloqueando...");
+                abrirVista('despachos'); 
+            }
+        }, 500);
+    });
     socket.on("connect_error", (err) => {
         console.warn("⚠️ Intento de reconexión de alertas:", err.message);
     });
