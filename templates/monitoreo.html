@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitoreo de Flota</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style> 
+        body { display: flex; height: 100vh; margin: 0; }
+        #panel { width: 300px; padding: 15px; border-right: 2px solid #ccc; overflow-y: auto; background: #f9f9f9; }
+        #map { flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+    <div id="panel">
+        <h2>Flota Activa</h2>
+        <table>
+            <thead>
+                <tr><th>Unidad</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="lista-conductores">
+                </tbody>
+        </table>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([7.76, -72.22], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const taxiIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -16]
+        });
+
+        let marcadores = {};
+
+        async function actualizarMapa() {
+            try {
+                const res = await fetch('/conductores/ubicaciones_activas');
+                const data = await res.json();
+                
+                const lista = document.getElementById('lista-conductores');
+                // IMPORTANTE: Esto vacía la tabla antes de volver a llenarla, 
+                // evitando que se dupliquen las filas
+                lista.innerHTML = ''; 
+
+                data.forEach(c => {
+                   // 1. Ya no busques c.estado, porque no viene. 
+                    // Vamos a asignar un estado por defecto o basado en tu lógica.
+                    const estadoMostrar = "Activo"; // Como los recibes, es que están activos en el GPS
+                    const colorEstado = 'green';
+
+                    // 2. Asegúrate de usar los nombres exactos que vienen en el JSON:
+                    const lat = c.latitud;
+                    const lon = c.longitud;
+                    // 3. Renderizado de la tabla:
+                    const fila = document.createElement('tr');
+                    fila.innerHTML = `
+                        <td><strong>${c.codigo}</strong></td>
+                        <td><span style="color: ${colorEstado}">● ${estadoMostrar}</span></td>
+                    `;
+                    
+                    // Al definir el evento aquí dentro, 'lat' y 'lon' están disponibles correctamente
+                    fila.onclick = () => {
+                        map.setView([lat, lon], 17);
+                        marcadores[c.codigo].openPopup();
+                    };
+                    
+                    lista.appendChild(fila);
+                });
+            } catch (error) {
+                console.error("Error al actualizar:", error);
+            }
+        }
+
+        setInterval(actualizarMapa, 5000);
+        actualizarMapa();
+    </script>
+</body>
+</html>

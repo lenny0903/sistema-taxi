@@ -1,0 +1,356 @@
+{
+  "name": "taxis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notificar-despacho",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "092373f6-9039-4d81-9f0f-b58073bea2a8",
+      "name": "Webhook",
+      "webhookId": "d6ef94ca-927d-4523-afe0-4fc4441cf8e4"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.escenario }}",
+                    "rightValue": "CON_WHATSAPP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "eef3af15-4efe-4b1c-a0c4-7f2111e86243"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "465b2170-0f44-4c04-97cb-6f1a9ec3cba2",
+                    "leftValue": "={{ $json.body.escenario }}",
+                    "rightValue": "SIN_WHATSAPP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        96
+      ],
+      "id": "2ee3d0de-833f-4768-bdd3-75e1d168c7f3",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 8X3jRB2s6TeJomyf76aQsP3Gdx9NSgWn"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"58{{ $json.body.conductor.telefono.slice(1).trim() }}@s.whatsapp.net\",\n  \"body\": \"🚕 *NUEVO DESPACHO ASIGNADO*\\n\\n*Cliente:* {{ $json.body.cliente.nombre }}\\n📍 *Origen:* {{ $json.body.servicio.origen }}\\n🏁 *Destino:* {{ $json.body.servicio.destino }}\\n💵 *Tarifa:* ${{ $json.body.servicio.tarifa }} Txs.\\n\\n📌 *Toca aquí para abrir GPS y ver la ruta:*\\nhttps://www.google.com/maps/search/?api=1&query={{ encodeURIComponent($json.body.servicio.origen) }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "f730f826-eb61-4a09-9547-da3a03ab1580",
+      "name": "Whapi - Conductor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 8X3jRB2s6TeJomyf76aQsP3Gdx9NSgWn"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "media",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "to",
+              "value": "=58{{ $node[\"Webhook\"].json.body.cliente.telefono.slice(1).trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        512,
+        128
+      ],
+      "id": "7fd8e0f7-c24f-4cf4-868a-2c61746e0e72",
+      "name": "Whapi - Cliente (Flayer)",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/lenny/.n8n-files/{{ $json.body.conductor.codigo }}.png",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        224
+      ],
+      "id": "d6570c5a-689d-4dad-9929-0c388dc5079a",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3df17c97-32b6-40f0-9f46-60a8ed9097a2",
+              "leftValue": "={{ $json.sent }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        144
+      ],
+      "id": "5bbac5c8-0ca0-4e96-aade-20efd90a6155",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5000/despachos/webhook/status_whatsapp",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "turno_id",
+              "value": "={{ $node[\"Webhook\"].json.body.turno_id }}"
+            },
+            {
+              "name": "status",
+              "value": "enviado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        48
+      ],
+      "id": "c5c34348-606a-479f-9075-10aeef3b12b1",
+      "name": "Notificar Éxito a Flask"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5000/webhook/status_whatsapp",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "turno_id",
+              "value": "={{ $node[\"Webhook\"].json.body.turno_id }}"
+            },
+            {
+              "name": "status",
+              "value": "fallido"
+            },
+            {
+              "name": "error",
+              "value": "Límite de Whapi agotado o número inválido"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        240
+      ],
+      "id": "eb27ff60-acc3-44bb-ba6b-dfb37ce0391f",
+      "name": "Notificar Fallo a Flask"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Whapi - Conductor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Whapi - Conductor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Whapi - Cliente (Flayer)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whapi - Cliente (Flayer)": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Notificar Éxito a Flask",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Fallo a Flask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "d4451116-a41c-4b34-8604-a044111c87cb",
+  "meta": {
+    "instanceId": "843c90b8c9a6c955684be99de6ea40402b098141643472179c6c72afcc698d16"
+  },
+  "id": "JryKIJoBsqoLK1kYXAG28",
+  "tags": []
+}

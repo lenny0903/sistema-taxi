@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Unidad {{ conductor.codigo }}</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
+        .btn { padding: 20px; font-size: 18px; width: 100%; margin: 10px 0; border-radius: 10px; border: none; cursor: pointer; color: white; font-weight: bold; }
+        .disponible { background-color: #28a745; }
+        .fuera { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Unidad: {{ conductor.codigo }}</h1>
+    <p><strong>Conductor:</strong> {{ conductor.nombre }}</p>
+
+    <button class="btn disponible" onclick="actualizarEstado('disponible')">Iniciar Turno</button>
+    <button class="btn fuera" onclick="actualizarEstado('Fuera servicio')">Finalizar Turno</button>
+</div>
+
+    <script>
+        // Asignamos el ID directamente a una variable de JS de forma segura
+        const conductorId = {{ conductor.id_conductor | tojson }};
+
+        async function actualizarEstado(estado) {
+            const btnIniciar = document.querySelector('.disponible');
+            const btnFinalizar = document.querySelector('.fuera');
+
+            btnIniciar.disabled = true;
+            btnFinalizar.disabled = true;
+
+            try {
+                const response = await fetch('/conductores/' + conductorId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ "estado": estado })
+                });
+                
+                if (response.ok) {
+                    if (estado === 'disponible') {
+                        btnIniciar.innerText = "✅ Turno Iniciado";
+                        btnIniciar.style.backgroundColor = "#555";
+                        btnFinalizar.disabled = false;
+                    } else {
+                        btnFinalizar.innerText = "🛑 Turno Finalizado";
+                        btnFinalizar.style.backgroundColor = "#555";
+                        btnIniciar.disabled = false;
+                    }
+                } else {
+                    alert("Error al actualizar");
+                    btnIniciar.disabled = false;
+                    btnFinalizar.disabled = false;
+                }
+            } catch (err) {
+                alert("Error de conexión");
+                btnIniciar.disabled = false;
+                btnFinalizar.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

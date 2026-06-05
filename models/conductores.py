@@ -1,4 +1,5 @@
 from extensions import db
+from datetime import datetime
 
 class Conductor(db.Model):
     __tablename__ = 'conductores'
@@ -8,16 +9,15 @@ class Conductor(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     nro_telefono = db.Column(db.String(20), unique=True, nullable=False)
     estado = db.Column(db.String(50), default="disponible", nullable=False)
+    
+    # Nuevos campos para geolocalización
+    latitud = db.Column(db.Float, nullable=True)
+    longitud = db.Column(db.Float, nullable=True)
+    ultima_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return (
-            f"<Conductor id={self.id_conductor}, "
-            f"codigo={self.codigo}, "
-            f"nro_cedula={self.nro_cedula}, "
-            f"nombre={self.nombre}, "
-            f"nro_telefono={self.nro_telefono}, "
-            f"estado={self.estado}>"
-        )
+        return f"<Conductor {self.nombre} ({self.codigo})>"
+
     def to_dict(self):
         return {
             "id_conductor": self.id_conductor,
@@ -25,5 +25,8 @@ class Conductor(db.Model):
             "nro_cedula": self.nro_cedula,
             "nombre": self.nombre,
             "nro_telefono": self.nro_telefono,
-            "estado": self.estado
+            "estado": self.estado,
+            "latitud": self.latitud,
+            "longitud": self.longitud,
+            "ultima_actualizacion": self.ultima_actualizacion.isoformat() if self.ultima_actualizacion else None
         }

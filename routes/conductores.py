@@ -113,7 +113,8 @@ def crear_conductor():
 def modificar_conductor(id):
     data = request.get_json()
     conductor = Conductor.query.get_or_404(id)
-
+    if "estado" in data:
+        conductor.estado = data["estado"]
     # Robustez en Cédula
     if "nro_cedula" in data and data["nro_cedula"] != conductor.nro_cedula:
         if Conductor.query.filter(Conductor.nro_cedula == data["nro_cedula"], Conductor.id_conductor != id).first():
@@ -323,3 +324,69 @@ def listar_conductores_activos_con_autos():
 
     return jsonify(resultado), 200
 
+@conductores_bp.route("/actualizar_ubicacion", methods=["POST"])
+def actualizar_ubicacion():
+    data = request.get_json()
+    if not data or 'codigo' not in data or 'latitud' not in data or 'longitud' not in data:
+        return jsonify({"error": "Datos incompletos. Se requiere: codigo, latitud, longitud"}), 400
+
+    codigo = data.get('codigo')
+    lat = data.get('latitud')
+    lon = data.get('longitud')
+
+    # Buscamos al conductor por su código único
+    conductor = Conductor.query.filter_by(codigo=codigo).first()
+
+    if not conductor:
+        return jsonify({"error": f"Conductor con código {codigo} no encontrado"}), 404
+
+    try:
+        lat = float(lat)
+        lon = float(lon)
+        
+        # Validación básica de coordenadas reales en Venezuela (ejemplo)
+        # Táchira está aprox entre 7.0 y 8.5 de latitud, -71.5 y -72.5 de longitud
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+             return jsonify({"error": "Coordenadas fuera de rango"}), 400
+             
+        conductor.latitud = lat
+        conductor.longitud = lon
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500
+    
+@conductores_bp.route("/ubicaciones_activas", methods=["GET"])
+def listar_ubicaciones_activas():
+    # Solo traemos conductores con latitud y longitud no nulas
+    conductores = Conductor.query.filter(Conductor.latitud.isnot(None)).all()
+    
+    resultado = [{
+        "codigo": c.codigo,
+        "nombre": c.nombre,
+        "latitud": c.latitud,
+        "longitud": c.longitud,
+        "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
+    } for c in conductores]
+    
+    return jsonify(resultado), 200
+
+@conductores_bp.route("/ubicaciones_activas", methods=["GET"])
+def obtener_ubicaciones():
+    # Buscamos a TODOS los conductores que tengan coordenadas registradas
+    # sin importar si su estado es 'disponible' o 'activo'
+    conductores = Conductor.query.filter(Conductor.latitud.isnot(None)).all()
+    
+    resultado = []
+    for c in conductores:
+        # Buscamos si tiene un turno activo para obtener el estado real
+        turno = Turno.query.filter_by(conductor_id=c.id_conductor, estado="activo").first()
+        
+        resultado.append({
+            "codigo": c.codigo,
+            "latitud": c.latitud,
+            "longitud": c.longitud,
+            "estado": turno.estado if turno else "Sin turno"
+        })
+    
+    return jsonify(resultado)

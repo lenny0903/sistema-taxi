@@ -5,7 +5,7 @@ from models.despachos import Despacho
 from werkzeug.security import check_password_hash
 from extensions import db
 from flask import Blueprint, render_template, request, redirect, session, jsonify
-
+from models.conductores import Conductor
 
 views_bp = Blueprint("views", __name__)
 
@@ -72,3 +72,12 @@ def actualizar_tarifa():
         return jsonify({"status": "success", "message": "Registro completo actualizado"})
     
     return jsonify({"status": "error", "message": "No encontrada"}), 404
+
+@views_bp.route("/control/<codigo>")
+def pagina_control(codigo):
+    # Buscamos al conductor por su código para verificar que existe
+    conductor = Conductor.query.filter_by(codigo=codigo).first_or_404()
+    return render_template("control_conductor.html", conductor=conductor)
+@views_bp.route("/monitoreo")
+def pagina_mapa():
+    return render_template("monitoreo.html")
