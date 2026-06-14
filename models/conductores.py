@@ -9,6 +9,7 @@ class Conductor(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     nro_telefono = db.Column(db.String(20), unique=True, nullable=False)
     estado = db.Column(db.String(50), default="disponible", nullable=False)
+    telegram_id = db.Column(db.String(50), nullable=True, unique=True)
     
     # Nuevos campos para geolocalización
     latitud = db.Column(db.Float, nullable=True)

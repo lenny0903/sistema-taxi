@@ -2062,3 +2062,23 @@ document.getElementById('btnImprimirConsolidadoPDF').addEventListener('click', f
         btn.disabled = false;
     }, 2000);
 });
+
+function abrirMonitoreo() {
+    // Definimos el tamaño y características de la ventana
+    const ancho = 1200;
+    const alto = 800;
+    const izquierda = (screen.width - ancho) / 2;
+    const superior = (screen.height - alto) / 2;
+    
+    // Abrimos la ventana
+    const ventanaMonitoreo = window.open(
+        '/monitoreo', 
+        'MonitoreoFlota', 
+        `width=${ancho},height=${alto},left=${izquierda},top=${superior},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
+
+    // Opcional: Esto trae la ventana al frente si el operador ya la tenía abierta pero escondida
+    if (ventanaMonitoreo) {
+        ventanaMonitoreo.focus();
+    }
+}

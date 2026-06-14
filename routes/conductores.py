@@ -356,37 +356,54 @@ def actualizar_ubicacion():
         db.session.rollback()
         return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500
     
-@conductores_bp.route("/ubicaciones_activas", methods=["GET"])
-def listar_ubicaciones_activas():
-    # Solo traemos conductores con latitud y longitud no nulas
-    conductores = Conductor.query.filter(Conductor.latitud.isnot(None)).all()
+
+@conductores_bp.route('/conductores/en_espera', methods=['GET'])
+def listar_conductores_espera():
+    try:
+        # Filtramos por el estado 'esperando'
+        conductores = Conductor.query.filter_by(estado="esperando").all()
+        # Convertimos la lista de objetos a una lista de diccionarios
+        return jsonify([c.to_dict() for c in conductores]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@conductores_bp.route('/conductores/confirmar_turno/<int:id_conductor>', methods=['POST'])
+def confirmar_turno(id_conductor):
+    from models.conductores import Conductor
+    from extensions import db
     
-    resultado = [{
-        "codigo": c.codigo,
-        "nombre": c.nombre,
-        "latitud": c.latitud,
-        "longitud": c.longitud,
-        "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
-    } for c in conductores]
+    conductor = Conductor.query.get_or_404(id_conductor)
     
-    return jsonify(resultado), 200
+    # Simplemente lo ponemos en disponible para que el API principal lo acepte
+    conductor.estado = "disponible"
+    db.session.commit()
+    
+    return jsonify({"status": "éxito", "mensaje": "Conductor habilitado para turno"})
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])
 def obtener_ubicaciones():
-    # Buscamos a TODOS los conductores que tengan coordenadas registradas
-    # sin importar si su estado es 'disponible' o 'activo'
-    conductores = Conductor.query.filter(Conductor.latitud.isnot(None)).all()
+    conductores = Conductor.query.filter(
+        Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])
+    ).all()
     
     resultado = []
     for c in conductores:
-        # Buscamos si tiene un turno activo para obtener el estado real
-        turno = Turno.query.filter_by(conductor_id=c.id_conductor, estado="activo").first()
-        
         resultado.append({
+            "id_conductor": c.id_conductor,
             "codigo": c.codigo,
+            "nombre": c.nombre,
             "latitud": c.latitud,
             "longitud": c.longitud,
-            "estado": turno.estado if turno else "Sin turno"
+            "estado": c.estado,
+            # Añadimos la fecha. Asumimos que c.ultima_actualizacion es un objeto datetime
+            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
         })
     
     return jsonify(resultado)
+@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
+def habilitar_conductor(id_conductor):
+    conductor = Conductor.query.get_or_404(id_conductor)
+    # Si estaba esperando, lo pasamos a activo para que el monitoreo lo pinte de una vez
+    conductor.estado = "disponible" 
+    db.session.commit()
+    return jsonify({"status": "éxito", "mensaje": "Conductor activado"}), 200

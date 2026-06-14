@@ -50,9 +50,8 @@ def crear_turno():
 
         # Validar que el conductor esté disponible
         conductor = Conductor.query.get(conductor_id)
-        if not conductor or conductor.estado != "disponible":
-            return jsonify({"error": "El conductor no está disponible"}), 400
-
+        if not conductor or conductor.estado not in ["disponible", "esperando"]:
+            return jsonify({"error": "El conductor no ha sido habilitado por el operador"}), 400
         # Validar que el auto esté disponible
         auto = Auto.query.get(auto_id)
         if not auto or auto.estado != "disponible":

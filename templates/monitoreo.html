@@ -9,18 +9,39 @@
         #map { flex-grow: 1; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast-msg {
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            margin-top: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1;} }
     </style>
 </head>
 <body>
-
+    <div id="toast-container"></div>
     <div id="panel">
+        <h2>En Espera (Jornada iniciada)</h2>
+        <table id="tabla-espera">
+            <thead><tr><th>Unidad</th><th>Estado</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        
         <h2>Flota Activa</h2>
-        <table>
+        <table id="tabla-activa">
             <thead>
                 <tr><th>Unidad</th><th>Estado</th></tr>
             </thead>
-            <tbody id="lista-conductores">
-                </tbody>
+            <tbody></tbody>
         </table>
     </div>
 
@@ -44,43 +65,111 @@
             try {
                 const res = await fetch('/conductores/ubicaciones_activas');
                 const data = await res.json();
+                console.log("📡 Datos recibidos en monitoreo:", data);
+                // 1. Buscamos los elementos correctamente
+                const listaEspera = document.querySelector('#tabla-espera tbody');
+                const listaActiva = document.querySelector('#tabla-activa tbody');
                 
-                const lista = document.getElementById('lista-conductores');
-                // IMPORTANTE: Esto vacía la tabla antes de volver a llenarla, 
-                // evitando que se dupliquen las filas
-                lista.innerHTML = ''; 
+                // 2. Limpiamos solo si existen (protección contra errores)
+                if (listaEspera) listaEspera.innerHTML = '';
+                if (listaActiva) listaActiva.innerHTML = '';
 
-                data.forEach(c => {
-                   // 1. Ya no busques c.estado, porque no viene. 
-                    // Vamos a asignar un estado por defecto o basado en tu lógica.
-                    const estadoMostrar = "Activo"; // Como los recibes, es que están activos en el GPS
-                    const colorEstado = 'green';
+               data.forEach(c => {
+                    console.log(`🔍 Procesando ${c.codigo}: estado=${c.estado}`);
+                    // 1. --- LÓGICA DE TABLAS ---
+                    if (c.estado === 'esperando') {
+                        const fila = document.createElement('tr');
+                        fila.innerHTML = `<td>${c.codigo}</td><td><button onclick="confirmarTurno(${c.id_conductor})">Iniciar Turno</button></td>`;
+                        listaEspera.appendChild(fila);
+                    } 
+                    else if (c.estado === 'activo') {
+                        const fila = document.createElement('tr');
+                        fila.innerHTML = `<td>${c.codigo}</td><td><span style="color: blue">Activo</span></td>`;
+                        listaActiva.appendChild(fila);
+                    }
+                    else if (c.estado === 'solicitando_cierre') {
+                        const fila = document.createElement('tr');
+                        // Color naranja para llamar la atención del operador
+                        fila.style.backgroundColor = "#fff3cd"; 
+                        fila.style.border = "2px solid #ffc107";
+                        fila.innerHTML = `
+                            <td><strong>${c.codigo}</strong></td>
+                            <td style="color: #856404; font-weight: bold;">⚠️ Solicita Cierre, completa la operación en la secció Gestión de Turnos</td>
+                        `;
+                        listaActiva.appendChild(fila);
+                    }
+                    // 2. --- LÓGICA DEL MAPA CON ALERTA DE TIEMPO ---
+                    if (c.estado === 'activo' && c.latitud && c.longitud && c.ultima_actualizacion) {
+                        
+                        // Calcular diferencia en minutos
+                        const ultimaActualizacion = new Date(c.ultima_actualizacion);
+                        const ahora = new Date();
+                        const minutosTranscurridos = (ahora - ultimaActualizacion) / (1000 * 60);
+                        
+                        // Determinar icono: Verde si < 10 min, Rojo si > 10 min
+                        const esReciente = minutosTranscurridos < 10;
+                        const iconUrl = esReciente 
+                            ? 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png' // Tu icono normal
+                            : 'https://cdn-icons-png.flaticon.com/512/1828/1828843.png'; // Icono rojo (alerta)
 
-                    // 2. Asegúrate de usar los nombres exactos que vienen en el JSON:
-                    const lat = c.latitud;
-                    const lon = c.longitud;
-                    // 3. Renderizado de la tabla:
-                    const fila = document.createElement('tr');
-                    fila.innerHTML = `
-                        <td><strong>${c.codigo}</strong></td>
-                        <td><span style="color: ${colorEstado}">● ${estadoMostrar}</span></td>
-                    `;
-                    
-                    // Al definir el evento aquí dentro, 'lat' y 'lon' están disponibles correctamente
-                    fila.onclick = () => {
-                        map.setView([lat, lon], 17);
-                        marcadores[c.codigo].openPopup();
-                    };
-                    
-                    lista.appendChild(fila);
+                        // Crear o actualizar marcador
+                        if (!marcadores[c.codigo]) {
+                            marcadores[c.codigo] = L.marker([c.latitud, c.longitud], {
+                                icon: L.icon({iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16]})
+                            }).addTo(map);
+                        } else {
+                            // Actualizar icono y posición
+                            marcadores[c.codigo].setIcon(L.icon({iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16]}));
+                            marcadores[c.codigo].setLatLng([c.latitud, c.longitud]);
+                        }
+                        
+                        const mensaje = esReciente ? "Activo" : "Sin señal (>10 min)";
+                        marcadores[c.codigo].bindPopup(`Unidad: ${c.codigo} - ${mensaje}`);
+                    } 
+                    else if (marcadores[c.codigo] && c.estado !== 'solicitando_cierre') {
+                        // Solo borramos el marcador si NO está solicitando cierre
+                        // y si el estado es algo distinto a activo (ya que activo entra en el if superior)
+                        if (c.estado !== 'activo') {
+                            map.removeLayer(marcadores[c.codigo]);
+                            delete marcadores[c.codigo];
+                        }
+                    }
                 });
             } catch (error) {
-                console.error("Error al actualizar:", error);
+                console.error("Error al actualizar tablas:", error);
             }
+        }
+        async function confirmarTurno(id) {
+            try {
+                const res = await fetch(`/conductores/habilitar/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    // 1. Damos feedback visual
+                    mostrarToast("✅ Atención: Debe iniciar turno en la sección Gestión de Turnos Activos");
+                    console.log("Conductor habilitado correctamente");
+                    
+                    // 2. FORZAMOS el refresco inmediato para que no tengas que esperar los 5s del setInterval
+                    await actualizarMapa(); 
+                } else {
+                    console.error("Error al habilitar");
+                }
+            } catch (e) {
+                console.error("Error de red:", e);
+            }
+        }
+        function mostrarToast(mensaje) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast-msg';
+            toast.innerText = mensaje;
+            container.appendChild(toast);
+            
+            // Se elimina solo después de 3 segundos
+            setTimeout(() => toast.remove(), 4000);
         }
 
         setInterval(actualizarMapa, 5000);
         actualizarMapa();
     </script>
+    
 </body>
 </html>

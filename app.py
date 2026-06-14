@@ -78,7 +78,8 @@ def create_app():
     
     # ELIMINA O COMENTA ESTA LÍNEA (Genera conflicto con la de arriba)
     # app.secret_key = "clave_super_secreta_unica"   
-    
+    from routes.telegram_bot import telegram_bp
+    app.register_blueprint(telegram_bp, url_prefix="/telegram")
     socketio.init_app(app)
     db.init_app(app)
     jwt = JWTManager(app)
@@ -180,7 +181,12 @@ def create_app():
     
         # Pasamos la lista procesada al template
         return render_template("dashboard.html", destinos=destinos_lista)
-          
+    def configurar_webhook():
+        import requests
+        TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
+        URL_PUBLICA = "https://responsible-brought-flashers-commons.trycloudflare.com" # Ejemplo: https://taxis.tu-dominio.com
+        url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={URL_PUBLICA}/telegram/webhook"
+        requests.get(url)     
     
     #app.register_blueprint(views_bp)
 
