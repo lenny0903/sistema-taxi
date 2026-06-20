@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 import requests
 import json
 telegram_bp = Blueprint('telegram_bp', __name__)
@@ -15,7 +16,7 @@ def webhook():
     from extensions import db
     try:
         update = request.get_json()
-        #print(f"DEBUG UPDATE: {update}") # <--- Mira esto en tu consola
+        print(f"DEBUG UPDATE: {update}") # <--- Mira esto en tu consola
         if not update:
             return jsonify({"status": "ok"}), 200
 
@@ -32,6 +33,7 @@ def webhook():
             if conductor and conductor.estado == "disponible":
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
+                conductor.ultima_actualizacion = datetime.utcnow()
                 db.session.commit()
                 return jsonify({"status": "loc_actualizada"}), 200
             # Si no está disponible o no hay conductor, ignoramos y salimos
@@ -91,7 +93,7 @@ def webhook():
                 enviar_menu_botones(chat_id)
                 return jsonify({"status": "finalizacion_validada"}), 200
             
-            elif texto == '/start':
+            elif texto.startswith('/start'):
                 enviar_menu_botones(chat_id)
                 return jsonify({"status": "menu_enviado"}), 200
 

@@ -4,7 +4,7 @@ eventlet.monkey_patch()  # ¡PRIMERÍSIMA LÍNEA ACTIVA! Nada de Flask puede ir 
 import os
 import shutil
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Ahora sí, imports de Flask y extensiones de forma segura
 from flask import Flask, jsonify, render_template, url_for, redirect, request, send_from_directory
@@ -57,17 +57,16 @@ def gestionar_almacenamiento_backups(carpeta):
         os.remove(backups.pop(0))
 
 def create_app():
+   # 1. PRIMERO: Crea la aplicación
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
     
-    # --- BLINDAJE DE SEGURIDAD (AQUÍ ESTÁ EL ARREGLO) ---
-    # Usamos una frase fija para que no importe cuántas veces reinicies el .bat
+    # 2. DESPUÉS: Ya puedes usar 'app' para configurar
+    app.config.from_object('config')
+    
+    # 3. Blindaje de seguridad (Sobrescribe solo lo necesario)
     LLAVE_FIJA = "taxis_tachira_2026_fija_pro" 
     app.config['SECRET_KEY'] = LLAVE_FIJA
     app.config['JWT_SECRET_KEY'] = LLAVE_FIJA
-    
-    # Extendemos el tiempo a 24 horas para que no caduque a los 20 min o cada hora
-    from datetime import timedelta
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
     # ---------------------------------------------------
 
@@ -75,7 +74,7 @@ def create_app():
     print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
     migrate = Migrate(app, db, render_as_batch=True)
-    
+    app.migrate = migrate
     # ELIMINA O COMENTA ESTA LÍNEA (Genera conflicto con la de arriba)
     # app.secret_key = "clave_super_secreta_unica"   
     from routes.telegram_bot import telegram_bp
@@ -83,7 +82,7 @@ def create_app():
     socketio.init_app(app)
     db.init_app(app)
     jwt = JWTManager(app)
-   
+    app.extensions['jwt'] = jwt
    
     with app.app_context():
         import models
@@ -188,15 +187,6 @@ def create_app():
         url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={URL_PUBLICA}/telegram/webhook"
         requests.get(url)     
     
-    #app.register_blueprint(views_bp)
-
-    return app
-
-
-if __name__ == "__main__":
-    app = create_app()
-    
-    # 1. Vincular el scheduler a la app
     scheduler.init_app(app)
     
     # 2. Programar la tarea
@@ -206,8 +196,17 @@ if __name__ == "__main__":
     # 3. Iniciar
     scheduler.start()
     
-    print("🚀 Servidor y Scheduler iniciados en modo Producción...")
+    print("🚀 Servidor y Scheduler iniciados en modo Producción...")#app.register_blueprint(views_bp)
+
+    return app
+
+
+if __name__ == "__main__":
+    app = create_app()
     
-    # CAMBIO CRÍTICO: debug=False para producción
-    # Use_reloader=False evita que el scheduler se ejecute dos veces
-    socketio.run(app, debug=False, host="0.0.0.0", port=5000, use_reloader=False)
+    # IMPORTANTE: No fuerces debug=True aquí. 
+    # Deja que el archivo 'config.py' decida si es producción o desarrollo.
+    # El socketio.run leerá la configuración de la app.
+    
+    print(f"🚀 Servidor iniciado. Debug activado: {app.config['DEBUG']}")
+    socketio.run(app, host="0.0.0.0", port=5000)
