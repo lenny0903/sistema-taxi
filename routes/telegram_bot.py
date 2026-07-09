@@ -28,17 +28,21 @@ def webhook():
         chat_id = str(msg['from']['id'])
         conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
 
-        # 1. PROCESAMIENTO DE UBICACIÓN (Prioridad alta y salida rápida)
+       # 1. PROCESAMIENTO DE UBICACIÓN
         if 'location' in msg:
-            if conductor and conductor.estado == "disponible":
+            # CAMBIO: Solo permitimos actualizar si está en ESTADO ACTIVO
+            # Eliminamos "disponible" y "esperando" de esta lista
+            if conductor and conductor.estado == "activo":
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
                 conductor.ultima_actualizacion = datetime.utcnow()
+                
                 db.session.commit()
+                print(f"✅ Ubicación guardada para {conductor.codigo}")
                 return jsonify({"status": "loc_actualizada"}), 200
-            # Si no está disponible o no hay conductor, ignoramos y salimos
-            return jsonify({"status": "ignored"}), 200
-
+            
+            # Si no está activo, rechazamos la ubicación
+            return jsonify({"status": "ignorado_por_estado"}), 200
         # 2. PROCESAMIENTO DE TEXTO (Tu lógica intacta)
         elif 'text' in msg:
             texto = msg['text']

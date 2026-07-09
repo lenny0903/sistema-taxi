@@ -81,3 +81,22 @@ def pagina_control(codigo):
 @views_bp.route("/monitoreo")
 def pagina_mapa():
     return render_template("monitoreo.html")
+
+@views_bp.route("/conductores/ubicaciones_activas")
+def obtener_ubicaciones_activas():
+    db.session.expire_all() 
+    
+    conductores = Conductor.query.all()
+    lista_conductores = []
+    for c in conductores:
+        # Enviamos todos los datos, incluso si no tienen lat/lon, 
+        # para que el frontend pueda limpiar marcadores si el conductor se desconectó
+        lista_conductores.append({
+            "codigo": c.codigo,
+            "estado": c.estado,
+            "latitud": c.latitud,
+            "longitud": c.longitud,
+            "ultima_actualizacion": str(c.ultima_actualizacion),
+            "id_conductor": c.id # Asegúrate de enviar esto para tu botón de iniciar turno
+        })
+    return jsonify(lista_conductores)

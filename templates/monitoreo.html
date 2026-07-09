@@ -4,27 +4,23 @@
     <title>Monitoreo de Flota</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style> 
+        /* Estilos base para escritorio */
         body { display: flex; height: 100vh; margin: 0; }
         #panel { width: 300px; padding: 15px; border-right: 2px solid #ccc; overflow-y: auto; background: #f9f9f9; }
         #map { flex-grow: 1; }
+        
+        /* Reglas de tabla y toast que son comunes */
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-        #toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-        }
-        .toast-msg {
-            background: #28a745;
-            color: white;
-            padding: 12px 20px;
-            margin-top: 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            animation: fadeIn 0.3s;
-        }
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        .toast-msg { background: #28a745; color: white; padding: 12px 20px; margin-top: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); animation: fadeIn 0.3s; }
         @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1;} }
+
+        /* Estilos específicos para móviles */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #panel { width: 100%; height: 35%; border-right: none; border-bottom: 2px solid #ccc; }
+        }
     </style>
 </head>
 <body>
@@ -49,9 +45,15 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // 1. Inicialización del mapa
         const map = L.map('map').setView([7.76, -72.22], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+        // 2. CAMBIO DE ESTILO: Reemplazamos la capa estándar de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+                // 3. Tu configuración de icono (se mantiene igual)
         const taxiIcon = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
             iconSize: [32, 32],
@@ -60,83 +62,63 @@
         });
 
         let marcadores = {};
+        
 
         async function actualizarMapa() {
             try {
-                const res = await fetch('/conductores/ubicaciones_activas');
+                const res = await fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime());
                 const data = await res.json();
-                console.log("📡 Datos recibidos en monitoreo:", data);
-                // 1. Buscamos los elementos correctamente
+                
                 const listaEspera = document.querySelector('#tabla-espera tbody');
                 const listaActiva = document.querySelector('#tabla-activa tbody');
-                
-                // 2. Limpiamos solo si existen (protección contra errores)
                 if (listaEspera) listaEspera.innerHTML = '';
                 if (listaActiva) listaActiva.innerHTML = '';
 
-               data.forEach(c => {
-                    console.log(`🔍 Procesando ${c.codigo}: estado=${c.estado}`);
-                    // 1. --- LÓGICA DE TABLAS ---
+                data.forEach(c => {
+                    console.log(`Unidad: ${c.codigo} | Última vez: ${c.ultima_actualizacion}`);
+                    
+                    // Lógica de Tablas
                     if (c.estado === 'esperando') {
                         const fila = document.createElement('tr');
                         fila.innerHTML = `<td>${c.codigo}</td><td><button onclick="confirmarTurno(${c.id_conductor})">Iniciar Turno</button></td>`;
                         listaEspera.appendChild(fila);
-                    } 
-                    else if (c.estado === 'activo') {
+                    } else if (c.estado === 'activo') {
                         const fila = document.createElement('tr');
-                        fila.innerHTML = `<td>${c.codigo}</td><td><span style="color: blue">Activo</span></td>`;
+                        fila.innerHTML = `<td>${c.codigo}</td><td>${c.estado}</td>`;
                         listaActiva.appendChild(fila);
                     }
-                    else if (c.estado === 'solicitando_cierre') {
-                        const fila = document.createElement('tr');
-                        // Color naranja para llamar la atención del operador
-                        fila.style.backgroundColor = "#fff3cd"; 
-                        fila.style.border = "2px solid #ffc107";
-                        fila.innerHTML = `
-                            <td><strong>${c.codigo}</strong></td>
-                            <td style="color: #856404; font-weight: bold;">⚠️ Solicita Cierre, completa la operación en la secció Gestión de Turnos</td>
-                        `;
-                        listaActiva.appendChild(fila);
-                    }
-                    // 2. --- LÓGICA DEL MAPA CON ALERTA DE TIEMPO ---
-                    if (c.estado === 'activo' && c.latitud && c.longitud && c.ultima_actualizacion) {
-                        
-                        // Calcular diferencia en minutos
-                        const ultimaActualizacion = new Date(c.ultima_actualizacion);
-                        const ahora = new Date();
-                        const minutosTranscurridos = (ahora - ultimaActualizacion) / (1000 * 60);
-                        
-                        // Determinar icono: Verde si < 10 min, Rojo si > 10 min
-                        const esReciente = minutosTranscurridos < 10;
-                        const iconUrl = esReciente 
-                            ? 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png' // Tu icono normal
-                            : 'https://cdn-icons-png.flaticon.com/512/1828/1828843.png'; // Icono rojo (alerta)
 
-                        // Crear o actualizar marcador
+                    // Lógica de Mapa
+                    if (c.latitud !== null && c.longitud !== null) {
+                        const ultimaAct = new Date(c.ultima_actualizacion).getTime();
+                        const hace15Min = Date.now() - (15 * 60 * 1000);
+
+                        // FILTRO ÚNICO: Si es viejo o inválido, eliminar y salir
+                        if (isNaN(ultimaAct) || (c.estado === 'activo' && ultimaAct < hace15Min)) {
+                            if (marcadores[c.codigo]) {
+                                map.removeLayer(marcadores[c.codigo]);
+                                delete marcadores[c.codigo];
+                            }
+                            return; 
+                        }
+
+                        // DIBUJAR O MOVER
+                        const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         if (!marcadores[c.codigo]) {
-                            marcadores[c.codigo] = L.marker([c.latitud, c.longitud], {
-                                icon: L.icon({iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16]})
-                            }).addTo(map);
+                            const iconUrl = 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png';
+                            const icono = L.icon({ iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16] });
+                            marcadores[c.codigo] = L.marker(coords, { icon: icono }).addTo(map);
+                            marcadores[c.codigo].bindPopup(`Unidad: ${c.codigo}`);
                         } else {
-                            // Actualizar icono y posición
-                            marcadores[c.codigo].setIcon(L.icon({iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16]}));
-                            marcadores[c.codigo].setLatLng([c.latitud, c.longitud]);
+                            marcadores[c.codigo].setLatLng(coords);
                         }
-                        
-                        const mensaje = esReciente ? "Activo" : "Sin señal (>10 min)";
-                        marcadores[c.codigo].bindPopup(`Unidad: ${c.codigo} - ${mensaje}`);
-                    } 
-                    else if (marcadores[c.codigo] && c.estado !== 'solicitando_cierre') {
-                        // Solo borramos el marcador si NO está solicitando cierre
-                        // y si el estado es algo distinto a activo (ya que activo entra en el if superior)
-                        if (c.estado !== 'activo') {
-                            map.removeLayer(marcadores[c.codigo]);
-                            delete marcadores[c.codigo];
-                        }
+                    } else if (marcadores[c.codigo]) {
+                        map.removeLayer(marcadores[c.codigo]);
+                        delete marcadores[c.codigo];
                     }
                 });
             } catch (error) {
-                console.error("Error al actualizar tablas:", error);
+                console.error("Error al actualizar:", error);
             }
         }
         async function confirmarTurno(id) {
