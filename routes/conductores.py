@@ -1,5 +1,4 @@
-from datetime import datetime
-
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from app import MONTO_CUOTA_SEMANAL
 from extensions import db
@@ -380,26 +379,38 @@ def confirmar_turno(id_conductor):
     
     return jsonify({"status": "éxito", "mensaje": "Conductor habilitado para turno"})
 
+
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])
 def obtener_ubicaciones():
     conductores = Conductor.query.filter(
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])
     ).all()
     
+    limite_fresco = datetime.utcnow() - timedelta(minutes=3)
     resultado = []
+    
     for c in conductores:
+        # Verificamos si la coordenada es fresca
+        ultima_act = c.ultima_actualizacion
+        es_reciente = ultima_act and ultima_act > limite_fresco
+        
+        # Determinamos si debe ser tratado como 'gps' o 'manual'
+        es_manual = not (es_reciente and c.latitud is not None and c.longitud is not None)
+        
         resultado.append({
             "id_conductor": c.id_conductor,
             "codigo": c.codigo,
             "nombre": c.nombre,
-            "latitud": c.latitud,
-            "longitud": c.longitud,
+            "latitud": c.latitud if not es_manual else None,
+            "longitud": c.longitud if not es_manual else None,
             "estado": c.estado,
-            # Añadimos la fecha. Asumimos que c.ultima_actualizacion es un objeto datetime
-            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
+            "modo": "manual" if es_manual else "gps", # <--- EL CAMBIO CLAVE
+            "ultima_actualizacion": ultima_act.isoformat() if ultima_act else None
         })
     
     return jsonify(resultado)
+    
+    
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)

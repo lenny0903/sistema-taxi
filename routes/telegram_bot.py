@@ -2,8 +2,22 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 import requests
 import json
+from flask_socketio import SocketIO
+#from app import socketio # Importa la instancia desde tu app principal
+from routes.turnos import finalizar_turno
 telegram_bp = Blueprint('telegram_bp', __name__)
 
+# En routes/telegram_bot.py
+from flask_socketio import emit
+
+def emitir_al_panel(evento, datos):
+    try:
+        # Esto emitirá el evento a todos los clientes conectados 
+        # sin importar la instancia de socketio
+        emit(evento, datos, namespace='/', broadcast=True)
+        print("✅ Evento emitido con éxito usando flask_socketio.emit")
+    except Exception as e:
+        print(f"❌ Error al emitir evento: {e}")
 def confirmar_clic(callback_id):
     TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery"
@@ -30,19 +44,23 @@ def webhook():
 
        # 1. PROCESAMIENTO DE UBICACIÓN
         if 'location' in msg:
-            # CAMBIO: Solo permitimos actualizar si está en ESTADO ACTIVO
-            # Eliminamos "disponible" y "esperando" de esta lista
-            if conductor and conductor.estado == "activo":
+            # 1. Verificamos SIEMPRE si realmente hay un turno activo
+            turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
+            
+            # 2. Solo guardamos si el estado es 'activo' Y existe un turno real en la base de datos
+            if conductor and conductor.estado == "activo" and turno_activo:
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
                 conductor.ultima_actualizacion = datetime.utcnow()
-                
                 db.session.commit()
                 print(f"✅ Ubicación guardada para {conductor.codigo}")
                 return jsonify({"status": "loc_actualizada"}), 200
             
-            # Si no está activo, rechazamos la ubicación
-            return jsonify({"status": "ignorado_por_estado"}), 200
+            # 3. Si no hay turno activo, ignoramos (y opcionalmente avisamos)
+            else:
+                # Comentamos o eliminamos el enviar_mensaje aquí si es demasiado molesto
+                # El conductor sigue enviando ubicación, así que no queremos bombardearlo con mensajes
+                return jsonify({"status": "ignorado_sin_turno"}), 200
         # 2. PROCESAMIENTO DE TEXTO (Tu lógica intacta)
         elif 'text' in msg:
             texto = msg['text']
@@ -72,31 +90,79 @@ def webhook():
                     enviar_menu_botones(chat_id)
                 return jsonify({"status": "resultado_vinculacion"}), 200
 
-            # --- BOTÓN INICIAR JORNADA ---
+          # --- BOTÓN INICIAR JORNADA ---
             elif texto == "📍 Iniciar Jornada":
                 if not conductor:
                     enviar_mensaje(chat_id, "🚫 No estás registrado. Usa '🔗 Activar' primero.")
                 else:
+                    # NUEVO: Verificar si ya tiene un turno activo
+                    turno_activo = db.session.query(Turno).filter(
+                        Turno.conductor_id == conductor.id_conductor,
+                        Turno.estado == "activo"
+                    ).first()
+
+                    if turno_activo:
+                        enviar_mensaje(chat_id, "⚠️ Ya tienes una jornada activa. Debes finalizarla antes de iniciar una nueva.")
+                        return jsonify({"status": "error", "message": "Jornada ya activa"}), 400
+                    
+                    # Si no tiene turno activo, procedemos
                     conductor.estado = "esperando"
                     db.session.commit()
                     enviar_mensaje(chat_id, "📍 Para iniciar tu jornada, por favor presiona el botón de 'Enviar Ubicación' (clip 📎).")
+                
                 return jsonify({"status": "esperando_ubicacion"}), 200
 
             # --- BOTÓN FINALIZAR JORNADA ---
+           # --- BOTÓN FINALIZAR JORNADA ---
             elif texto == "🛑 Finalizar Jornada":
                 if not conductor:
-                    enviar_mensaje(chat_id, "🚫 No estás registrado. Usa '🔗 Activar' primero.")
+                    enviar_mensaje(chat_id, "🚫 No estás registrado.")
                 else:
+                    # Buscamos el turno activo
                     turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
+                    
                     if not turno_activo:
-                        enviar_mensaje(chat_id, "⚠️ No tienes ninguna jornada activa para finalizar.")
+                        enviar_mensaje(chat_id, "⚠️ No tienes ninguna jornada activa.")
                     else:
-                        conductor.estado = "solicitando_cierre"
-                        db.session.commit()
-                        enviar_mensaje(chat_id, "🛑 Solicitud de cierre enviada. Esperando confirmación del operador.")
+                        # 💡 LLAMADA DIRECTA (Sin requests ni errores de red)
+                        # Pasamos 'es_bot=True' para que la función sepa cómo responder
+                        resultado = finalizar_turno(turno_activo.id_turno, es_bot=True)
+                        
+                        # Verificamos si el diccionario devuelto tiene success=True
+                        if resultado.get("success"):
+                            # 1. Tu mensaje de confirmación al conductor
+                            msg_cierre = (
+                                "🏁 *Jornada finalizada.*\n\n"
+                                "Tu vehículo ha sido liberado y tu estado es 'disponible'.\n\n"
+                                "⚠️ *Recuerda:* 🔗 -> Ubicación -> 'Detener ubicación'."
+                            )
+                            enviar_mensaje(chat_id, msg_cierre, parse_mode='Markdown')
+                            
+                            # 2. ⚡ AVISO AL PANEL WEB (SocketIO)
+                            print("🚀 Emitiendo evento 'turno_finalizado' al navegador...")
+                            emitir_al_panel('turno_finalizado', {'conductor': conductor.nombre})
+                            
+                        else:
+                            # Si falló la lógica de la base de datos
+                            enviar_mensaje(chat_id, f"❌ Error al cerrar turno: {resultado.get('error')}")
+                
                 enviar_menu_botones(chat_id)
-                return jsonify({"status": "finalizacion_validada"}), 200
-            
+                return jsonify({"status": "finalizado"}), 200
+            # --- BOTÓN REINICIAR UBICACIÓN ---
+            elif texto == "🛠 Reiniciar Ubicación":
+                if not conductor:
+                    enviar_mensaje(chat_id, "🚫 No estás registrado.")
+                else:
+                    # Instrucción clara para que el conductor actúe
+                    instrucciones = (
+                      "⚙️ *Guía de reconexión:*\n\n"
+                        "1. Presiona el icono 🔗 en este chat.\n"
+                        "2. Selecciona 'Ubicación' y luego pulsa 'Detener ubicación'.\n"
+                        "3. Vuelve a compartir tu 'Ubicación en tiempo real' (8 horas).\n"
+                        "4. Asegúrate de tener tu fecha y hora en 'Automático'."
+                    )
+                    enviar_mensaje(chat_id, instrucciones, parse_mode='Markdown')
+                return jsonify({"status": "instrucciones_enviadas"}), 200
             elif texto.startswith('/start'):
                 enviar_menu_botones(chat_id)
                 return jsonify({"status": "menu_enviado"}), 200
@@ -126,11 +192,12 @@ def enviar_menu_botones(chat_id):
     TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     
-    # Hemos añadido la fila del botón de registro
+    # Aquí está el teclado con la nueva fila agregada:
     teclado = {
         "keyboard": [
-            [{"text": "🔗 Activar"}], # Fila 1: Activación
-            [{"text": "📍 Iniciar Jornada"}, {"text": "🛑 Finalizar Jornada"}] # Fila 2: Operaciones
+            [{"text": "🔗 Activar"}], 
+            [{"text": "📍 Iniciar Jornada"}, {"text": "🛑 Finalizar Jornada"}],
+            [{"text": "🛠 Reiniciar Ubicación"}] # <--- NUEVA FILA AGREGADA
         ],
         "resize_keyboard": True,
         "one_time_keyboard": False
@@ -140,10 +207,9 @@ def enviar_menu_botones(chat_id):
         'chat_id': chat_id,
         'text': "✅ Bienvenido. Selecciona una acción:",
         'parse_mode': 'HTML',
-        'reply_markup': teclado # Pasa el diccionario directamente
+        'reply_markup': teclado 
     }
     
-    # Cambia 'data' por 'json'
     requests.post(url, json=payload)
 
 def limpiar_teclado_conductor(chat_id):

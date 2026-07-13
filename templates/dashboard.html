@@ -1261,10 +1261,16 @@ async function cargarConductoresEnTurnoCrear() {
    // Tabla para desplegar turnos activos
   async function cargarTurnos() {
     console.trace("▶️ cargarTurnos disparado");
+    
+    // 1. Limpieza total inmediata
+    //const contenedor = document.getElementById('turnosActivosLista');
+    //if (!contenedor) return;
+    //contenedor.innerHTML = '<p class="text-center">Cargando...</p>';
 
     try {
-      const data = await apiFetch('/turnos/activos'); // solo activos
-      //const data = await res.json();
+      const data = await apiFetch('/turnos/activos?v=' + new Date().getTime());
+      // 2. Verificación de seguridad
+      console.log("▶️ Datos recibidos en cargarTurnos:", data);
       const contenedor = document.getElementById('turnosActivosLista');
       console.log("▶️ Ejecutando cargarTurnos()", data);
 
@@ -1286,22 +1292,41 @@ async function cargarConductoresEnTurnoCrear() {
             <tbody>
               ${
                 Array.isArray(data) && data.length > 0
-                  ? data.map((t, index) => `
-                    <tr class="hover:bg-gray-50 transition">
-                      <td class="border px-2 py-1">${t.id_turno}</td>
-                      <td class="border px-2 py-1">${index + 1}</td> 
-                      <td class="border px-2 py-1">${t.conductor?.nombre || '—'}</td>
-                      <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
-                      <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td>
-                      <td class="border px-2 py-1">${t.inicio}</td>
-                      <td class="border px-2 py-1 text-center">
-                        <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                                onclick="finalizarTurno(${t.id_turno})">
-                          Finalizar
-                        </button>
-                      </td>
-                    </tr>
-                  `).join('')
+                  ? data.map((t, index) => {
+                    // 1. Calculamos si la última actualización fue hace más de 15 minutos (ejemplo)
+                    const ultimaActualizacion = new Date(t.conductor.ultima_actualizacion);
+                    const hace15Minutos = new Date(Date.now() - 15 * 60 * 1000);
+                    const estaDesconectado = ultimaActualizacion < hace15Minutos;
+                    
+                    // 2. Definimos estilos de alerta
+                    const filaClase = estaDesconectado ? "bg-red-50" : "";
+                    const iconoEstado = estaDesconectado ? "⚠️" : "🟢";
+
+                    return `
+                      <tr class="hover:bg-gray-50 transition ${filaClase}">
+                        <td class="border px-2 py-1">${t.id_turno}</td>
+                        <td class="border px-2 py-1">${index + 1}</td> 
+                        <td class="border px-2 py-1 font-bold">
+                            ${iconoEstado} ${t.conductor?.nombre || '—'}
+                        </td>
+                        <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
+                        <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td>
+                        <td class="border px-2 py-1">${t.inicio}</td>
+                        <td class="border px-2 py-1 text-center">
+                            ${estaDesconectado ? `
+                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1"
+                                        onclick="avisarConductor(${t.conductor.id_conductor})">
+                                    Reconectar
+                                </button>
+                            ` : ''}
+                            <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                                    onclick="finalizarTurno(${t.id_turno})">
+                                Finalizar
+                            </button>
+                        </td>
+                      </tr>
+                    `;
+                }).join('')
                   : `<tr><td colspan="6" class="text-center py-2">No hay turnos activos</td></tr>`
               }
             </tbody>
@@ -1317,7 +1342,12 @@ async function cargarConductoresEnTurnoCrear() {
       return [];
     }
   }
-
+  // 🚀 AGREGA ESTO JUSTO AQUÍ, AL FINAL DEL ARCHIVO:
+  /*
+  setInterval(() => {
+    refrescarTodo();
+  }, 5000);
+  */
 
         function mostrarSeccion(id) {
           if (!id) return;
@@ -1784,18 +1814,11 @@ async function cargarDespachosActivos() {
         console.log("✅ Turno finalizado:", data);
 
         // 2. Notificación fluida (Toast)
-        mostrarToast(`Turno #${data.id_turno} finalizado. Auto y conductor disponibles.`, "success");
+        mostrarToast(`Turno #${id_turno} finalizado. Auto y conductor disponibles.`, "success");
 
         // 3. El "Respiro" para la base de datos (500ms)
         // Esto soluciona que el auto aparezca "activo" cuando ya debería estar "disponible"
-        setTimeout(() => {
-            cargarTurnos();
-            cargarConductores();
-            cargarAutosTabla();
-            cargarConductoresEnTurnoCrear();
-            cargarAutosDisponiblesSelect();
-            console.log("🔄 Dashboard sincronizado");
-        }, 500);
+        refrescarTodo();
 
     } catch (err) {
         console.error("❌ Fallo de validación:", err.message);
@@ -2761,10 +2784,54 @@ document.addEventListener("DOMContentLoaded", () => {
         <option value="{{ t.destino }}">
     {% endfor %}
 </datalist>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    // 1. Inicializamos y asignamos a window para que sea global y seguro
+    window.socket = io({
+        transports: ["polling", "websocket"],
+        upgrade: true,
+        reconnection: true,
+        reconnectionAttempts: 5
+    });
+
+    // 2. Escuchamos eventos usando window.socket
+    window.socket.on("reserva_activa", (data) => {
+        console.log("Reserva recibida del scheduler:", data);
+        mostrarToast(`🚗 Reserva #${data.id_reserva} de ${data.cliente}...`, "info");
+        const beep = new Audio('/static/sounds/notification.mp3');
+        beep.play().catch(e => console.log("Interacción requerida para audio"));
+    });
+
+    window.socket.on("connect", () => {
+        console.log("✅ Conectado al sistema de alertas en tiempo real");
+        
+        setTimeout(() => {
+            const vistaActual = document.querySelector('.seccion:not(.hidden)')?.id;
+            if (vistaActual === 'clientesSection') {
+                console.warn("🚫 ¡ALERTA! Bloqueando apertura de Clientes...");
+                abrirVista('despachos'); 
+            }
+        }, 500);
+    });
+
+    // 3. El escuchador de finalización (ya sin errores porque definimos window.socket arriba)
+    window.socket.on('turno_finalizado', (data) => {
+        console.log("🔔 Recibida orden desde Telegram, refrescando tabla...");
+        if (typeof refrescarTodo === 'function') {
+            refrescarTodo();
+        } else {
+            console.error("La función refrescarTodo no existe todavía");
+        }
+    });
+
+    window.socket.on("connect_error", (err) => {
+        console.warn("⚠️ Intento de reconexión de alertas:", err.message);
+    });
+ </script>
  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
 <script src="{{ url_for('static', filename='js/conductores.js') }}"></script>
 <script>
     // Conectar el formulario a la función del archivo externo
@@ -2794,47 +2861,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Usamos Jinja2 para pintar el valor que viene directo de app.py
    window.TARIFA_SEMANAL_SISTEMA = Number('{{ monto_cuota_oficial | default(40000) }}');
 </script>
- <script>
-    // 🛡️ Configuración robusta para la oficina
-    const socket = io({
-        transports: ["polling", "websocket"], // 👈 Primero asegura conexión vía HTTP
-        upgrade: true,                        // Permite subir a WebSocket si la red es estable
-        reconnection: true,                   // Auto-reconexión si falla el internet
-        reconnectionAttempts: 5
-    });
 
-    socket.on("reserva_activa", (data) => {
-        console.log("Reserva recibida del scheduler:", data);
-        
-        mostrarToast(
-            `🚗 Reserva #${data.id_reserva} de ${data.cliente} está próxima a despacho (${data.origen} → ${data.destino} a las ${data.hora})`,
-            "info"
-        );
-
-        const beep = new Audio('/static/sounds/notification.mp3');
-        beep.play().catch(e => console.log("Interacción requerida para audio"));
-    });
-
-    socket.on("connect", () => {
-        console.log("✅ Conectado al sistema de alertas en tiempo real");
-        console.log("📡 Transporte activo:", socket.io.engine.transport.name); 
-
-        // 🛡️ EL BLOQUEADOR: 
-        // Si detectamos que el sistema intenta abrir "clientes" tras la conexión,
-        // lo abortamos inmediatamente y forzamos "despachos".
-        
-        // Esperamos 500ms tras la conexión por si algún script tiene un "setTimeout" escondido
-        setTimeout(() => {
-            const vistaActual = document.querySelector('.seccion:not(.hidden)')?.id;
-            if (vistaActual === 'clientesSection') {
-                console.warn("🚫 ¡ALERTA! Un script intentó forzar la apertura de Clientes tras conectar. Bloqueando...");
-                abrirVista('despachos'); 
-            }
-        }, 500);
-    });
-    socket.on("connect_error", (err) => {
-        console.warn("⚠️ Intento de reconexión de alertas:", err.message);
-    });
- </script>
 </body>
 </html>

@@ -3,6 +3,7 @@
 // Archivo central de lógica del dashboard
 // ===============================
 // --- GUARDIA DE SEGURIDAD GLOBAL ---
+window.socket = io();
 (function() {
     const rol = (localStorage.getItem("rol") || "").trim().toLowerCase();
     
@@ -2082,3 +2083,36 @@ function abrirMonitoreo() {
         ventanaMonitoreo.focus();
     }
 }
+function refrescarTodo() {
+    console.log("🔄 Ejecutando refresco global...");
+    
+    // Aquí agrupas TODO lo que necesita actualizarse
+    cargarTurnos();
+    cargarConductores();        // Agregada de tu antiguo setTimeout
+    cargarAutosTabla();         // Agregada de tu antiguo setTimeout
+    
+    if (typeof cargarConductoresEnTurnoCrear === 'function') {
+        cargarConductoresEnTurnoCrear();
+    }
+    
+    if (typeof cargarAutosDisponiblesSelect === 'function') {
+        cargarAutosDisponiblesSelect();
+    }
+}
+// --- ESCUCHA PROFESIONAL DE TELEGRAM ---
+// Si ya tienes 'const socket = io();' arriba en el archivo, no lo dupliques.
+// Si no lo tienes, asegúrate de añadirlo al inicio del archivo.
+
+// 🛡️ Aseguramos que usamos la instancia global que definimos en el HTML
+(function() {
+    const socket = window.socket; // Referencia al socket global
+
+    if (socket) {
+        socket.on('turno_finalizado', (data) => {
+            console.log("🔔 Aviso desde Telegram: Turno finalizado por", data.conductor);
+            refrescarTodo(); 
+        });
+    } else {
+        console.error("⚠️ El socket no está inicializado, verifica el orden de carga.");
+    }
+})();

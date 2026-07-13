@@ -45,15 +45,14 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 1. Inicialización del mapa
+                // --- CONFIGURACIÓN GLOBAL ---
         const map = L.map('map').setView([7.76, -72.22], 14);
 
-        // 2. CAMBIO DE ESTILO: Reemplazamos la capa estándar de OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(map);
-                // 3. Tu configuración de icono (se mantiene igual)
+
         const taxiIcon = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
             iconSize: [32, 32],
@@ -62,64 +61,88 @@
         });
 
         let marcadores = {};
-        
 
-        async function actualizarMapa() {
-            try {
-                const res = await fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime());
-                const data = await res.json();
-                
-                const listaEspera = document.querySelector('#tabla-espera tbody');
-                const listaActiva = document.querySelector('#tabla-activa tbody');
-                if (listaEspera) listaEspera.innerHTML = '';
-                if (listaActiva) listaActiva.innerHTML = '';
+        // --- REFERENCIAS A ELEMENTOS HTML (Esto soluciona el error) ---
+        const listaEspera = document.querySelector('#tabla-espera tbody');
+        const listaActiva = document.querySelector('#tabla-activa tbody');
 
-                data.forEach(c => {
-                    console.log(`Unidad: ${c.codigo} | Última vez: ${c.ultima_actualizacion}`);
-                    
-                    // Lógica de Tablas
-                    if (c.estado === 'esperando') {
-                        const fila = document.createElement('tr');
-                        fila.innerHTML = `<td>${c.codigo}</td><td><button onclick="confirmarTurno(${c.id_conductor})">Iniciar Turno</button></td>`;
-                        listaEspera.appendChild(fila);
-                    } else if (c.estado === 'activo') {
-                        const fila = document.createElement('tr');
-                        fila.innerHTML = `<td>${c.codigo}</td><td>${c.estado}</td>`;
-                        listaActiva.appendChild(fila);
+        // --- FUNCIÓN DE ACTUALIZACIÓN ---
+        function actualizarMapa() {
+            fetch('/conductores/ubicaciones_activas')
+            .then(response => response.json())
+            .then(data => {
+                // 1. Limpieza de tablas
+                listaEspera.innerHTML = '';
+                listaActiva.innerHTML = '';
+
+                // 2. Limpieza de marcadores que ya no están en la respuesta del servidor
+                const codigosServidor = data.map(c => c.codigo);
+                Object.keys(marcadores).forEach(codigo => {
+                    if (!codigosServidor.includes(codigo)) {
+                        map.removeLayer(marcadores[codigo]);
+                        delete marcadores[codigo];
                     }
+                });
 
-                    // Lógica de Mapa
-                    if (c.latitud !== null && c.longitud !== null) {
-                        const ultimaAct = new Date(c.ultima_actualizacion).getTime();
-                        const hace15Min = Date.now() - (15 * 60 * 1000);
+                // 3. Procesar y dibujar
+              //const conductoresParaMostrar = data.filter(c => c.estado === 'activo' || c.estado === 'esperando');  
+              data.forEach(c => {
+                    console.log("Objeto conductor completo:", c);
+                    // NUEVO: Si está disponible, ignoramos todo (y borramos si existía)
+                    if (c.estado === 'disponible') {
+                        if (marcadores[c.codigo]) {
+                            map.removeLayer(marcadores[c.codigo]);
+                            delete marcadores[c.codigo];
+                            console.log(`Conductor ${c.codigo} ahora disponible, marcador borrado.`);
+                        }
+                        return; // Salimos de esta iteración para este conductor
+                    }
+                    // NUEVO: Bloque para conductores en espera
+                    if (c.estado === 'esperando') {
+                        listaEspera.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td>${c.codigo}</td>
+                                <td>
+                                    <button onclick="confirmarTurno(${c.id_conductor})">Habilitar</button>
+                                </td>
+                            </tr>`);
+                    }
+                    else if (c.estado === 'activo') {
+                        // Verificamos si los datos de ubicación están presentes
+                        const tieneUbicacion = c.latitud !== null && c.longitud !== null;
 
-                        // FILTRO ÚNICO: Si es viejo o inválido, eliminar y salir
-                        if (isNaN(ultimaAct) || (c.estado === 'activo' && ultimaAct < hace15Min)) {
+                        if (c.modo === "gps" && tieneUbicacion) {
+                            // --- CASO 1: ACTIVO CON UBICACIÓN (Normal) ---
+                            listaActiva.insertAdjacentHTML('beforeend', `<tr><td>${c.codigo}</td><td>Activo (GPS)</td></tr>`);
+                            
+                            const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
+                            if (!marcadores[c.codigo]) {
+                                marcadores[c.codigo] = L.marker(coords, { icon: taxiIcon }).addTo(map)
+                                    .bindTooltip(c.codigo, { permanent: true, direction: 'top' })
+                                    .bindPopup(`Unidad: ${c.codigo}`);
+                            } else {
+                                marcadores[c.codigo].setLatLng(coords);
+                            }
+                        } 
+                        else {
+                            // --- CASO 2: ACTIVO SIN GPS O SIN UBICACIÓN (Alerta) ---
+                            // Aquí agregamos la clase CSS 'alerta-sin-gps' para resaltarlo
+                            listaActiva.insertAdjacentHTML('beforeend', `
+                                <tr style="background-color: #fff3cd; border-left: 5px solid #ffc107;">
+                                    <td>${c.codigo}</td>
+                                    <td>⚠️ Sin Ubicación</td>
+                                </tr>`);
+
+                            // Si el marcador existía, lo quitamos porque no tenemos ubicación válida
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
                                 delete marcadores[c.codigo];
                             }
-                            return; 
                         }
-
-                        // DIBUJAR O MOVER
-                        const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
-                        if (!marcadores[c.codigo]) {
-                            const iconUrl = 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png';
-                            const icono = L.icon({ iconUrl: iconUrl, iconSize: [32, 32], iconAnchor: [16, 16] });
-                            marcadores[c.codigo] = L.marker(coords, { icon: icono }).addTo(map);
-                            marcadores[c.codigo].bindPopup(`Unidad: ${c.codigo}`);
-                        } else {
-                            marcadores[c.codigo].setLatLng(coords);
-                        }
-                    } else if (marcadores[c.codigo]) {
-                        map.removeLayer(marcadores[c.codigo]);
-                        delete marcadores[c.codigo];
                     }
                 });
-            } catch (error) {
-                console.error("Error al actualizar:", error);
-            }
+            })
+            .catch(error => console.error('Error al actualizar:', error));
         }
         async function confirmarTurno(id) {
             try {

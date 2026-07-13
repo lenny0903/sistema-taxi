@@ -1,5 +1,6 @@
 from flask import Blueprint, app, render_template, request, redirect, session
 from models.matriz_tarifas import MatrizTarifa
+from models.turnos import Turno
 from models.usuarios import Usuario
 from models.despachos import Despacho
 from werkzeug.security import check_password_hash
@@ -82,21 +83,35 @@ def pagina_control(codigo):
 def pagina_mapa():
     return render_template("monitoreo.html")
 
+
+from datetime import datetime, timedelta
+from models.conductores import Conductor
+
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
-    db.session.expire_all() 
+    conductores = Conductor.query.join(Turno).filter(
+        Turno.estado == 'activo',
+        Turno.fin == None
+    ).all()
     
-    conductores = Conductor.query.all()
     lista_conductores = []
+    # Definimos qué consideramos "coordenada fresca" (ej. 3 minutos)
+    limite_fresco = datetime.utcnow() - timedelta(minutes=3)
+    
     for c in conductores:
-        # Enviamos todos los datos, incluso si no tienen lat/lon, 
-        # para que el frontend pueda limpiar marcadores si el conductor se desconectó
+        es_reciente = c.ultima_actualizacion and c.ultima_actualizacion > limite_fresco
+        
+        # Lógica explícita para el frontend
+        es_manual = not (es_reciente and c.latitud is not None and c.longitud is not None)
+        
         lista_conductores.append({
             "codigo": c.codigo,
             "estado": c.estado,
-            "latitud": c.latitud,
-            "longitud": c.longitud,
+            "latitud": c.latitud if not es_manual else None,
+            "longitud": c.longitud if not es_manual else None,
+            "modo": "manual" if es_manual else "gps", # <--- Instrucción clara para el JS
             "ultima_actualizacion": str(c.ultima_actualizacion),
-            "id_conductor": c.id # Asegúrate de enviar esto para tu botón de iniciar turno
+            "id_conductor": c.id
         })
+    print("Enviando conductores con modo:", lista_conductores[0]['modo'])    
     return jsonify(lista_conductores)

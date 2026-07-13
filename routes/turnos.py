@@ -95,7 +95,7 @@ def crear_turno():
 
 
 @turnos_bp.route("/<int:turno_id>/finalizar", methods=["PUT"])
-def finalizar_turno(turno_id):
+def finalizar_turno(turno_id, es_bot=False):
     try:
         # 1. Búsqueda y Validación
         # Usamos db.session.get para la búsqueda por clave primaria
@@ -121,36 +121,32 @@ def finalizar_turno(turno_id):
         conductor = db.session.get(Conductor, turno.conductor_id)
         if conductor:
             conductor.estado = "disponible"
-            # 💡 No es necesario db.session.add aquí, commit lo hará si es persistente
+            # 💡 AQUÍ ESTÁ LA CLAVE: Limpiamos la ubicación
+            conductor.latitud = None    
+            conductor.longitud = None   
+            # Esto hará que el filtro en 'views.py' (latitud != None) 
+            # excluya a este conductor inmediatamente al recargar.
 
-        auto = db.session.get(Auto, turno.auto_id)
+       # --- AQUÍ LA CORRECCIÓN ---
+        # 1. Buscamos el auto relacionado (asumiendo que tu modelo Turno tiene auto_id)
+        auto = db.session.get(Auto, turno.auto_id) if turno.auto_id else None
+        
+        # 2. Si existe, lo liberamos
         if auto:
             auto.estado = "disponible"
-            # 💡 No es necesario db.session.add aquí
+        # --------------------------
 
-        # 4. Finalizar Turno y Persistencia
         turno.estado = "finalizado"
         turno.fin = datetime.utcnow()
-        # db.session.add(turno) # El objeto 'turno' ya está en la sesión, no es necesario re-añadir
-
-        # 5. Commit y Liberación de Recursos
-        db.session.commit() # 💥 El fallo ocurre aquí si hay un problema de mapeo
-
-        # Respuesta
-        return jsonify({
-            "msg": "Turno finalizado",
-            "id_turno": turno.id_turno,
-            "estado_turno": turno.estado,
-            "conductor_estado": conductor.estado if conductor else None,
-            "auto_estado": auto.estado if auto else None
-        }), 200
+        db.session.commit()
+        # Si viene del bot, retornamos un diccionario simple, no un jsonify
+        if es_bot:
+            return {"success": True, "msg": "Turno finalizado"}
+        
+        return jsonify({"msg": "Turno finalizado"}), 200
 
     except Exception as e:
-        # 6. Rollback y Manejo de Error (IMPORTANTE: Verifique si hay triggers)
         db.session.rollback()
-        
-        # 💡 Este error indica que el objeto (Turno, Conductor o Auto) 
-        # está intentando actualizarse de una manera que la BD no permite.
         return jsonify({"error": f"Error finalizando turno: {str(e)}"}), 500
 
 @turnos_bp.route("/activos", methods=["GET"])
@@ -164,7 +160,9 @@ def listar_turnos_activos():
                 "id_conductor": t.conductor.id_conductor,
                 "codigo": t.conductor.codigo,
                 "nombre": t.conductor.nombre,
-                "estado": t.conductor.estado
+                "estado": t.conductor.estado,
+                # 🔹 AGREGA ESTA LÍNEA:
+                "ultima_actualizacion": t.conductor.ultima_actualizacion.isoformat() if t.conductor.ultima_actualizacion else None
             } if t.conductor else None,
             "auto": {
                 "id_auto": t.auto.id_auto,
@@ -174,7 +172,7 @@ def listar_turnos_activos():
                 "id_punto": t.punto.id_punto,
                 "codigo": t.punto.codigo,
                 "nombre": t.punto.nombre
-            } if t.punto else None,   # 🔹 nuevo bloque
+            } if t.punto else None,
             "inicio": t.inicio.isoformat() if t.inicio else None,
             "fin": t.fin.isoformat() if t.fin else None
         })

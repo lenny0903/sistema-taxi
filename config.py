@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+from sqlalchemy import event  # 1. IMPORTA ESTO AQUÍ
+from sqlalchemy import create_engine # 2. Asegúrate de importar esto
 
 load_dotenv()
 
@@ -10,18 +12,24 @@ db_path = os.path.join(BASE_DIR, SQLITE_DB)
 
 SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
 
-# --- AÑADE ESTO PARA EVITAR "DATABASE IS LOCKED" ---
+# --- MANTÉN TU CONFIGURACIÓN DE TIMEOUT ---
 SQLALCHEMY_ENGINE_OPTIONS = {
     "connect_args": {
-        "timeout": 20  # Espera hasta 20 segundos si otro proceso está usando el archivo
+        "timeout": 20
     }
 }
-# ---------------------------------------------------
+
+# --- AÑADE ESTO PARA ACTIVAR MODO WAL (BLOQUEO CERO) ---
+@event.listens_for(create_engine('sqlite:///dummy.db'), "connect") # Nota: es un listener genérico
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
+# --------------------------------------------------------
 
 SECRET_KEY = os.getenv("SECRET_KEY", "clave-secreta-demo")
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
-# AÑADE ESTA LÍNEA PARA TENER CONTROL TOTAL
 FLASK_ENV = os.getenv("FLASK_ENV", "production") 
 
 print(f"[*] Base de datos activa en: {db_path}")
