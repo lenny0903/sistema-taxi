@@ -87,31 +87,31 @@ def pagina_mapa():
 from datetime import datetime, timedelta
 from models.conductores import Conductor
 
+# En views.py, cambia temporalmente tu consulta por esto:
+from sqlalchemy import text # Asegúrate de importar text
+from app import db # Asegúrate de importar tu objeto db
+
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
-    conductores = Conductor.query.join(Turno).filter(
-        Turno.estado == 'activo',
-        Turno.fin == None
-    ).all()
+    # Filtramos solo aquellos que tienen estado activo Y además tienen latitud/longitud
+    sql = text("""
+        SELECT codigo, estado, latitud, longitud, id, ultima_actualizacion 
+        FROM conductores 
+        WHERE estado = 'activo' 
+        AND latitud IS NOT NULL 
+        AND longitud IS NOT NULL
+    """)
+    resultados = db.session.execute(sql).fetchall()
     
     lista_conductores = []
-    # Definimos qué consideramos "coordenada fresca" (ej. 3 minutos)
-    limite_fresco = datetime.utcnow() - timedelta(minutes=3)
-    
-    for c in conductores:
-        es_reciente = c.ultima_actualizacion and c.ultima_actualizacion > limite_fresco
-        
-        # Lógica explícita para el frontend
-        es_manual = not (es_reciente and c.latitud is not None and c.longitud is not None)
-        
+    for row in resultados:
         lista_conductores.append({
-            "codigo": c.codigo,
-            "estado": c.estado,
-            "latitud": c.latitud if not es_manual else None,
-            "longitud": c.longitud if not es_manual else None,
-            "modo": "manual" if es_manual else "gps", # <--- Instrucción clara para el JS
-            "ultima_actualizacion": str(c.ultima_actualizacion),
-            "id_conductor": c.id
+            "codigo": row.codigo,
+            "estado": row.estado,
+            "latitud": row.latitud,
+            "longitud": row.longitud,
+            "modo": "gps", # Si pasó el filtro de arriba, es porque tiene GPS activo
+            "ultima_actualizacion": str(row.ultima_actualizacion),
+            "id_conductor": row.id
         })
-    print("Enviando conductores con modo:", lista_conductores[0]['modo'])    
     return jsonify(lista_conductores)

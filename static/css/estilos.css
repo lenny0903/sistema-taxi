@@ -154,3 +154,9 @@
     height: auto;
     font-size: 0.9rem;
 }
+button {
+    padding: 8px 16px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}

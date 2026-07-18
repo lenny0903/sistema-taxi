@@ -4,22 +4,30 @@
     <title>Monitoreo de Flota</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style> 
-        /* Estilos base para escritorio */
         body { display: flex; height: 100vh; margin: 0; }
         #panel { width: 300px; padding: 15px; border-right: 2px solid #ccc; overflow-y: auto; background: #f9f9f9; }
         #map { flex-grow: 1; }
-        
-        /* Reglas de tabla y toast que son comunes */
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
         .toast-msg { background: #28a745; color: white; padding: 12px 20px; margin-top: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); animation: fadeIn 0.3s; }
         @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1;} }
-
-        /* Estilos específicos para móviles */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #panel { width: 100%; height: 35%; border-right: none; border-bottom: 2px solid #ccc; }
+        }
+        th, td { font-size: 20px; padding: 15px; }
+        h2 { font-size: 24px; }
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #e0e0e0; /* Un color de fondo suave */
+            border: 1px solid #999;    /* Un borde para que parezca botón real */
+        }
+        button:hover {
+            background-color: #d1d1d1; /* Se pone un poco más oscuro al pasar el mouse */
         }
     </style>
 </head>
@@ -31,51 +39,46 @@
             <thead><tr><th>Unidad</th><th>Estado</th></tr></thead>
             <tbody></tbody>
         </table>
-        
         <h2>Flota Activa</h2>
         <table id="tabla-activa">
-            <thead>
-                <tr><th>Unidad</th><th>Estado</th></tr>
-            </thead>
+            <thead><tr><th>Unidad</th><th>Estado</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
-
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-                // --- CONFIGURACIÓN GLOBAL ---
         const map = L.map('map').setView([7.76, -72.22], 14);
-
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
+            attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
         }).addTo(map);
 
         const taxiIcon = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -16]
+            iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -16]
+        });
+        // Definición de iconos para los estados de señal
+        const iconVerde = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
+            iconSize: [32, 32], iconAnchor: [16, 16]
         });
 
+        const iconNaranja = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209939.png',
+            iconSize: [32, 32], iconAnchor: [16, 16]
+        });
         let marcadores = {};
-
-        // --- REFERENCIAS A ELEMENTOS HTML (Esto soluciona el error) ---
         const listaEspera = document.querySelector('#tabla-espera tbody');
         const listaActiva = document.querySelector('#tabla-activa tbody');
 
-        // --- FUNCIÓN DE ACTUALIZACIÓN ---
         function actualizarMapa() {
-            fetch('/conductores/ubicaciones_activas')
+            fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
-                // 1. Limpieza de tablas
                 listaEspera.innerHTML = '';
                 listaActiva.innerHTML = '';
 
-                // 2. Limpieza de marcadores que ya no están en la respuesta del servidor
                 const codigosServidor = data.map(c => c.codigo);
                 Object.keys(marcadores).forEach(codigo => {
                     if (!codigosServidor.includes(codigo)) {
@@ -84,56 +87,61 @@
                     }
                 });
 
-                // 3. Procesar y dibujar
-              //const conductoresParaMostrar = data.filter(c => c.estado === 'activo' || c.estado === 'esperando');  
-              data.forEach(c => {
-                    console.log("Objeto conductor completo:", c);
-                    // NUEVO: Si está disponible, ignoramos todo (y borramos si existía)
+                data.forEach(c => {
+                    console.log(`Unidad ${c.codigo}: Lat=${c.latitud}, Modo=${c.modo}, Estado=${c.estado}`);
+                    
                     if (c.estado === 'disponible') {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
                             delete marcadores[c.codigo];
-                            console.log(`Conductor ${c.codigo} ahora disponible, marcador borrado.`);
                         }
-                        return; // Salimos de esta iteración para este conductor
+                        return;
                     }
-                    // NUEVO: Bloque para conductores en espera
+
+                    // --- NUEVA LÓGICA SEPARADA ---
+
+                    // A) Si está en ESPERA
                     if (c.estado === 'esperando') {
                         listaEspera.insertAdjacentHTML('beforeend', `
                             <tr>
                                 <td>${c.codigo}</td>
                                 <td>
-                                    <button onclick="confirmarTurno(${c.id_conductor})">Habilitar</button>
+                                    <button onclick="confirmarTurno('${c.id_conductor}')" style="cursor:pointer;">Habilitar</button>
                                 </td>
                             </tr>`);
-                    }
+                    } 
+                    // B) Si está ACTIVO
                     else if (c.estado === 'activo') {
-                        // Verificamos si los datos de ubicación están presentes
                         const tieneUbicacion = c.latitud !== null && c.longitud !== null;
-
-                        if (c.modo === "gps" && tieneUbicacion) {
-                            // --- CASO 1: ACTIVO CON UBICACIÓN (Normal) ---
+                        
+                        if (tieneUbicacion) {
                             listaActiva.insertAdjacentHTML('beforeend', `<tr><td>${c.codigo}</td><td>Activo (GPS)</td></tr>`);
                             
                             const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
-                            if (!marcadores[c.codigo]) {
-                                marcadores[c.codigo] = L.marker(coords, { icon: taxiIcon }).addTo(map)
-                                    .bindTooltip(c.codigo, { permanent: true, direction: 'top' })
-                                    .bindPopup(`Unidad: ${c.codigo}`);
-                            } else {
-                                marcadores[c.codigo].setLatLng(coords);
-                            }
-                        } 
-                        else {
-                            // --- CASO 2: ACTIVO SIN GPS O SIN UBICACIÓN (Alerta) ---
-                            // Aquí agregamos la clase CSS 'alerta-sin-gps' para resaltarlo
-                            listaActiva.insertAdjacentHTML('beforeend', `
-                                <tr style="background-color: #fff3cd; border-left: 5px solid #ffc107;">
-                                    <td>${c.codigo}</td>
-                                    <td>⚠️ Sin Ubicación</td>
-                                </tr>`);
+                            const precision = parseFloat(c.horizontal_accuracy) || 0;
+                            const iconoSeleccionado = (precision > 50) ? iconNaranja : iconVerde;
 
-                            // Si el marcador existía, lo quitamos porque no tenemos ubicación válida
+                            if (!marcadores[c.codigo]) {
+                                // Se crea por primera vez con el icono dinámico y el tooltip
+                                marcadores[c.codigo] = L.marker(coords, { icon: iconoSeleccionado })
+                                    .addTo(map)
+                                    .bindTooltip(c.codigo, { permanent: true, direction: 'top' });
+                            } else {
+                                // Solo actualizamos posición e icono (si cambió la precisión)
+                                marcadores[c.codigo].setLatLng(coords);
+                                marcadores[c.codigo].setIcon(iconoSeleccionado);
+                            }
+                        } else {
+                            // ¡CRÍTICO! Sin Ubicación
+                            listaActiva.insertAdjacentHTML('beforeend', `
+                                <tr style="background-color: #fff3cd;">
+                                    <td>${c.codigo}</td>
+                                    <td>⚠️ Sin Ubicación 
+                                        <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
+                                    </td>
+                                </tr>`);
+                            
+                            // Opcional: remover si no queremos que el marcador anterior se quede ahí
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
                                 delete marcadores[c.codigo];
@@ -144,37 +152,52 @@
             })
             .catch(error => console.error('Error al actualizar:', error));
         }
+
         async function confirmarTurno(id) {
             try {
                 const res = await fetch(`/conductores/habilitar/${id}`, { method: 'POST' });
                 if (res.ok) {
-                    // 1. Damos feedback visual
-                    mostrarToast("✅ Atención: Debe iniciar turno en la sección Gestión de Turnos Activos");
-                    console.log("Conductor habilitado correctamente");
-                    
-                    // 2. FORZAMOS el refresco inmediato para que no tengas que esperar los 5s del setInterval
-                    await actualizarMapa(); 
-                } else {
-                    console.error("Error al habilitar");
+                    mostrarToast("✅ Conductor habilitado.");
+                    await actualizarMapa();
                 }
-            } catch (e) {
-                console.error("Error de red:", e);
-            }
+            } catch (e) { console.error("Error:", e); }
         }
+
         function mostrarToast(mensaje) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = 'toast-msg';
             toast.innerText = mensaje;
             container.appendChild(toast);
-            
-            // Se elimina solo después de 3 segundos
             setTimeout(() => toast.remove(), 4000);
+        }
+        function darDeBaja(idConductor) {
+            if (confirm("¿Estás seguro de finalizar la jornada?")) {
+                // Debes crear o usar una ruta que reciba el id_conductor y ejecute 
+                // la misma lógica que tu función finalizar_turno.
+                fetch(`/turnos/finalizar_desde_mapa/${idConductor}`, { 
+                    method: 'POST' 
+                })
+                .then(res => {
+                    if (res.ok) {
+                        actualizarMapa(); // Esto refrescará y, como pusiste latitud=None, desaparecerá
+                    }
+                });
+            }
         }
 
         setInterval(actualizarMapa, 5000);
         actualizarMapa();
     </script>
-    
+    <script>
+        // Presiona la tecla 'G' para ocultar/mostrar el panel y dejar el mapa a pantalla completa
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'g' || event.key === 'G') {
+                const panel = document.getElementById('panel');
+                panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
+                map.invalidateSize(); // Esto le dice al mapa que se recalcule al nuevo tamaño
+            }
+        });
+    </script>
 </body>
 </html>

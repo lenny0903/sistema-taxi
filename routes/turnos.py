@@ -212,3 +212,14 @@ def conductores_en_espera():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@turnos_bp.route("/finalizar_desde_mapa/<int:conductor_id>", methods=["POST"])
+def finalizar_desde_mapa(conductor_id):
+    # Buscamos el turno del conductor
+    turno = Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first()
+    if not turno:
+        return jsonify({"error": "Turno no encontrado"}), 404
+    
+    # Llamamos a tu función existente, pasando el ID del turno que acabamos de encontrar
+    # Nota: Tu función original espera turno_id
+    return finalizar_turno(turno.id_turno, es_bot=False)        
