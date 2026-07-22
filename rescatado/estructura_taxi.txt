@@ -1,0 +1,177 @@
+/taxi_backend
+?
+??? app.py                # Punto de entrada Flask
+??? config.py             # Configuraci?n (DB, JWT, etc.)
+??? requirements.txt      # Dependencias
+?
+??? models/               # Modelos SQLAlchemy por entidad
+?   ??? __init__.py
+?   ??? usuarios.py
+?   ??? roles.py
+?   ??? clientes.py
+?   ??? conductores.py
+?   ??? autos.py
+?   ??? despachos.py
+?
+??? routes/               # Endpoints REST por m?dulo
+?   ??? auth.py
+?   ??? usuarios.py
+?   ??? clientes.py
+?   ??? conductores.py
+?   ??? autos.py
+?   ??? despachos.py
+?   ??? reportes.py
+?
+??? utils/                # Funciones auxiliares
+?   ??? hashing.py
+?   ??? auth_middleware.py
+?
+??? templates/            # HTML del frontend
+?   ??? dashboard.html
+?
+??? static/               # JS, CSS, im?genes
+    ??? js/
+    ??? css/
+    ??? img/
+Para conectarse a pgadmin
+-python3 run_pgadmin.py
+-http://127.0.0.1:5050
+
+
+
+
+
+
+
+
+
+
+
+? L?gica del Negocio: Sistema de Despacho de Taxis
+1. Autenticaci?n y Control de Acceso
+Entidades involucradas:
+    - usuarios
+    - roles
+Reglas:
+    - Solo usuarios activos (activo = 1) pueden iniciar sesi?n.
+    - Cada usuario tiene un rol_id que determina su acceso:
+        ? Administrador: acceso total
+        ? Operador: acceso a despacho, turnos y reportes
+2. Gesti?n de Turnos
+Entidades involucradas:
+    - turnos
+    - conductores
+    - autos
+Flujo:
+    1. El operador inicia un turno registrando:
+        ? id_conductores, id_autos, fecha_hora_inicio
+    2. El sistema valida que el conductor no tenga un turno activo.
+    3. El turno se finaliza manualmente, registrando fecha_hora_fin.
+Reglas:
+    - Un conductor solo puede tener un turno activo a la vez.
+    - Solo conductores con turno activo pueden ser asignados a un despacho.
+3. Registro de Disponibilidad
+Entidades involucradas:
+    - disponibilidad
+    - conductores
+Flujo:
+    1. El operador registra el estado del conductor:
+        ? estado, ubicacion, observacion
+    2. El sistema guarda cada registro como hist?rico.
+Reglas:
+    - Estados v?lidos: 'disponible', 'ocupado', 'en ruta', 'descanso'
+    - Se puede consultar el ?ltimo estado de cada conductor para asignaci?n.
+4. Gesti?n de Clientes
+Entidades involucradas:
+    - clientes
+Flujo:
+    1. El operador verifica si el cliente existe por nro_telefono.
+    2. Si no existe, lo registra con nombre y direccion.
+    3. Si existe, puede modificar sus datos si es necesario.
+5. Solicitud y Asignaci?n de Servicio
+Entidades involucradas:
+    - despacho
+    - clientes, conductores, autos, usuarios
+Flujo:
+    1. El operador recibe la solicitud del cliente.
+    2. Define origen y destino:
+        ? Si es desde su residencia, se usa direccion del cliente.
+        ? Si no, se ingresa manualmente.
+    3. Se estima la tarifa.
+    4. El sistema consulta conductores con turno activo:
+        ? Prioriza estado 'disponible' y ubicaci?n cercana.
+        ? Si no hay disponibles, permite asignar 'ocupado' si est? cerca.
+    5. El operador selecciona conductor y auto.
+    6. Se registra el despacho con:
+        ? cliente_id, conductor_id, auto_id, origen, destino, tarifa, estado_despacho = 'en curso', asignado_por
+6. Finalizaci?n o Cancelaci?n del Despacho
+Flujo:
+    - El operador actualiza el estado del despacho:
+        ? 'finalizado' si el viaje concluy?
+        ? 'cancelado' si no se ejecut?
+    - Se registra fecha_hora_fin
+7. Reportes y Auditor?a
+Entidades involucradas:
+    - despacho
+    - usuarios, conductores
+Funcionalidades:
+    - Reporte de servicios por conductor y rango de fechas
+    - C?lculo de total de servicios y suma de tarifas
+    - Exportaci?n a PDF o impresi?n
+    - Registro de cada acci?n por usuario
+8. Principios Institucionales
+    - Trazabilidad absoluta: cada acci?n queda registrada con usuario, fecha y contexto.
+    - Control multicapas: turnos, disponibilidad, despacho y usuario.
+    - Auditor?a robusta: cada flujo puede ser revisado por terceros.
+    - Decisi?n informada: el operador asigna con base en datos reales.
+    - No hay simulaciones: cada acci?n refleja una operaci?n leg?tima.
+? Endpoints REST para Backend Flask
+? Autenticaci?n y Control de Acceso
+Ruta	M?todo	Rol	Prop?sito
+/login	POST	P?blico	Autenticaci?n de usuario
+/usuarios	GET	Administrador	Listar usuarios
+/usuarios	POST	Administrador	Crear nuevo usuario
+/usuarios/<id>	PUT	Administrador	Modificar usuario
+/usuarios/<id>/estado	PUT	Administrador	Activar/desactivar usuario
+? Gesti?n de Clientes
+Ruta	M?todo	Rol	Prop?sito
+/clientes	GET	Operador	Listar clientes
+/clientes	POST	Operador	Registrar cliente
+/clientes/<telefono>	GET	Operador	Consultar cliente por tel?fono
+/clientes/<id>	PUT	Operador	Modificar datos del cliente
+? Gesti?n de Conductores y Autos
+Ruta	M?todo	Rol	Prop?sito
+/conductores	GET	Operador	Listar conductores
+/conductores	POST	Operador	Registrar conductor
+/autos	GET	Operador	Listar autos
+/autos	POST	Operador	Registrar auto
+/conductor-auto	POST	Operador	Asignar auto a conductor
+? Gesti?n de Turnos
+Ruta	M?todo	Rol	Prop?sito
+/turnos	POST	Operador	Iniciar turno
+/turnos/<id>	PUT	Operador	Finalizar turno
+/turnos/activos	GET	Operador	Listar conductores en turno activo
+? Disponibilidad del Conductor
+Ruta	M?todo	Rol	Prop?sito
+/disponibilidad	POST	Operador	Registrar estado y ubicaci?n del conductor
+/disponibilidad/actual	GET	Operador	Consultar ?ltimo estado por conductor
+/conductores-cercanos	POST	Operador	Buscar conductores disponibles o cercanos al origen
+? Despacho de Servicios
+Ruta	M?todo	Rol	Prop?sito
+/despachos	POST	Operador	Registrar nuevo despacho
+/despachos/en-curso	GET	Operador	Listar despachos activos
+/despachos/<id>/finalizar	PUT	Operador	Finalizar despacho
+/despachos/<id>/cancelar	PUT	Operador	Cancelar despacho
+? Reportes
+Ruta	M?todo	Rol	Prop?sito
+/reportes/conductor	POST	Operador	Reporte de servicios por conductor y fechas
+/reportes/tarifas	GET	Operador	Consultar tarifas registradas
+? Auditor?a y Bit?cora (opcional)
+Ruta	M?todo	Rol	Prop?sito
+/bitacora	GET	Administrador	Consultar acciones registradas
+/bitacora/usuario/<id>	GET	Administrador	Consultar acciones por usuario
+? Observaciones t?cnicas
+    - Todas las rutas deben estar protegidas con @jwt_required() y @rol_requerido().
+    - Cada acci?n cr?tica debe registrar en bit?cora: usuario, fecha, acci?n, entidad afectada.
+    - Las respuestas deben ser en formato JSON, con mensajes claros y c?digos HTTP adecuados.
+

@@ -61,10 +61,15 @@ def webhook():
                 # Comentamos o eliminamos el enviar_mensaje aquí si es demasiado molesto
                 # El conductor sigue enviando ubicación, así que no queremos bombardearlo con mensajes
                 return jsonify({"status": "ignorado_sin_turno"}), 200
-        # 2. PROCESAMIENTO DE TEXTO (Tu lógica intacta)
+        # 2. PROCESAMIENTO DE TEXTO
         elif 'text' in msg:
             texto = msg['text']
             
+            # --- COMANDO START ---
+            if texto.startswith('/start'):
+                enviar_menu_botones(chat_id)
+                return jsonify({"status": "menu_enviado"}), 200
+
             # --- BOTÓN ACTIVAR ---
             if texto == "🔗 Activar":
                 if Conductor.query.filter_by(telegram_id=chat_id).first():
@@ -90,12 +95,11 @@ def webhook():
                     enviar_menu_botones(chat_id)
                 return jsonify({"status": "resultado_vinculacion"}), 200
 
-          # --- BOTÓN INICIAR JORNADA ---
+            # --- BOTÓN INICIAR JORNADA ---
             elif texto == "📍 Iniciar Jornada":
                 if not conductor:
                     enviar_mensaje(chat_id, "🚫 No estás registrado. Usa '🔗 Activar' primero.")
                 else:
-                    # NUEVO: Verificar si ya tiene un turno activo
                     turno_activo = db.session.query(Turno).filter(
                         Turno.conductor_id == conductor.id_conductor,
                         Turno.estado == "activo"
@@ -105,7 +109,6 @@ def webhook():
                         enviar_mensaje(chat_id, "⚠️ Ya tienes una jornada activa. Debes finalizarla antes de iniciar una nueva.")
                         return jsonify({"status": "error", "message": "Jornada ya activa"}), 400
                     
-                    # Si no tiene turno activo, procedemos
                     conductor.estado = "esperando"
                     db.session.commit()
                     enviar_mensaje(chat_id, "📍 Para iniciar tu jornada, por favor presiona el botón de 'Enviar Ubicación' (clip 📎).")
@@ -113,47 +116,37 @@ def webhook():
                 return jsonify({"status": "esperando_ubicacion"}), 200
 
             # --- BOTÓN FINALIZAR JORNADA ---
-           # --- BOTÓN FINALIZAR JORNADA ---
             elif texto == "🛑 Finalizar Jornada":
                 if not conductor:
                     enviar_mensaje(chat_id, "🚫 No estás registrado.")
                 else:
-                    # Buscamos el turno activo
                     turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
                     
                     if not turno_activo:
                         enviar_mensaje(chat_id, "⚠️ No tienes ninguna jornada activa.")
                     else:
-                        # 💡 LLAMADA DIRECTA (Sin requests ni errores de red)
-                        # Pasamos 'es_bot=True' para que la función sepa cómo responder
                         resultado = finalizar_turno(turno_activo.id_turno, es_bot=True)
                         
-                        # Verificamos si el diccionario devuelto tiene success=True
                         if resultado.get("success"):
-                            # 1. Tu mensaje de confirmación al conductor
                             msg_cierre = (
                                 "🏁 *Jornada finalizada.*\n\n"
                                 "Tu vehículo ha sido liberado y tu estado es 'disponible'.\n\n"
                                 "⚠️ *Recuerda:* 🔗 -> Ubicación -> 'Detener ubicación'."
                             )
                             enviar_mensaje(chat_id, msg_cierre, parse_mode='Markdown')
-                            
-                            # 2. ⚡ AVISO AL PANEL WEB (SocketIO)
                             print("🚀 Emitiendo evento 'turno_finalizado' al navegador...")
                             emitir_al_panel('turno_finalizado', {'conductor': conductor.nombre})
-                            
                         else:
-                            # Si falló la lógica de la base de datos
                             enviar_mensaje(chat_id, f"❌ Error al cerrar turno: {resultado.get('error')}")
                 
                 enviar_menu_botones(chat_id)
                 return jsonify({"status": "finalizado"}), 200
+
             # --- BOTÓN REINICIAR UBICACIÓN ---
             elif texto == "🛠 Reiniciar Ubicación":
                 if not conductor:
                     enviar_mensaje(chat_id, "🚫 No estás registrado.")
                 else:
-                    # Instrucción clara para que el conductor actúe
                     instrucciones = (
                       "⚙️ *Guía de reconexión:*\n\n"
                         "1. Presiona el icono 🔗 en este chat.\n"
@@ -163,12 +156,6 @@ def webhook():
                     )
                     enviar_mensaje(chat_id, instrucciones, parse_mode='Markdown')
                 return jsonify({"status": "instrucciones_enviadas"}), 200
-            elif texto.startswith('/start'):
-                enviar_menu_botones(chat_id)
-                return jsonify({"status": "menu_enviado"}), 200
-
-        return jsonify({"status": "recibido"}), 200
-
     except Exception as e:
        print(f"❌ ERROR CRÍTICO: {e}")
        return jsonify({"status": "ok"}), 200
@@ -207,7 +194,7 @@ def enviar_menu_botones(chat_id):
         'chat_id': chat_id,
         'text': "✅ Bienvenido. Selecciona una acción:",
         'parse_mode': 'HTML',
-        'reply_markup': teclado 
+        'reply_markup': json.dumps(teclado) 
     }
     
     requests.post(url, json=payload)

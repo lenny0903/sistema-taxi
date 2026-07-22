@@ -1,0 +1,2586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Taxi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f9f9f9;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #4c51bf;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 2rem;
+        }
+        form {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        input[type="text"],
+        input[type="tel"],
+        input[type="password"],
+        input[type="number"],
+        input[type="date"], /* Añadido para campos de fecha */
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+        input[type="text"]:focus,
+        input[type="tel"]:focus,
+        input[type="password"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus, /* Añadido para campos de fecha */
+        select:focus {
+            outline: none;
+            border-color: #a78bfa;
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15);
+        }
+        .btn-primary {
+            background-color: #a78bfa;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #7c3aed;
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 1rem;
+            /* Ajustado para el menú */
+            margin-left: 0.5rem; /* Ajustado para que no se separe tanto en la tabla */
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+        }
+        .alert-success {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #16a34a;
+        }
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #ef4444;
+        }
+        #disponible-conductores ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 0;
+        }
+        #disponible-conductores li {
+            margin-bottom: 0.5rem;
+            color: #374151;
+            cursor: pointer;
+             /* Añadido: Estilo para el hover */
+            transition: background-color 0.2s ease;
+        }
+        #disponible-conductores li:hover {
+            background-color: #e0e0e0; /* Color al pasar el ratón */
+            border-radius: 0.375rem;
+        }
+         /* Añadido: Estilo para el elemento seleccionado */
+        #disponible-conductores li.selected {
+            background-color: #a78bfa; /* Color de fondo para seleccionado */
+            color: white; /* Color de texto para seleccionado */
+            font-weight: bold; /* Texto en negrita */
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+        /* Estilos para la nueva barra de menú */
+        .main-menu-bar {
+            background-color: #f0f0f0; /* Fondo similar al anterior menú */
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem; /* Espacio debajo del menú */
+            display: flex; /* Para alinear ítems horizontalmente */
+            align-items: center; /* Centrar verticalmente */
+            justify-content: space-between; /* Espacio entre los ítems principales */
+        }
+
+        .menu-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex; /* Para ítems de la lista principal */
+        }
+
+        .menu-item {
+            position: relative; /* Necesario para el submenú */
+            margin-right: 1.5rem; /* Espacio entre ítems de la barra */
+        }
+
+        .menu-item:last-child {
+             margin-right: 0; /* Eliminar margen del último ítem (si es Salir) */
+        }
+
+        .menu-link {
+            text-decoration: none;
+            color: #4c51bf; /* Color similar al anterior texto del menú */
+            font-weight: 700; /* Similar al anterior */
+            padding: 0.5rem 0.75rem; /* Relleno para área clickeable/hover */
+            display: block;
+            transition: color 0.2s ease;
+        }
+
+        .menu-link:hover {
+             color: #7c3aed; /* Color al pasar el ratón */
+        }
+
+        /* Estilos para el submenú dropdown */
+        .menu-item.dropdown > .dropdown-content {
+            display: none; /* Oculto por defecto */
+            position: absolute;
+            top: 100%; /* Justo debajo del ítem principal */
+            left: 0; /* Alinear a la izquierda del ítem principal */
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+            z-index: 1;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0;
+            border: 1px solid #e0e0e0;
+             list-style: none; /* Eliminar viñetas del submenú */
+        }
+
+        /* Mostrar submenú al pasar el ratón sobre el ítem principal */
+        .menu-item.dropdown:hover > .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content li {
+            padding: 0; /* Eliminar padding del li */
+            margin: 0; /* Eliminar margen del li */
+        }
+
+        .dropdown-content a {
+            color: #374151; /* Color de los ítems del submenú */
+            padding: 0.75rem 1rem; /* Relleno interno de los ítems del submenú */
+            text-decoration: none;
+            display: block;
+            font-weight: 400; /* Peso normal */
+            transition: background-color 0.2s ease;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #e5e7eb; /* Fondo al pasar el ratón */
+            color: #1f2937;
+        }
+
+        /* Estilo para sub-submenús (para Autos y Conductores) */
+        .dropdown-content .menu-item.dropdown > .dropdown-content {
+            top: 0; /* Alinear al mismo nivel horizontalmente */
+            left: 100%; /* A la derecha del ítem principal del submenú */
+            margin-left: 5px; /* Pequeño espacio entre submenús */
+        }
+
+         /* Estilos para el menú Reportes */
+        .menu-item.dropdown:last-of-type > .dropdown-content {
+             right: 0; /* Alinear a la derecha del ítem principal de Reportes */
+             left: auto; /* Desactivar alineación a la izquierda */
+        }
+
+
+         /* Ajustes para el botón Salir en la barra de menú */
+         .main-menu-bar .btn-secondary {
+             margin-left: auto; /* Empuja el botón Salir a la derecha */
+         }
+
+         /* Estilos para la tabla de servicios */
+         #servicios-activos-programados {
+             margin-top: 2rem;
+         }
+
+         #servicios-activos-programados table {
+             width: 100%;
+             border-collapse: collapse;
+             margin-top: 1rem;
+         }
+
+         #servicios-activos-programados th,
+         #servicios-activos-programados td {
+             border: 1px solid #e0e0e0;
+             padding: 0.75rem;
+             text-align: left;
+         }
+
+         #servicios-activos-programados th {
+             background-color: #f0f0f0;
+             font-weight: 700;
+         }
+
+         #servicios-activos-programados tbody tr:nth-child(even) {
+             background-color: #f9f9f9;
+         }
+
+         #servicios-activos-programados .action-buttons button {
+             padding: 0.3rem 0.6rem;
+             font-size: 0.9rem;
+             margin-right: 0.5rem;
+         }
+
+         #servicios-activos-programados .action-buttons button:last-child {
+             margin-right: 0;
+         }
+
+         /* Estilos para la tabla de autos */
+          #consulta-autos {
+              margin-top: 2rem;
+          }
+
+          #consulta-autos table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 1rem;
+          }
+
+          #consulta-autos th,
+          #consulta-autos td {
+              border: 1px solid #e0e0e0;
+              padding: 0.75rem;
+              text-align: left;
+          }
+
+          #consulta-autos th {
+              background-color: #f0f0f0;
+              font-weight: 700;
+          }
+
+          #consulta-autos tbody tr:nth-child(even) {
+              background-color: #f9f9f9;
+          }
+
+          /* Estilos para la tabla de Reporte */
+          #reporte-servicios-conductor table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 1rem;
+          }
+
+          #reporte-servicios-conductor th,
+          #reporte-servicios-conductor td {
+              border: 1px solid #e0e0e0;
+              padding: 0.75rem;
+              text-align: left;
+          }
+
+          #reporte-servicios-conductor th {
+              background-color: #f0f0f0;
+              font-weight: 700;
+          }
+
+          #reporte-servicios-conductor tbody tr:nth-child(even) {
+              background-color: #f9f9f9;
+          }
+
+
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container">
+        <h1>Sistema de Gestión de Taxi</h1>
+
+        <div id="login-form" class="form-container">
+            <h2>Inicio de Sesión</h2>
+            <form id="form-login">
+                <div class="form-group">
+                    <label for="username">Nombre de Usuario:</label>
+                    <input type="text" id="username" name="username" required placeholder="Ingrese su nombre de usuario">
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" id="password" name="password" required placeholder="Ingrese su contraseña">
+                </div>
+                <button type="submit" class="btn-primary">Iniciar Sesión</button>
+            </form>
+            <div id="login-message" class="alert hidden"></div>
+        </div>
+
+        <div id="main-menu" class="main-menu-bar hidden">
+            <ul class="menu-list">
+                <li class="menu-item dropdown" id="menu-item-archivo"> <a href="#" class="menu-link">Archivo</a>
+                    <ul class="dropdown-content">
+                        <li class="menu-item dropdown">
+                            <a href="#" class="menu-link">Autos</a> <ul class="dropdown-content">
+                                <li><a href="#" id="menu-registrar-auto">Registrar</a></li>
+                                <li><a href="#" id="menu-consultar-autos">Consultar</a></li>
+                            </ul>
+                        </li>
+                         <li class="menu-item dropdown">
+                            <a href="#" id="menu-registrar-conductor">Registrar Conductor</a>
+                         </li>
+                         <li><a href="#" id="menu-consultar-conductores">Consultar Conductores</a></li>
+                    </ul>
+                </li>
+                <li class="menu-item dropdown" id="menu-item-despacho"> <a href="#" class="menu-link">Despacho</a> <ul class="dropdown-content">
+                        <li><a href="#" id="menu-turnos">Turnos</a></li>
+                        <li><a href="#" id="menu-despachos-en-curso">Despachos en curso</a></li>
+                    </ul>
+                </li>
+                <li class="menu-item dropdown" id="menu-item-reportes"> <a href="#" class="menu-link">Reportes</a> <ul class="dropdown-content">
+                        <li><a href="#" id="menu-reporte-servicios-conductor">Reporte de Servicios por Conductor</a></li>
+                        </ul>
+                </li>
+                 <li class="menu-item">
+                    <button type="button" class="btn-secondary" id="salir-menu-btn">Salir</button>
+                </li>
+            </ul>
+        </div>
+
+        <div id="gestion-autos" class="form-container hidden">
+            <h2>Gestión de Autos</h2>
+            <form id="form-auto">
+                <div class="form-group">
+                    <label for="placa-auto">Número de Placa:</label>
+                    <input type="text" id="placa-auto" name="placa-auto" required placeholder="Ingrese el número de placa">
+                </div>
+
+                <div id="auto-fields" class="form-group hidden">
+                    <label for="marca-auto">Marca:</label>
+                    <input type="text" id="marca-auto" name="marca-auto" required placeholder="Ingrese la marca del auto">
+
+                    <label for="modelo-auto">Modelo:</label>
+                    <input type="text" id="modelo-auto" name="modelo-auto" required placeholder="Ingrese el modelo del auto">
+
+                    <label for="tipo-auto">Tipo:</label>
+                    <select id="tipo-auto" name="tipo-auto" required>
+                        <option value="">Seleccione...</option>
+                        <option value="carro">Carro</option>
+                        <option value="moto">Moto</option>
+                    </select>
+                </div>
+
+                <div id="auto-actions" class="form-actions">
+                    <button type="button" class="btn-primary" id="verificar-placa-btn" disabled>Verificar Placa</button>
+                    <button type="button" class="btn-primary hidden" id="registrar-auto-btn">Registrar Auto</button>
+                    <button type="button" class="btn-primary hidden" id="modificar-auto-btn">Modificar Auto</button>
+                    <button type="button" class="btn-secondary hidden" id="cancelar-auto-btn">Cancelar</button>
+                </div>
+            </form>
+             <div class="form-actions mt-4">
+                 <button type="button" class="btn-secondary" id="volver-desde-gestion-autos-btn">Volver</button>
+             </div>
+        </div>
+
+        <div id="gestion-conductores" class="form-container hidden">
+             <h2>Gestión de Conductores</h2>
+             <form id="form-conductor">
+                 <div class="form-group">
+                     <label for="codigo-conductor">Código de Conductor:</label>
+                     <input type="text" id="codigo-conductor" name="codigo-conductor" required placeholder="Ingrese el código del conductor">
+                 </div>
+
+                 <div id="conductor-fields" class="form-group hidden">
+                     <label for="nombres-conductor">Nombres:</label>
+                     <input type="text" id="nombres-conductor" name="nombres-conductor" required placeholder="Ingrese los nombres del conductor">
+
+                     <label for="telefono-conductor">Número de Teléfono:</label>
+                     <input type="tel" id="telefono-conductor" name="telefono-conductor" required placeholder="Ingrese el número de teléfono">
+
+                      </div>
+
+                 <div id="conductor-actions" class="form-actions">
+                     <button type="button" class="btn-primary" id="verificar-conductor-btn" disabled>Verificar Conductor</button>
+                     <button type="button" class="btn-primary hidden" id="registrar-conductor-btn">Registrar Conductor</button>
+                     <button type="button" class="btn-primary hidden" id="modificar-conductor-btn">Modificar Conductor</button>
+                     <button type="button" class="btn-secondary hidden" id="cancelar-conductor-btn">Cancelar</button>
+                 </div>
+             </form>
+              <div class="form-actions mt-4">
+                  <button type="button" class="btn-secondary" id="volver-desde-gestion-conductores-btn">Volver</button>
+              </div>
+         </div>
+
+
+        <div id="formulario-verificacion" class="form-container hidden">
+            <h2>Verificación de Cliente</h2>
+            <form id="form-solicitud">
+                <div class="form-group">
+                    <label for="telefono-cliente">Teléfono del Cliente:</label>
+                    <input type="tel" id="telefono-cliente" name="telefono-cliente" required placeholder="Ingrese el teléfono del cliente">
+                </div>
+
+                <div id="cliente-datos" class="form-group hidden">
+                    <label for="nombres-cliente">Nombres del Cliente:</label>
+                    <input type="text" id="nombres-cliente" name="nombres-cliente" class="font-bold" readonly>
+                    <label for="direccion-cliente">Dirección del Cliente:</label>
+                    <input type="text" id="direccion-cliente" name="direccion-cliente" class="font-bold" readonly>
+                </div>
+
+                <div id="cliente-edicion" class="form-group hidden">
+                    <label for="nombres-cliente-edit">Nombres:</label>
+                    <input type="text" id="nombres-cliente-edit" name="nombres-cliente-edit" placeholder="Ingrese los nombres">
+                    <label for="direccion-cliente-edit">Dirección:</label>
+                    <input type="text" id="direccion-cliente-edit" name="direccion-cliente-edit" placeholder="Ingrese la dirección">
+                </div>
+
+                <div id="verificar-modificar-btns" class="form-actions">
+                    <button type="button" class="btn-primary" id="verificar-cliente-btn" disabled>Verificar</button>
+                    <button type="button" class="btn-primary hidden" id="modificar-cliente-btn">Modificar</button>
+                    <button type="button" class="btn-primary hidden" id="solicitar-taxi-btn">Solicitar Taxi</button>
+                    <button type="button" class="btn-primary hidden" id="registrar-cliente-btn">Registrar</button> <button type="button" class="btn-secondary hidden" id="cancelar-btn">Cancelar</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="formulario-servicio" class="form-container hidden">
+            <h2>Asignación de Viaje</h2>
+            <div class="form-group">
+                <label>Nombres:</label>
+                <p id="servicio-nombre" class="font-bold"></p>
+            </div>
+            <div class="form-group">
+                <label>Teléfono:</label>
+                <p id="servicio-telefono" class="font-bold"></p>
+            </div>
+            <div class="form-group">
+                <label>Dirección:</label>
+                <p id="servicio-direccion" class="font-bold"></p>
+            </div>
+            <div class="form-group">
+                <label for="es-residencia">¿La llamada se realiza desde su dirección de residencia?</label>
+                <select id="es-residencia" name="es-residencia" class="w-full p-2 border rounded">
+                    <option value="">Seleccione...</option>
+                    <option value="si">Sí</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+            <div id="campos-dinamicos" class="form-group hidden">
+                 <div id="origen-fields-servicio-dinamico"> <label for="direccion-origen-dinamico" id="label-origen-dinamico">Dirección de Origen:</label>
+                    <input type="text" id="direccion-origen-dinamico" name="direccion-origen-dinamico" class="w-full p-2 border rounded" required>
+                 </div>
+                 <label for="direccion-destino-dinamico">Dirección de Destino:</label> <input type="text" id="direccion-destino-dinamico" name="direccion-destino-dinamico" class="w-full p-2 border rounded" required> </div>
+
+            <div class="form-group">
+                <label for="tarifa-servicio">Tarifa Estimada:</label>
+                <input type="number" id="tarifa-servicio" name="tarifa-servicio" min="0" step="0.01" required placeholder="Ingrese la tarifa">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-primary" id="asignar-btn">Asignar Conductor</button>
+                <button type="button" class="btn-secondary" id="volver-btn">Volver</button>
+            </div>
+        </div>
+
+        <div id="servicios-activos-programados" class="hidden">
+            <h2>Gestión de Servicios</h2>
+            <table id="tabla-servicios">
+                <thead>
+                    <tr>
+                        <th>Teléfono Cliente</th>
+                        <th>Nombres</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Tarifa</th>
+                        <th>Estado</th>
+                        <th>Asignar Conductor</th>
+                        <th>Servicio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <p id="mensaje-no-servicios" class="text-red-500 hidden">No hay servicios pendientes o en curso en este momento.</p>
+             <div class="form-actions mt-4">
+                 <button type="button" class="btn-secondary" id="volver-desde-servicios-btn">Volver</button>
+             </div>
+        </div>
+
+
+        <div id="disponible-conductores" class="hidden">
+            <h3>Seleccionar Conductor Disponible:</h3>
+            <ul id="lista-conductores" class="space-y-2"></ul>
+            <p id="mensaje-no-conductores" class="text-red-500 hidden">No hay conductores disponibles en este momento.</p>
+             <div class="form-actions mt-4">
+                <button type="button" class="btn-secondary" id="volver-desde-conductores-btn">Volver</button>
+            </div>
+        </div>
+
+        <div id="gestion-turnos" class="form-container hidden">
+            <h2>Gestión de Turnos</h2>
+
+            <div id="iniciar-turno-section">
+                <h3>Iniciar Turno</h3>
+                <form id="form-iniciar-turno">
+                    <div class="form-group">
+                        <label for="codigo-conductor-turno-inicio">Código de Conductor:</label>
+                        <input type="text" id="codigo-conductor-turno-inicio" name="codigo-conductor-turno-inicio" required placeholder="Ingrese el código del conductor">
+                    </div>
+                     <div class="form-group">
+                        <label for="placa-auto-turno-inicio">Número de Placa del Vehículo:</label>
+                        <input type="text" id="placa-auto-turno-inicio" name="placa-auto-turno-inicio" required placeholder="Ingrese el número de placa del auto">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Iniciar Turno</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="finalizar-turno-section" class="mt-8">
+                <h3>Finalizar Turno</h3>
+                <form id="form-finalizar-turno">
+                     <div class="form-group">
+                        <label for="conductor-turno-fin">Seleccione Conductor:</label>
+                        <select id="conductor-turno-fin" name="conductor-turno-fin" required>
+                            <option value="">Seleccione un conductor en turno...</option>
+                            </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Finalizar Turno</button>
+                    </div>
+                </form>
+                 <p id="mensaje-no-conductores-en-turno" class="text-red-500 hidden">No hay conductores en turno en este momento.</p>
+            </div>
+
+             <div class="form-actions mt-4">
+                 <button type="button" class="btn-secondary" id="volver-desde-turnos-btn">Volver</button>
+             </div>
+        </div>
+
+        <div id="reporte-servicios-conductor" class="form-container hidden">
+            <h2>Reporte de Servicios por Conductor</h2>
+            <form id="form-reporte-fechas">
+                <div class="form-group">
+                    <label for="fecha-inicio-reporte">Fecha de Inicio:</label>
+                    <input type="date" id="fecha-inicio-reporte" name="fecha-inicio-reporte" required>
+                </div>
+                 <div class="form-group">
+                    <label for="fecha-fin-reporte">Fecha de Fin:</label>
+                    <input type="date" id="fecha-fin-reporte" name="fecha-fin-reporte" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Generar Reporte</button>
+                </div>
+            </form>
+
+            <div id="reporte-resultados" class="mt-8 hidden">
+                <h3>Resultado del Reporte</h3>
+                <table id="tabla-reporte-conductores">
+                    <thead>
+                        <tr>
+                            <th>Código Conductor</th>
+                            <th>Nombre Conductor</th>
+                            <th>Servicios Finalizados</th>
+                            <th>Total Tarifa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+                 <p id="mensaje-no-servicios-reporte" class="text-red-500 hidden">No se encontraron servicios finalizados en el rango de fechas seleccionado.</p>
+                 <div class="form-actions mt-4">
+                    <button type="button" class="btn-secondary" id="guardar-pdf-reporte">Guardar PDF</button>
+                    <button type="button" class="btn-secondary" id="imprimir-reporte">Imprimir</button>
+                 </div>
+            </div>
+
+             <div class="form-actions mt-4">
+                 <button type="button" class="btn-secondary" id="volver-desde-reporte-btn">Volver</button>
+             </div>
+        </div>
+        <div id="modal-confirmacion" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center h-full">
+                <div class="bg-white p-6 rounded shadow-lg w-1/3 mx-auto">
+                    <h3 class="text-lg font-bold mb-4">¿Está seguro que desea salir?</h3>
+                    <div class="flex justify-end gap-2">
+                        <button id="confirmar-salida" class="btn-primary">Sí</button>
+                        <button id="cancelar-salida" class="btn-secondary">No</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mensaje" class="alert hidden"></div>
+    </div>
+
+    <script>
+        // Referencias a elementos del DOM
+        const formLogin = document.getElementById('form-login');
+        const loginMessage = document.getElementById('login-message');
+        const volverBtn = document.getElementById('volver-btn'); // Botón Volver en formulario de servicio
+        const mainContent = document.getElementById('main-content'); // No se usa en el flujo post-verificación actual
+        const formVerificacion = document.getElementById('formulario-verificacion');
+        const formSolicitud = document.getElementById('form-solicitud'); // Formulario de verificación
+        const telefonoClienteInput = document.getElementById('telefono-cliente');
+        const clienteDatosDiv = document.getElementById('cliente-datos'); // No se usa en el flujo post-verificación actual
+        const nombresClienteInput = document.getElementById('nombres-cliente'); // No se usa en el flujo post-verificación actual
+        const direccionClienteInput = document.getElementById('direccion-cliente'); // No se usa en el flujo post-verificación actual
+        const clienteEdicionDiv = document.getElementById('cliente-edicion'); // Campos editables
+        const nombresClienteEdit = document.getElementById('nombres-cliente-edit'); // Input editable nombres
+        const direccionClienteEdit = document.getElementById('direccion-cliente-edit'); // Input editable direccion
+        const verificarBtn = document.getElementById('verificar-cliente-btn');
+        const modificarBtn = document.getElementById('modificar-cliente-btn');
+        const solicitarTaxiBtn = document.getElementById('solicitar-taxi-btn'); // Botón Solicitar Taxi (restaurado)
+        const registrarBtn = document.getElementById('registrar-cliente-btn'); // Botón Registrar
+        const cancelarBtn = document.getElementById('cancelar-btn'); // Botón Cancelar en formulario de verificación
+        const verificarModificarBtnsDiv = document.getElementById('verificar-modificar-btns'); // Referencia al contenedor de botones
+
+        // Campos del formulario de detalles de servicio (formulario-servicio)
+        const formularioServicio = document.getElementById('formulario-servicio'); // Contenedor principal
+        // const formDetallesServicio = document.getElementById('form-detalles-servicio'); // Este formulario no existe, se usa formulario-servicio
+        const servicioNombre = document.getElementById('servicio-nombre'); // P de nombre cliente
+        const servicioTelefono = document.getElementById('servicio-telefono'); // P de teléfono cliente
+        const servicioDireccion = document.getElementById('servicio-direccion'); // P de dirección cliente
+        // const servicioConductorAsignado = document.getElementById('servicio-conductor-asignado'); // Este elemento no existe en el flujo original
+        const esResidenciaSelect = document.getElementById('es-residencia'); // Select de residencia
+        const camposDinamicos = document.getElementById('campos-dinamicos'); // Contenedor de origen y destino dinámicos
+        const origenFieldsServicioDinamico = document.getElementById('origen-fields-servicio-dinamico');
+        const labelOrigenDinamico = document.getElementById('label-origen-dinamico');
+        const direccionOrigenInputDinamico = document.getElementById('direccion-origen-dinamico');
+        const direccionDestinoInputDinamico = document.getElementById('direccion-destino-dinamico');
+        const tarifaServicioInput = document.getElementById('tarifa-servicio');
+        const asignarBtn = document.getElementById('asignar-btn'); // Botón Asignar Conductor (restaurado)
+        // const confirmarAsignacionBtn = document.getElementById('confirmar-asignacion-btn'); // Este botón no existe en el flujo original
+        // const cancelarServicioBtn = document.getElementById('cancelar-servicio-btn'); // Este botón no existe en el flujo original
+
+
+        const mensajeDiv = document.getElementById('mensaje');
+        const listaConductoresElement = document.getElementById('lista-conductores');
+        const mensajeNoConductores = document.getElementById('mensaje-no-conductores');
+        const modalConfirmacion = document.getElementById('modal-confirmacion');
+        const confirmarSalidaBtn = document.getElementById('confirmar-salida');
+        const cancelarSalidaBtn = document.getElementById('cancelar-salida');
+        const menuReportesLink = document.getElementById('menu-reportes'); // Referencia no usada
+        const salirMenuBtn = document.getElementById('salir-menu-btn');
+        const mainMenu = document.getElementById('main-menu');
+        const disponibleConductoresDiv = document.getElementById('disponible-conductores');
+
+        // Nuevas referencias para la gestión de servicios
+        const serviciosActivosProgramadosDiv = document.getElementById('servicios-activos-programados');
+        const tablaServiciosBody = document.querySelector('#tabla-servicios tbody');
+        const mensajeNoServicios = document.getElementById('mensaje-no-servicios');
+        const volverDesdeServiciosBtn = document.getElementById('volver-desde-servicios-btn');
+        const volverDesdeConductoresBtn = document.getElementById('volver-desde-conductores-btn');
+
+        // Nuevas referencias para los enlaces de submenú (ajustadas a la nueva estructura)
+        const menuRegistrarAutoLink = document.getElementById('menu-registrar-auto');
+        const menuConsultarAutosLink = document.getElementById('menu-consultar-autos');
+        const menuRegistrarConductorLink = document.getElementById('menu-registrar-conductor');
+        const menuConsultarConductoresLink = document.getElementById('menu-consultar-conductores');
+        // Nuevas referencias para los enlaces de Despacho (directos en el menú principal)
+        const menuDespachoLink = document.querySelector('#main-menu .menu-list > .menu-item.dropdown > .dropdown-content > li > a[href="#"]'); // Referencia al enlace principal de Despacho (general) - Ajustado para la nueva estructura
+        const menuTurnosLink = document.getElementById('menu-turnos');
+        const menuDespachosEnCursoLink = document.getElementById('menu-despachos-en-curso');
+        // Nueva referencia para el enlace del reporte (directo en el menú principal)
+         const menuReportesLinkPrincipal = document.querySelector('#main-menu .menu-list > .menu-item.dropdown > .dropdown-content > li > a[href="#"]'); // Referencia al enlace principal de Reportes (general) - Ajustado para la nueva estructura
+        const menuReporteServiciosConductorLink = document.getElementById('menu-reporte-servicios-conductor');
+
+        // Referencias a los elementos del menú principal para control de acceso por roles
+        const menuArchivoItem = document.getElementById('menu-item-archivo');
+        const menuDespachoItem = document.getElementById('menu-item-despacho');
+        const menuReportesItem = document.getElementById('menu-item-reportes');
+
+
+        // Nuevas referencias para la gestión de Autos (Registro/Modificación)
+        const gestionAutosDiv = document.getElementById('gestion-autos');
+        const formAuto = document.getElementById('form-auto');
+        const placaAutoInput = document.getElementById('placa-auto');
+        const autoFieldsDiv = document.getElementById('auto-fields'); // Contenedor de campos de marca, modelo, tipo
+        const marcaAutoInput = document.getElementById('marca-auto');
+        const modeloAutoInput = document.getElementById('modelo-auto');
+        const tipoAutoSelect = document.getElementById('tipo-auto');
+        const verificarPlacaBtn = document.getElementById('verificar-placa-btn');
+        const registrarAutoBtn = document.getElementById('registrar-auto-btn');
+        const modificarAutoBtn = document.getElementById('modificar-auto-btn');
+        const cancelarAutoBtn = document.getElementById('cancelar-auto-btn');
+        const autoActionsDiv = document.getElementById('auto-actions'); // Contenedor de botones de auto
+        const volverDesdeGestionAutosBtn = document.getElementById('volver-desde-gestion-autos-btn'); // Renombrado para claridad
+
+        // Nuevas referencias para la gestión de Conductores (Registro/Modificación)
+        const gestionConductoresDiv = document.getElementById('gestion-conductores');
+        const formConductor = document.getElementById('form-conductor');
+        const codigoConductorInput = document.getElementById('codigo-conductor');
+        const conductorFieldsDiv = document.getElementById('conductor-fields'); // Contenedor de campos de nombres, teléfono
+        const nombresConductorInput = document.getElementById('nombres-conductor');
+        const telefonoConductorInput = document.getElementById('telefono-conductor');
+        const verificarConductorBtn = document.getElementById('verificar-conductor-btn');
+        const registrarConductorBtn = document.getElementById('registrar-conductor-btn');
+        const modificarConductorBtn = document.getElementById('modificar-conductor-btn');
+        const cancelarConductorBtn = document.getElementById('cancelar-conductor-btn');
+        const conductorActionsDiv = document.getElementById('conductor-actions'); // Contenedor de botones de conductor
+        const volverDesdeGestionConductoresBtn = document.getElementById('volver-desde-gestion-conductores-btn');
+
+        // Nuevas referencias para Gestión de Turnos
+        const gestionTurnosDiv = document.getElementById('gestion-turnos');
+        const formIniciarTurno = document.getElementById('form-iniciar-turno');
+        const codigoConductorTurnoInicioInput = document.getElementById('codigo-conductor-turno-inicio');
+        const placaAutoTurnoInicioInput = document.getElementById('placa-auto-turno-inicio');
+        const formFinalizarTurno = document.getElementById('form-finalizar-turno');
+        const conductorTurnoFinSelect = document.getElementById('conductor-turno-fin');
+        const mensajeNoConductoresEnTurno = document.getElementById('mensaje-no-conductores-en-turno');
+        const volverDesdeTurnosBtn = document.getElementById('volver-desde-turnos-btn');
+
+        // Nuevas referencias para la sección de Reporte
+        const reporteServiciosConductorDiv = document.getElementById('reporte-servicios-conductor');
+        const formReporteFechas = document.getElementById('form-reporte-fechas');
+        const fechaInicioReporteInput = document.getElementById('fecha-inicio-reporte');
+        const fechaFinReporteInput = document.getElementById('fecha-fin-reporte');
+        const reporteResultadosDiv = document.getElementById('reporte-resultados');
+        const tablaReporteConductoresBody = document.querySelector('#tabla-reporte-conductores tbody');
+        const mensajeNoServiciosReporte = document.getElementById('mensaje-no-servicios-reporte');
+        const guardarPdfReporteBtn = document.getElementById('guardar-pdf-reporte');
+        const imprimirReporteBtn = document.getElementById('imprimir-reporte');
+        const volverDesdeReporteBtn = document.getElementById('volver-desde-reporte-btn');
+
+
+        // Datos simulados
+        const usuarios = [
+            { id: 1, username: 'operador1', password: 'password1', rol: 'operador' },
+            { id: 2, username: 'admin1', password: 'adminpassword', rol: 'administrador' },
+        ];
+        let clientes = [
+            { id: 1, nombre: 'Juan', apellido: 'Pérez', direccion: 'Calle Principal 123', telefono: '1234567890' },
+            { id: 2, nombre: 'María', apellido: 'García', direccion: 'Avenida Central 456', telefono: '9876543210' },
+        ];
+
+        // Estado de conductores: 0 = Disponible, 1 = Ocupado (en servicio), 2 = En Turno (disponible para servicios)
+        // Se añade 'codigo', 'telefono' y 'vehiculoAsignado' a la estructura de datos de conductores
+        let conductores = [
+            { id: 101, codigo: 'C101', nombre: 'Carlos Pérez', telefono: '1112223333', estado: 0, vehiculoAsignado: null }, // Disponible
+            { id: 102, codigo: 'C102', nombre: 'Ana García', telefono: '4445556666', estado: 2, vehiculoAsignado: 'XYZ-456' }, // En Turno
+            { id: 103, codigo: 'C103', nombre: 'Luis Rodríguez', telefono: '7778889999', estado: 1, vehiculoAsignado: 'ABC-123' }, // Ocupado
+        ];
+
+        // Estado de servicios: 'pendiente', 'asignado' (en curso), 'programado', 'completado', 'cancelado'
+        // Se añade 'tarifa' a la estructura de datos de servicios
+        let servicios = [
+             // Ejemplo de un servicio activo (para Luis Rodríguez)
+             { id: 1001, clienteId: 1, conductorId: 103, origen: 'Calle Principal 123', destino: 'Centro Comercial', estado: 'asignado', fechaHora: new Date('2023-10-27T10:00:00'), tarifa: 15.00 }, // Añadida tarifa de ejemplo
+             // Servicios completados para probar el reporte
+             { id: 1002, clienteId: 2, conductorId: 101, origen: 'Avenida Central 456', destino: 'Aeropuerto', estado: 'completado', fechaHora: new Date('2023-10-26T08:30:00'), tarifa: 30.00 },
+             { id: 1003, clienteId: 1, conductorId: 101, origen: 'Calle Principal 123', destino: 'Hospital', estado: 'completado', fechaHora: new Date('2023-10-26T11:00:00'), tarifa: 20.00 },
+             { id: 1004, clienteId: 2, conductorId: 102, origen: 'Avenida Central 456', destino: 'Estación Bus', estado: 'completado', fechaHora: new Date('2023-10-27T09:15:00'), tarifa: 25.00 },
+             // Servicio pendiente para probar la asignación desde la tabla
+             { id: 1005, clienteId: 1, conductorId: null, origen: 'Calle Principal 123', destino: 'Supermercado', estado: 'pendiente', fechaHora: new Date('2023-10-27T11:30:00'), tarifa: 10.00 },
+        ];
+
+        // Nuevos arrays para Autos (simulados)
+        let autos = [
+            { id: 201, placa: 'ABC-123', marca: 'Toyota', modelo: 'Sedan', tipo: 'carro' },
+            { id: 202, placa: 'XYZ-456', marca: 'Honda', modelo: 'SUV', tipo: 'carro' },
+            { id: 203, placa: 'MOTO-789', marca: 'Yamaha', modelo: 'FZ', tipo: 'moto' },
+        ];
+
+
+        let clienteActual = null; // Almacena el cliente encontrado o recién registrado
+        let autoActual = null; // Almacena el auto encontrado o recién registrado
+        let conductorActual = null; // Nuevo: Almacena el conductor encontrado o recién registrado
+        let servicioPendienteParaAsignar = null; // Nuevo: Almacena el servicio pendiente que se está asignando
+
+
+        // Función para mostrar mensajes
+        function mostrarMensaje(texto, tipo = 'success') {
+            mensajeDiv.textContent = texto;
+            mensajeDiv.className = `alert alert-${tipo}`;
+            mensajeDiv.classList.remove('hidden');
+            setTimeout(() => mensajeDiv.classList.add('hidden'), 5000);
+        }
+
+        // Función para buscar usuario
+        function buscarUsuario(username, password) {
+            // Ajuste menor en la comparación para ser más explícito
+            return usuarios.find(u => u.username.toLowerCase() === username.toLowerCase().trim() && u.password === password.trim());
+        }
+
+        // Función para buscar cliente por teléfono
+        function buscarCliente(telefono) {
+            return clientes.find(c => c.telefono === telefono);
+        }
+
+        // Función para registrar cliente (espera nombre y apellido separados)
+        function registrarCliente(nombre, apellido, direccion, telefono) {
+            const nuevoCliente = {
+                id: Date.now(), // ID basado en timestamp
+                nombre,
+                apellido,
+                direccion,
+                telefono
+            };
+            clientes.push(nuevoCliente); // Agrega el nuevo cliente al array simulado
+            console.log("Cliente registrado:", nuevoCliente); // Log para depuración
+            return nuevoCliente;
+        }
+
+        // Función auxiliar para dividir un nombre completo en nombre y apellido (simplificado)
+        function dividirNombreCompletos(nombreCompletos) {
+            const partes = nombreCompletos.trim().split(/\s+/); // Divide por uno o más espacios
+            const nombre = partes[0] || ''; // La primera parte es el nombre
+            const apellido = partes.slice(1).join(' ') || ''; // El resto es el apellido
+            return { nombre, apellido };
+        }
+
+        // Función para obtener conductores por estado
+        function obtenerConductoresPorEstado(estado) {
+            return conductores.filter(c => c.estado === estado);
+        }
+
+         // Función para obtener un conductor por ID
+         function obtenerConductorPorId(conductorId) {
+             return conductores.find(c => c.id === conductorId);
+         }
+
+         // Función para obtener un conductor por código
+         function buscarConductorPorCodigo(codigo) {
+              return conductores.find(c => c.codigo.toUpperCase() === codigo.toUpperCase());
+         }
+
+         // Función para obtener un cliente por ID
+         function obtenerClientePorId(clienteId) {
+             return clientes.find(c => c.id === clienteId);
+         }
+
+        // Función para buscar auto por placa
+        function buscarAutoPorPlaca(placa) {
+            return autos.find(a => a.placa.toUpperCase() === placa.toUpperCase());
+        }
+
+        // Función para registrar auto
+        function registrarAuto(placa, marca, modelo, tipo) {
+            const nuevoAuto = {
+                id: Date.now(), // ID basado en timestamp
+                placa: placa.toUpperCase(),
+                marca,
+                modelo,
+                tipo
+            };
+            autos.push(nuevoAuto); // Agrega el nuevo auto al array simulado
+            console.log("Auto registrado:", nuevoAuto); // Log para depuración
+            return nuevoAuto;
+        }
+
+         // Función para actualizar auto
+         function actualizarAuto(id, marca, modelo, tipo) {
+             const autoIndex = autos.findIndex(a => a.id === id);
+             if (autoIndex !== -1) {
+                 autos[autoIndex].marca = marca;
+                 autos[autoIndex].modelo = modelo;
+                 autos[autoIndex].tipo = tipo;
+                 console.log("Auto actualizado:", autos[autoIndex]); // Log para depuración
+                 return autos[autoIndex];
+             }
+             return null; // No se encontró el auto
+         }
+
+        // --- Funciones y lógica para Gestión de Conductores ---
+
+        // Función para registrar conductor
+        function registrarConductor(codigo, nombre, telefono) {
+             const nuevoConductor = {
+                 id: Date.now(), // ID basado en timestamp
+                 codigo: codigo.toUpperCase(),
+                 nombre,
+                 telefono,
+                 estado: 0, // Por defecto, un nuevo conductor está disponible
+                 vehiculoAsignado: null // Por defecto, no tiene vehículo asignado
+             };
+             conductores.push(nuevoConductor); // Agrega el nuevo conductor al array simulado
+             console.log("Conductor registrado:", nuevoConductor); // Log para depuración
+             return nuevoConductor;
+        }
+
+        // Función para actualizar conductor
+        function actualizarConductor(id, nombre, telefono) {
+             const conductorIndex = conductores.findIndex(c => c.id === id);
+             if (conductorIndex !== -1) {
+                 conductores[conductorIndex].nombre = nombre;
+                 conductores[conductorIndex].telefono = telefono;
+                 console.log("Conductor actualizado:", conductores[conductorIndex]); // Log para depuración
+                 return conductores[conductorIndex];
+             }
+             return null; // No se encontró el conductor
+        }
+
+        // Función para resetear el formulario de Conductor al estado inicial (solo código)
+        function resetFormConductor() {
+             formConductor.reset();
+             codigoConductorInput.value = '';
+             conductorFieldsDiv.classList.add('hidden'); // Ocultar campos de nombres, teléfono
+             registrarConductorBtn.classList.add('hidden'); // Ocultar botón Registrar
+             modificarConductorBtn.classList.add('hidden'); // Ocultar botón Modificar
+             cancelarConductorBtn.classList.add('hidden'); // Ocultar botón Cancelar
+             verificarConductorBtn.classList.remove('hidden'); // Asegurar que Verificar Conductor esté visible
+             verificarConductorBtn.disabled = true; // Deshabilitar hasta que se ingrese código
+             conductorActual = null; // Resetear conductor actual
+             mensajeDiv.classList.add('hidden'); // Ocultar mensajes
+        }
+
+
+        // Función para crear un servicio
+         function crearServicio(clienteId, conductorId, origen, destino, estado, tarifa) { // Añadido parámetro tarifa
+             const nuevoServicio = {
+                 id: Date.now(), // ID único para el servicio
+                 clienteId,
+                 conductorId, // Será null inicialmente para estado 'pendiente'
+                 origen,
+                 destino,
+                 estado, // 'pendiente', 'asignado' o 'programado'
+                 fechaHora: new Date(), // Timestamp del servicio
+                 tarifa: parseFloat(tarifa) // Almacenar la tarifa como número flotante
+             };
+             servicios.push(nuevoServicio); // Agrega el nuevo servicio al array
+             console.log('Servicio creado:', nuevoServicio); // Log para depuración
+             return nuevoServicio;
+         }
+
+         // Función para actualizar el estado y conductor de un servicio
+         function actualizarServicio(servicioId, nuevoEstado, conductorId = null) {
+             const servicio = servicios.find(s => s.id === servicioId);
+             if (servicio) {
+                 servicio.estado = nuevoEstado;
+                 if (conductorId !== null) {
+                     servicio.conductorId = conductorId;
+                 }
+                 console.log(`Servicio ${servicioId} actualizado. Estado: ${nuevoEstado}, Conductor: ${conductorId}`); // Log
+             }
+         }
+
+         // Función para actualizar el estado de un conductor
+         function actualizarEstadoConductor(conductorId, nuevoEstado, vehiculoAsignado = null) {
+             const conductor = conductores.find(c => c.id === conductorId);
+             if (conductor) {
+                 conductor.estado = nuevoEstado;
+                 conductor.vehiculoAsignado = vehiculoAsignado; // Actualizar vehículo asignado
+                 console.log(`Estado del conductor ${conductorId} actualizado a: ${nuevoEstado}, Vehículo Asignado: ${vehiculoAsignado}`); // Log
+             }
+         }
+
+
+        // Función para reiniciar el sistema al estado de login
+        function reiniciarSistema() {
+            console.log('Reiniciando sistema...'); // Log de depuración
+            // Ocultar todas las secciones principales excepto el login
+            formVerificacion.classList.add('hidden');
+            formularioServicio.classList.add('hidden');
+            disponibleConductoresDiv.classList.add('hidden');
+            mainMenu.classList.add('hidden');
+            serviciosActivosProgramadosDiv.classList.add('hidden'); // Ocultar la tabla de servicios
+            gestionAutosDiv.classList.add('hidden'); // Ocultar la gestión de autos
+            gestionConductoresDiv.classList.add('hidden'); // Ocultar la gestión de conductores
+            gestionTurnosDiv.classList.add('hidden'); // Ocultar la gestión de turnos
+            reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+            // Ocultar todos los elementos del menú principal (se mostrarán según el rol después del login)
+            // *** CORRECCIÓN: NO ocultar menuArchivoItem aquí, se controla por rol después del login ***
+            menuArchivoItem.classList.add('hidden'); // Ocultar Archivo por defecto al reiniciar
+            menuDespachoItem.classList.add('hidden');
+            menuReportesItem.classList.add('hidden');
+            // El botón Salir siempre está visible, no necesita ocultarse aquí.
+
+
+            // Mostrar solo el formulario de login
+            formLogin.classList.remove('hidden');
+            loginMessage.classList.add('hidden'); // Ocultar mensaje de login/error
+
+            formLogin.reset(); // Limpia el formulario de login
+
+            // Restablecer el estado del formulario de verificación al inicio (oculta botones, muestra solo teléfono)
+            // NOTA: No llamamos a mostrarFormularioSolicitud() aquí, ya que reiniciarSistema() se usa al salir del menú.
+            // La lógica de login llamará a mostrarFormularioSolicitud() si el login es exitoso.
+
+            clienteActual = null;
+            mensajeDiv.classList.add('hidden');
+            console.log('Sistema reiniciado. Mostrando login.'); // Log de depuración
+
+        }
+
+        // Mostrar diálogo de confirmación al salir
+        function mostrarConfirmacionSalida() {
+            modalConfirmacion.classList.remove('hidden');
+            modalConfirmacion.classList.add('active');
+        }
+
+        // Ocultar diálogo de confirmación al salir
+        function ocultarConfirmacionSalida() {
+            modalConfirmacion.classList.add('hidden');
+            modalConfirmacion.classList.remove('active');
+        }
+
+        // Evento para el botón Salir del menú principal
+        salirMenuBtn.addEventListener('click', () => {
+            mostrarConfirmacionSalida();
+        });
+
+        // Confirmar salida
+        confirmarSalidaBtn.addEventListener('click', () => {
+            reiniciarSistema();
+            ocultarConfirmacionSalida();
+        });
+
+        // Cancelar confirmación
+        cancelarSalidaBtn.addEventListener('click', ocultarConfirmacionSalida);
+
+
+        // Validar teléfono en tiempo real y habilitar/deshabilitar botón Verificar
+        telefonoClienteInput.addEventListener('input', () => {
+            let valor = telefonoClienteInput.value.replace(/\D/g, '');
+            telefonoClienteInput.value = valor.slice(0, 10);
+            const telefonoValido = valor.length === 10;
+
+            verificarBtn.disabled = !telefonoValido;
+
+            if (!telefonoValido) {
+                clienteDatosDiv.classList.add('hidden');
+                clienteEdicionDiv.classList.add('hidden');
+                modificarBtn.classList.add('hidden');
+                solicitarTaxiBtn.classList.add('hidden');
+                cancelarBtn.classList.add('hidden');
+                registrarBtn.classList.add('hidden');
+                verificarBtn.classList.remove('hidden');
+            } else {
+                 clienteDatosDiv.classList.add('hidden');
+                 clienteEdicionDiv.classList.add('hidden');
+                 modificarBtn.classList.add('hidden');
+                 solicitarTaxiBtn.classList.add('hidden');
+                 cancelarBtn.classList.add('hidden');
+                 registrarBtn.classList.add('hidden');
+                 verificarBtn.classList.remove('hidden');
+            }
+
+            disponibleConductoresDiv.classList.add('hidden');
+            formularioServicio.classList.add('hidden');
+            serviciosActivosProgramadosDiv.classList.add('hidden'); // Ocultar la tabla de servicios
+            gestionAutosDiv.classList.add('hidden'); // Ocultar la gestión de autos
+            gestionConductoresDiv.classList.add('hidden'); // Ocultar la gestión de conductores
+            gestionTurnosDiv.classList.add('hidden'); // Ocultar la gestión de turnos
+            reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+            nombresClienteInput.value = '';
+            direccionClienteInput.value = '';
+            nombresClienteEdit.value = '';
+            direccionClienteEdit.value = '';
+
+            clienteActual = null;
+        });
+
+        // Verificar cliente al presionar Enter
+        telefonoClienteInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' && !verificarBtn.disabled) {
+                event.preventDefault();
+                verificarBtn.click();
+            }
+        });
+
+        // Evento para el botón Verificar cliente
+        verificarBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+
+            const telefono = telefonoClienteInput.value;
+            const cliente = buscarCliente(telefono);
+
+            verificarBtn.classList.add('hidden');
+            clienteDatosDiv.classList.add('hidden');
+            clienteEdicionDiv.classList.remove('hidden');
+
+
+            if (cliente) {
+                clienteActual = { ...cliente };
+                nombresClienteEdit.value = cliente.nombre + ' ' + cliente.apellido;
+                direccionClienteEdit.value = cliente.direccion;
+
+                modificarBtn.classList.remove('hidden');
+                solicitarTaxiBtn.classList.remove('hidden'); // Restaurado
+                cancelarBtn.classList.remove('hidden');
+                registrarBtn.classList.add('hidden');
+
+            } else {
+               clienteActual = null;
+               nombresClienteEdit.value = '';
+               direccionClienteEdit.value = '';
+
+               modificarBtn.classList.add('hidden');
+               solicitarTaxiBtn.classList.add('hidden'); // Restaurado
+               cancelarBtn.classList.remove('hidden');
+               registrarBtn.classList.remove('hidden');
+
+               mostrarMensaje('Cliente no encontrado. Complete los campos de nombres y dirección para registrarlo.', 'danger');
+            }
+        });
+
+        // Evento para el botón Modificar cliente
+        modificarBtn.addEventListener('click', () => {
+            const nombresCompletosEdit = nombresClienteEdit.value.trim();
+            const nuevaDireccion = direccionClienteEdit.value.trim();
+
+            if (!nombresCompletosEdit && !nuevaDireccion) {
+                mostrarMensaje('Debe ingresar al menos un campo (nombres o dirección) para modificar.', 'danger');
+                return;
+            }
+
+            const { nombre: nuevoNombre, apellido: nuevoApellido } = dividirNombreCompletos(nombresCompletosEdit);
+            const index = clientes.findIndex(c => c.telefono === telefonoClienteInput.value);
+
+            if (index !== -1) {
+                if (nombresCompletosEdit) {
+                    clientes[index].nombre = nuevoNombre;
+                    clientes[index].apellido = nuevoApellido;
+                 }
+                if (nuevaDireccion) clientes[index].direccion = nuevaDireccion;
+
+                clienteActual = { ...clientes[index] };
+                mostrarMensaje('Datos del cliente actualizados correctamente.', 'success');
+
+                // Después de modificar, mostrar los botones de acción (Solicitar Taxi, Cancelar)
+                modificarBtn.classList.add('hidden');
+                registrarBtn.classList.add('hidden');
+                solicitarTaxiBtn.classList.remove('hidden'); // Mostrar Solicitar Taxi
+                cancelarBtn.classList.remove('hidden'); // Asegurar que Cancelar esté visible
+
+            } else {
+                 mostrarMensaje('Error: Cliente no encontrado para guardar modificaciones.', 'danger');
+            }
+        });
+
+         // Evento para el botón Registrar cliente
+         registrarBtn.addEventListener('click', () => {
+             const nombresCompletosEdit = nombresClienteEdit.value.trim();
+             const direccionEdit = direccionClienteEdit.value.trim();
+             const telefono = telefonoClienteInput.value;
+
+             if (!nombresCompletosEdit || !direccionEdit || !telefono) {
+                 mostrarMensaje('Por favor complete nombres y dirección para registrar al cliente.', 'danger');
+                 return;
+             }
+
+             // Verificar si el teléfono ya existe (doble chequeo por si acaso)
+             if (buscarCliente(telefono)) {
+                  mostrarMensaje(`Error: Ya existe un cliente registrado con el teléfono ${telefono}.`, 'danger');
+                  verificarBtn.click(); // Simular clic para cargar datos existentes
+                  return;
+             }
+
+
+             const { nombre, apellido } = dividirNombreCompletos(nombresCompletosEdit);
+             const nuevoCliente = registrarCliente(nombre, apellido, direccionEdit, telefono);
+             clienteActual = nuevoCliente;
+
+             mostrarMensaje(`Cliente ${clienteActual.nombre} ${clienteActual.apellido} registrado correctamente.`, 'success');
+
+             // Después de registrar, mostrar los botones de acción (Solicitar Taxi, Cancelar)
+             registrarBtn.classList.add('hidden');
+             modificarBtn.classList.add('hidden');
+             solicitarTaxiBtn.classList.remove('hidden'); // Mostrar Solicitar Taxi
+             cancelarBtn.classList.remove('hidden'); // Asegurar que Cancelar esté visible
+
+         });
+
+
+        // Evento para el botón Solicitar Taxi (restaurado)
+        solicitarTaxiBtn.addEventListener('click', () => {
+             if (!clienteActual) {
+                 mostrarMensaje('Error: No hay cliente seleccionado para solicitar servicio.', 'danger');
+                 return;
+             }
+
+             mostrarMensaje(`Procediendo con la solicitud de servicio para ${clienteActual.nombre} ${clienteActual.apellido}.`, 'success');
+
+             // Ocultar el formulario de verificación
+             formVerificacion.classList.add('hidden');
+
+             // Mostrar el formulario de servicio
+             formularioServicio.classList.remove('hidden');
+
+             // Llenar los datos del cliente en el formulario de servicio
+             servicioNombre.textContent = clienteActual.nombre + ' ' + clienteActual.apellido;
+             servicioTelefono.textContent = clienteActual.telefono;
+             servicioDireccion.textContent = clienteActual.direccion;
+
+             // Resetear el selector de residencia y los campos dinámicos al mostrar el formulario de servicio
+             esResidenciaSelect.value = '';
+             camposDinamicos.classList.add('hidden');
+
+             // Asegurarse de que los campos de origen y destino estén visibles y habilitados por defecto
+             // antes de que el selector de residencia los modifique.
+             origenFieldsServicioDinamico.classList.remove('hidden'); // Usar el nuevo ID
+             direccionDestinoInputDinamico.classList.remove('hidden'); // Usar el nuevo ID
+             direccionOrigenInputDinamico.value = ''; // Usar el nuevo ID
+             direccionOrigenInputDinamico.disabled = false; // Usar el nuevo ID
+             direccionOrigenInputDinamico.required = true; // Usar el nuevo ID
+             direccionDestinoInputDinamico.value = ''; // Usar el nuevo ID
+             direccionDestinoInputDinamico.disabled = false; // Usar el nuevo ID
+             direccionDestinoInputDinamico.required = true; // Usar el nuevo ID
+
+             tarifaServicioInput.value = ''; // Limpiar el campo de tarifa
+
+        });
+
+
+        // Evento para el botón Volver (en el formulario de servicio)
+        volverBtn.addEventListener('click', () => {
+            formularioServicio.classList.add('hidden');
+            mostrarFormularioSolicitud(); // Volver al formulario de verificación
+        });
+
+        // Evento para el botón Volver (desde la tabla de servicios)
+        volverDesdeServiciosBtn.addEventListener('click', () => {
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             mostrarFormularioSolicitud(); // Volver al formulario de verificación
+        });
+
+        // Evento para el botón Volver (desde la lista de conductores disponibles)
+         volverDesdeConductoresBtn.addEventListener('click', () => {
+             disponibleConductoresDiv.classList.add('hidden');
+             // Después de volver de seleccionar conductor, volvemos a la tabla de servicios pendientes
+             serviciosActivosProgramadosDiv.classList.remove('hidden');
+             renderizarTablaServicios(['pendiente']); // Mostrar solo los servicios pendientes
+         });
+
+         // Evento para el botón Volver (desde la gestión de autos)
+         volverDesdeGestionAutosBtn.addEventListener('click', () => {
+             gestionAutosDiv.classList.add('hidden');
+             mostrarFormularioSolicitud(); // Volver al formulario de verificación
+         });
+
+          // Evento para el botón Volver (desde la gestión de conductores)
+          volverDesdeGestionConductoresBtn.addEventListener('click', () => {
+             gestionConductoresDiv.classList.add('hidden');
+             mostrarFormularioSolicitud(); // Volver al formulario de verificación
+         });
+
+         // Evento para el botón Volver (desde la gestión de turnos)
+         volverDesdeTurnosBtn.addEventListener('click', () => {
+             gestionTurnosDiv.classList.add('hidden');
+             mostrarFormularioSolicitud(); // Volver al formulario de verificación
+         });
+
+         // Evento para el botón Volver (desde la sección de reporte)
+         volverDesdeReporteBtn.addEventListener('click', () => {
+             reporteServiciosConductorDiv.classList.add('hidden');
+             mostrarFormularioSolicitud(); // Volver al formulario de verificación
+         });
+
+
+        // Evento para el select de residencia (en el formulario de servicio) - Lógica de visibilidad revisada
+        esResidenciaSelect.addEventListener('change', (e) => {
+            const valor = e.target.value;
+            console.log('Cambio en selector de residencia. Valor:', valor); // Log de depuración
+
+            // Ocultar todos los campos dinámicos y sus etiquetas al inicio del cambio
+            camposDinamicos.classList.add('hidden');
+            origenFieldsServicioDinamico.classList.add('hidden'); // Usar el nuevo ID
+            direccionDestinoInputDinamico.classList.add('hidden'); // Usar el nuevo ID
+
+            // Resetear valores y estados (mantener el valor de destino si ya se ingresó)
+            direccionOrigenInputDinamico.value = ''; // Usar el nuevo ID
+            direccionOrigenInputDinamico.disabled = false; // Usar el nuevo ID
+            direccionOrigenInputDinamico.required = true; // Usar el nuevo ID
+            direccionDestinoInputDinamico.disabled = false; // Usar el nuevo ID
+            direccionDestinoInputDinamico.required = true; // Usar el nuevo ID
+
+
+            if (valor === 'si' && clienteActual?.direccion) {
+                console.log('Valor es "si" y cliente tiene dirección. Ocultando origen, mostrando destino.'); // Log de depuración
+                // Si es residencia Y hay dirección del cliente
+                camposDinamicos.classList.remove('hidden'); // Mostrar el contenedor
+
+                // origenFieldsServicioDinamico ya está oculto por el paso inicial
+
+                // Mostrar explícitamente los campos de destino
+                direccionDestinoInputDinamico.classList.remove('hidden'); // Usar el nuevo ID
+                direccionDestinoInputDinamico.disabled = false; // Usar el nuevo ID
+                direccionDestinoInputDinamico.required = true; // Usar el nuevo ID
+
+                // Pre-llenar y deshabilitar el campo de origen (aunque esté oculto)
+                direccionOrigenInputDinamico.value = clienteActual.direccion; // Usar el nuevo ID
+                direccionOrigenInputDinamico.disabled = true; // Usar el nuevo ID
+                direccionOrigenInputDinamico.required = false; // Usar el nuevo ID
+
+
+            } else if (valor === 'no') {
+                console.log('Valor es "no". Mostrando origen y destino.'); // Log de depuración
+                // Si NO es residencia
+                camposDinamicos.classList.remove('hidden'); // Mostrar el contenedor
+                // Mostrar explícitamente ambos campos de origen y destino y sus etiquetas
+                origenFieldsServicioDinamico.classList.remove('hidden'); // Usar el nuevo ID
+                direccionDestinoInputDinamico.classList.remove('hidden'); // Usar el nuevo ID
+
+                // Asegurar que el campo de origen esté vacío y habilitado
+                direccionOrigenInputDinamico.value = ''; // Usar el nuevo ID
+                direccionOrigenInputDinamico.disabled = false; // Usar el nuevo ID
+                direccionOrigenInputDinamico.required = true; // Usar el nuevo ID
+
+                // Asegurar que el campo de destino esté habilitado y requerido
+                direccionDestinoInputDinamico.disabled = false; // Usar el nuevo ID
+                direccionDestinoInputDinamico.required = true; // Usar el nuevo ID
+
+            } else { // Opción "Seleccione..."
+                 console.log('Valor es "Seleccione..." u otro. Ocultando campos dinámicos.'); // Log de depuración
+                 // camposDinamicos ya está oculto por defecto.
+                 // All individual fields are hidden/reset.
+                 direccionDestinoInputDinamico.value = ''; // Limpiar destino solo si se vuelve a "Seleccione..." // Usar el nuevo ID
+            }
+        });
+
+        // Función para renderizar la tabla de servicios
+        // Añadimos un parámetro para filtrar por estado si es necesario (e.g., 'pendiente')
+        function renderizarTablaServicios(filtroEstado = ['asignado', 'programado']) {
+            console.log(`Renderizando tabla de servicios con filtro: ${filtroEstado.join(', ')}`); // Log de depuración
+            tablaServiciosBody.innerHTML = ''; // Limpiar tabla actual
+            const serviciosFiltrados = servicios.filter(s => filtroEstado.includes(s.estado));
+
+            if (serviciosFiltrados.length === 0) {
+                mensajeNoServicios.classList.remove('hidden');
+                tablaServiciosBody.classList.add('hidden');
+                console.log('No hay servicios que coincidan con el filtro. Mostrando mensaje.'); // Log de depuración
+            } else {
+                mensajeNoServicios.classList.add('hidden');
+                tablaServiciosBody.classList.remove('hidden');
+                console.log(`Encontrados ${serviciosFiltrados.length} servicios. Llenando tabla.`); // Log de depuración
+                serviciosFiltrados.forEach(servicio => {
+                    const cliente = obtenerClientePorId(servicio.clienteId);
+                    const conductor = obtenerConductorPorId(servicio.conductorId);
+
+                    // Construir los botones de acción para la columna "Servicio"
+                    let actionButtonsHTML = '';
+                    if (servicio.estado === 'asignado') {
+                        // Si está "En Curso", mostrar Finalizar y Cancelar
+                        actionButtonsHTML += `<button class="btn-primary" data-servicio-id="${servicio.id}" data-action="finalizar">Finalizar</button>`;
+                        actionButtonsHTML += `<button class="btn-secondary" data-servicio-id="${servicio.id}" data-action="cancelar">Cancelar</button>`;
+                    } else if (servicio.estado !== 'completado' && servicio.estado !== 'cancelado') {
+                        // Si no está "En Curso" ni completado/cancelado, mostrar solo Cancelar
+                        actionButtonsHTML += `<button class="btn-secondary" data-servicio-id="${servicio.id}" data-action="cancelar">Cancelar</button>`;
+                    }
+                    // Si está 'completado' o 'cancelado', no se muestra ningún botón de acción.
+
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${cliente ? cliente.telefono : 'N/A'}</td>
+                        <td>${cliente ? cliente.nombre + ' ' + cliente.apellido : 'Cliente Desconocido'}</td>
+                        <td>${servicio.origen}</td>
+                        <td>${servicio.destino}</td>
+                        <td>$${servicio.tarifa ? servicio.tarifa.toFixed(2) : 'N/A'}</td>
+                        <td>${servicio.estado === 'pendiente' ? 'Pendiente' : (servicio.estado === 'asignado' ? 'En Curso' : 'Programado')}</td>
+                        <td>
+                            ${servicio.estado === 'pendiente' ?
+                                `<button class="btn-primary btn-asignar-en-tabla" data-servicio-id="${servicio.id}">Asignar Conductor</button>` :
+                                (conductor ? conductor.nombre : 'N/A') // Muestra el nombre del conductor si está asignado y no está pendiente
+                            }
+                        </td>
+                         <td class="action-buttons">
+                            ${actionButtonsHTML}
+                        </td>
+                    `;
+                    tablaServiciosBody.appendChild(row);
+                });
+
+                // Añadir event listeners a los nuevos botones
+                tablaServiciosBody.querySelectorAll('button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const servicioId = parseInt(e.target.getAttribute('data-servicio-id'));
+                        const action = e.target.getAttribute('data-action');
+                         console.log(`Botón de acción clickeado: Servicio ID ${servicioId}, Acción: ${action}`); // Log de depuración
+
+                        if (action === 'finalizar') {
+                            finalizarServicio(servicioId);
+                        } else if (action === 'cancelar') {
+                            cancelarServicio(servicioId);
+                        } else if (e.target.classList.contains('btn-asignar-en-tabla')) {
+                             // Este es el nuevo botón "Asignar Conductor" en la tabla de pendientes
+                             mostrarListaConductoresParaAsignar(servicioId);
+                        }
+                    });
+                });
+                 console.log('Tabla de servicios renderizada y event listeners añadidos.'); // Log de depuración
+            }
+        }
+
+        // Función para finalizar un servicio
+        function finalizarServicio(servicioId) {
+             console.log(`Intentando finalizar servicio con ID: ${servicioId}`); // Log de depuración
+            const servicioIndex = servicios.findIndex(s => s.id === servicioId);
+            if (servicioIndex !== -1) {
+                const servicio = servicios[servicioIndex];
+                if (servicio.estado === 'asignado') {
+                    actualizarServicio(servicioId, 'completado'); // Usar la nueva función actualizarServicio
+                    // Al finalizar un servicio, el conductor pasa a estar "En Turno" (estado 2) si tenía un vehículo asignado,
+                    // o "Disponible" (estado 0) si no tenía vehículo asignado (lo cual no debería pasar si inició turno correctamente).
+                    // Mantendremos el estado "En Turno" si tenía vehículo asignado, para que siga disponible para otros servicios.
+                    const conductor = obtenerConductorPorId(servicio.conductorId);
+                    if (conductor && conductor.vehiculoAsignado) {
+                         actualizarEstadoConductor(conductor.id, 2, conductor.vehiculoAsignado); // 2 = En Turno
+                         console.log(`Servicio ${servicioId} completado. Conductor ${servicio.conductorId} marcado como En Turno.`); // Log de depuración
+                         mostrarMensaje(`Servicio ${servicioId} finalizado. Conductor ${conductor.nombre} ahora está en turno y disponible.`, 'success');
+                    } else {
+                         // Caso excepcional si termina un servicio sin vehículo asignado (error de lógica previa)
+                         actualizarEstadoConductor(servicio.conductorId, 0, null); // 0 = Disponible
+                          console.warn(`Servicio ${servicioId} completado. Conductor ${servicio.conductorId} marcado como Disponible (sin vehículo asignado).`); // Log de depuración
+                          mostrarMensaje(`Servicio ${servicioId} finalizado. Conductor ${conductor.nombre} ahora está disponible.`, 'success');
+                    }
+
+
+                    // Opcional: Buscar y asignar el próximo servicio programado para este conductor
+                    // Esta lógica podría ser más compleja en un sistema real (prioridades, etc.)
+                    // Por ahora, no implementaremos la asignación automática del próximo servicio programado aquí.
+                    // La asignación se hará manualmente desde la tabla de servicios pendientes.
+
+
+                    renderizarTablaServicios(['pendiente', 'asignado']); // Actualizar la tabla mostrando pendientes y en curso
+                } else {
+                    mostrarMensaje('Este servicio no está en curso para ser finalizado.', 'danger');
+                     console.warn(`Intento de finalizar servicio ${servicioId} que no está en estado 'asignado'.`); // Log de depuración
+                }
+            } else {
+                mostrarMensaje('Error: Servicio no encontrado.', 'danger');
+                 console.error(`Error: Servicio con ID ${servicioId} no encontrado para finalizar.`); // Log de depuración
+            }
+        }
+
+        // Función para cancelar un servicio
+        function cancelarServicio(servicioId) {
+             console.log(`Intentando cancelar servicio con ID: ${servicioId}`); // Log de depuración
+             const servicioIndex = servicios.findIndex(s => s.id === servicioId);
+             if (servicioIndex !== -1) {
+                 const servicio = servicios[servicioIndex];
+                 const conductor = obtenerConductorPorId(servicio.conductorId);
+
+                 actualizarServicio(servicioId, 'cancelado'); // Usar la nueva función actualizarServicio
+                 console.log(`Servicio ${servicioId} marcado como cancelado.`); // Log de depuración
+
+
+                 // Si el conductor estaba ocupado con este servicio, liberarlo
+                 // Si estaba en estado 'asignado' (1), al cancelarlo, pasa a estar 'En Turno' (2) si tiene vehículo asignado,
+                 // o 'Disponible' (0) si no tiene vehículo asignado.
+                 // Si el servicio estaba 'pendiente', no hay conductor asignado, por lo que no se hace nada con el conductor.
+                 if (conductor && conductor.estado === 1) { // Si estaba ocupado con este servicio
+                      // Verificar si este era el único servicio 'asignado' para este conductor
+                      const serviciosAsignadosRestantes = servicios.filter(s => s.conductorId === conductor.id && s.estado === 'asignado');
+                      if (serviciosAsignadosRestantes.length === 0) {
+                           if (conductor.vehiculoAsignado) {
+                                actualizarEstadoConductor(conductor.id, 2, conductor.vehiculoAsignado); // Pasa a En Turno
+                                console.log(`Conductor ${conductor.id} pasa a estado En Turno tras cancelar servicio ${servicioId}.`); // Log
+                           } else {
+                                actualizarEstadoConductor(conductor.id, 0, null); // Pasa a Disponible
+                                console.log(`Conductor ${conductor.id} pasa a estado Disponible tras cancelar servicio ${servicioId}.`); // Log
+                           }
+                      }
+                 }
+
+
+                 mostrarMensaje(`Servicio ${servicioId} cancelado.`, 'success');
+
+                 renderizarTablaServicios(['pendiente', 'asignado']); // Actualizar la tabla mostrando pendientes y en curso
+
+             } else {
+                 mostrarMensaje('Error: Servicio no encontrado para cancelar.', 'danger');
+                  console.error(`Error: Servicio con ID ${servicioId} no encontrado para cancelar.`); // Log de depuración
+             }
+        }
+
+
+        // Evento para el botón Asignar Conductor (en el formulario de servicio) - MODIFICADO
+        asignarBtn.addEventListener('click', () => {
+             console.log('Botón "Asignar Conductor" clickeado en formulario de servicio.'); // Log de depuración
+            // Validar que se hayan ingresado las direcciones de origen y destino Y LA TARIFA
+            // Validar solo si camposDinamicos está visible
+            if (!camposDinamicos.classList.contains('hidden')) {
+                const destino = direccionDestinoInputDinamico.value.trim(); // Usar el nuevo ID
+                const tarifa = tarifaServicioInput.value.trim(); // Obtener el valor de la tarifa
+
+                if (!destino) {
+                    mostrarMensaje('Por favor, ingrese la dirección de destino.', 'danger');
+                     console.warn('Validación fallida: Dirección de destino vacía.'); // Log de depuración
+                    return;
+                }
+
+                const origen = direccionOrigenInputDinamico.value.trim(); // Usar el nuevo ID
+                // Validar origen SOLO if the origenFieldsServicioDinamico container is visible (when 'no' is selected)
+                if (!origenFieldsServicioDinamico.classList.contains('hidden') && !origen) { // Usar el nuevo ID
+                     mostrarMensaje('Por favor, ingrese la dirección de origen.', 'danger');
+                      console.warn('Validación fallida: Dirección de origen vacía (cuando no es residencia).'); // Log de depuración
+                     return;
+                }
+
+                 if (!tarifa || isNaN(parseFloat(tarifa)) || parseFloat(tarifa) < 0) {
+                     mostrarMensaje('Por favor, ingrese una tarifa válida.', 'danger');
+                     console.warn('Validación fallida: Tarifa inválida.'); // Log de depuración
+                     return;
+                 }
+
+
+            } else {
+                 mostrarMensaje('Por favor, seleccione si el cliente está en su residencia.', 'danger');
+                  console.warn('Validación fallida: Selector de residencia no seleccionado.'); // Log de depuración
+                 return;
+            }
+
+            // --- Nuevo flujo: Crear servicio pendiente y mostrar la tabla de pendientes ---
+
+            // Usar la dirección del cliente si el contenedor de origen está oculto (es residencia),
+            // de lo contrario usar el valor del input de origen.
+            const currentOrigen = origenFieldsServicioDinamico.classList.contains('hidden') ? clienteActual.direccion : direccionOrigenInputDinamico.value.trim(); // Usar el nuevo ID
+            const currentDestino = direccionDestinoInputDinamico.value.trim(); // Destino siempre del input si está visible // Usar el nuevo ID
+            const currentTarifa = tarifaServicioInput.value.trim(); // Obtener la tarifa del input
+
+            // Crear el servicio como 'pendiente'
+            const nuevoServicioPendiente = crearServicio(clienteActual.id, null, currentOrigen, currentDestino, 'pendiente', currentTarifa); // ConductorId es null inicialmente
+            console.log('Nuevo servicio creado como pendiente:', nuevoServicioPendiente); // Log de depuración
+
+            mostrarMensaje(`Servicio registrado como pendiente con tarifa $${parseFloat(currentTarifa).toFixed(2)}.`, 'success'); // Mostrar la tarifa en el mensaje
+            console.log('Mensaje de servicio pendiente mostrado.'); // Log de depuración
+
+            formularioServicio.classList.add('hidden'); // Ocultar formulario de servicio
+            console.log('Formulario de servicio oculto.'); // Log de depuración
+
+            // Mostrar la tabla de servicios (filtrando por 'pendiente')
+            serviciosActivosProgramadosDiv.classList.remove('hidden');
+            disponibleConductoresDiv.classList.add('hidden'); // Asegurarse de que la lista de conductores esté oculta
+            gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+            gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+            gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+            reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+            renderizarTablaServicios(['pendiente']); // Renderizar la tabla mostrando solo los servicios pendientes
+            console.log('Mostrando tabla de servicios pendientes.'); // Log de depuración
+
+            // El operador ahora asignará el conductor desde la tabla.
+        });
+
+        // --- Nueva función para mostrar la lista de conductores disponibles para asignar un servicio específico ---
+        function mostrarListaConductoresParaAsignar(servicioId) {
+             console.log(`Mostrando lista de conductores para asignar al servicio ID: ${servicioId}`); // Log de depuración
+             const servicio = servicios.find(s => s.id === servicioId);
+
+             if (!servicio || servicio.estado !== 'pendiente') {
+                 mostrarMensaje('Error: Servicio no encontrado o no está pendiente para asignar.', 'danger');
+                  console.error(`Error: Intento de asignar conductor a servicio ${servicioId} que no existe o no está pendiente.`); // Log de error
+                 renderizarTablaServicios(['pendiente']); // Volver a renderizar la tabla de pendientes
+                 return;
+             }
+
+             servicioPendienteParaAsignar = servicioId; // Almacenar el ID del servicio que se está asignando
+
+             const conductoresDisponiblesParaServicio = conductores.filter(c => c.estado === 0 || c.estado === 2); // Estado 0 = Disponible, 2 = En Turno
+             console.log(`Conductores disponibles para asignar: ${conductoresDisponiblesParaServicio.length}`); // Log de depuración
+
+
+             serviciosActivosProgramadosDiv.classList.add('hidden'); // Ocultar la tabla de servicios
+             disponibleConductoresDiv.classList.remove('hidden'); // Mostrar la lista de conductores
+             listaConductoresElement.classList.remove('hidden'); // Asegurarse de que la lista esté visible
+             mensajeNoConductores.classList.add('hidden'); // Ocultar mensaje de no conductores
+
+
+             if (conductoresDisponiblesParaServicio.length > 0) {
+                 // Llenar la lista con conductores disponibles para servicio (estado 0 o 2)
+                 listaConductoresElement.innerHTML = conductoresDisponiblesParaServicio
+                     .map(conductor =>
+                         `<li data-conductor-id="${conductor.id}" class="cursor-pointer p-2 hover:bg-gray-200 rounded">
+                                     ${conductor.nombre} (ID: ${conductor.id}) ${conductor.estado === 2 ? ` - Auto: ${conductor.vehiculoAsignado}` : ''}
+                             </li>`
+                     ).join('');
+                  console.log('Lista de conductores disponibles para asignar renderizada.'); // Log de depuración
+
+
+                 // Agregar evento click a cada conductor listado para asignarlo
+                 listaConductoresElement.querySelectorAll('li').forEach(li => {
+                     li.addEventListener('click', () => {
+                         console.log('Conductor seleccionado (click en LI):', li.textContent.trim()); // Log para depuración
+
+                         // Remover la clase 'selected' de todos los elementos de la lista
+                         listaConductoresElement.querySelectorAll('li').forEach(item => item.classList.remove('selected'));
+                         // Añadir la clase 'selected' al elemento clickeado
+                         li.classList.add('selected');
+
+
+                         const conductorId = parseInt(li.getAttribute('data-conductor-id'));
+                          const conductorAsignado = conductores.find(c => c.id === conductorId); // Encontrar el objeto conductor
+
+                         if (conductorAsignado && servicioPendienteParaAsignar !== null) {
+                              console.log(`Conductor ${conductorAsignado.nombre} seleccionado para servicio ID ${servicioPendienteParaAsignar}. Procediendo con la asignación.`); // Log de depuración
+
+                             // Encontrar el servicio pendiente por su ID almacenado
+                             const servicioParaActualizar = servicios.find(s => s.id === servicioPendienteParaAsignar);
+
+                             if (servicioParaActualizar) {
+                                  // Actualizar el servicio a estado 'asignado' (en curso) y asignar el conductor
+                                  actualizarServicio(servicioParaActualizar.id, 'asignado', conductorAsignado.id); // Usar la nueva función actualizarServicio
+                                  console.log('Servicio actualizado a asignado con conductor.'); // Log de depuración
+
+
+                                  // Actualizar el estado del conductor asignado a Ocupado (1)
+                                  actualizarEstadoConductor(conductorAsignado.id, 1, conductorAsignado.vehiculoAsignado); // Mantener vehículo asignado
+                                  console.log('Estado del conductor actualizado a Ocupado.'); // Log de depuración
+
+
+                                  mostrarMensaje(`Servicio ${servicioParaActualizar.id} asignado al Conductor ${conductorAsignado.nombre}.`, 'success');
+                                  console.log('Mensaje de éxito de asignación mostrado.'); // Log de depuración
+
+
+                                  disponibleConductoresDiv.classList.add('hidden'); // Ocultar la lista de conductores
+                                  console.log('Lista de conductores oculta.'); // Log de depuración
+
+                                   // Volver a mostrar la tabla de servicios (ahora mostrando pendientes y en curso)
+                                   serviciosActivosProgramadosDiv.classList.remove('hidden');
+                                   renderizarTablaServicios(['pendiente', 'asignado']);
+                                   console.log('Mostrando tabla de servicios pendientes y en curso.'); // Log de depuración
+
+
+                             } else {
+                                  mostrarMensaje('Error: No se encontró el servicio pendiente para asignar.', 'danger');
+                                   console.error(`Error: Servicio pendiente con ID ${servicioPendienteParaAsignar} no encontrado durante la asignación.`); // Log de error
+                                   // Si falla, volver a mostrar la lista de conductores (o la tabla de servicios)
+                                   disponibleConductoresDiv.classList.add('hidden');
+                                   serviciosActivosProgramadosDiv.classList.remove('hidden');
+                                   renderizarTablaServicios(['pendiente']); // Mostrar solo los pendientes
+                             }
+
+                             servicioPendienteParaAsignar = null; // Resetear el ID del servicio pendiente
+
+
+                         } else {
+                              // Esto no debería pasar si la lógica anterior es correcta, pero es un seguro.
+                              mostrarMensaje('Error al asignar conductor. Conductor no válido o servicio pendiente no seleccionado.', 'danger');
+                              console.error('Error: Conductor no válido o servicio pendiente no seleccionado durante la asignación.'); // Log de error
+                              // Si la asignación falla, ocultar la lista de conductores y volver a la tabla de servicios pendientes
+                              disponibleConductoresDiv.classList.add('hidden');
+                              serviciosActivosProgramadosDiv.classList.remove('hidden');
+                              renderizarTablaServicios(['pendiente']); // Mostrar solo los pendientes
+                              servicioPendienteParaAsignar = null; // Resetear el ID del servicio pendiente
+                         }
+                     });
+                 });
+
+             } else {
+                 // No hay conductores disponibles para servicio (estado 0 o 2)
+                 console.log('No hay conductores disponibles para asignar. Mostrando mensaje.'); // Log
+                 mensajeNoConductores.classList.remove('hidden'); // Mostrar el mensaje de no conductores
+                 listaConductoresElement.classList.add('hidden'); // Asegurarse de que la lista esté oculta
+                 // disponibleConductoresDiv ya está visible.
+             }
+        }
+
+
+        // Evento para el botón Cancelar (en el formulario de verificación)
+        cancelarBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+             console.log('Botón "Cancelar" en formulario de verificación clickeado.'); // Log de depuración
+
+            formularioServicio.classList.add('hidden');
+            disponibleConductoresDiv.classList.add('hidden');
+            serviciosActivosProgramadosDiv.classList.add('hidden'); // Ocultar la tabla de servicios
+            gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+            gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+            gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+            reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+            mensajeDiv.classList.add('hidden');
+
+            mostrarFormularioSolicitud();
+             console.log('Llamando a mostrarFormularioSolicitud() tras cancelar.'); // Log de depuración
+        });
+
+
+        // Evento de inicio de sesión del formulario principal
+        formLogin.addEventListener('submit', (event) => {
+            event.preventDefault();
+            console.log('Intento de inicio de sesión.'); // Log de depuración
+
+            const username = event.target.username.value;
+            const password = event.target.password.value;
+
+            // --- Añadidos logs para depuración ---
+            console.log('Input Username:', username);
+            console.log('Input Password:', password);
+            // --- Fin logs de depuración ---
+
+
+            const usuario = buscarUsuario(username, password);
+
+            if (usuario) {
+                mostrarMensaje(`¡Bienvenido, ${usuario.username}!`, 'success');
+                 console.log(`Inicio de sesión exitoso para usuario: ${usuario.username}, Rol: ${usuario.rol}`); // Log de depuración
+
+                formLogin.classList.add('hidden'); // Ocultar el formulario de login
+                loginMessage.classList.add('hidden');
+
+                mainMenu.classList.remove('hidden'); // Mostrar el menú principal
+
+                // Ocultar todas las demás secciones principales antes de mostrar la verificación
+                formularioServicio.classList.add('hidden');
+                disponibleConductoresDiv.classList.add('hidden');
+                serviciosActivosProgramadosDiv.classList.add('hidden');
+                gestionAutosDiv.classList.add('hidden');
+                gestionConductoresDiv.classList.add('hidden');
+                gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+                reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+                // --- Control de acceso por roles ---
+                if (usuario.rol === 'operador') {
+                    // Ocultar menú Archivo para operadores
+                    menuArchivoItem.classList.add('hidden');
+                    // Asegurar que Despacho y Reportes estén visibles (aunque por defecto lo están)
+                    menuDespachoItem.classList.remove('hidden');
+                    menuReportesItem.classList.remove('hidden');
+
+                } else if (usuario.rol === 'administrador') {
+                    // Mostrar todos los menús para administradores
+                    menuArchivoItem.classList.remove('hidden'); // *** CORRECCIÓN: Asegurar que Archivo se muestre para admin ***
+                    menuDespachoItem.classList.remove('hidden');
+                    menuReportesItem.classList.remove('hidden');
+                }
+                // El botón Salir siempre está visible, no necesita control de acceso aquí.
+                // --- Fin Control de acceso por roles ---
+
+
+                mostrarFormularioSolicitud(); // Mostrar el formulario de verificación en su estado inicial
+                 console.log('Mostrando menú principal y formulario de verificación.'); // Log de depuración
+
+            } else {
+                mostrarMensaje('Nombre de usuario o contraseña incorrectos.', 'danger');
+                 loginMessage.classList.remove('hidden');
+                 console.warn('Inicio de sesión fallido.'); // Log de depuración
+            }
+        });
+
+
+        // Eventos para los enlaces de submenú (ajustados a la nueva estructura)
+        menuRegistrarAutoLink.addEventListener('click', (event) => {
+            event.preventDefault();
+             console.log('Clic en "Registrar Auto".'); // Log de depuración
+            // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+             gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+             reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+             // Mostrar la sección de gestión de Autos (Registro/Modificación)
+             gestionAutosDiv.classList.remove('hidden');
+
+             // Resetear el formulario de autos al estado inicial de verificación por placa
+             resetFormAuto();
+
+             mostrarMensaje('Gestión de Autos.', 'info');
+        });
+
+        menuConsultarAutosLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            console.log('Clic en "Consultar Autos".'); // Log de depuración
+            // Lógica para mostrar la tabla de consulta de autos (pendiente)
+            mostrarMensaje('Opción "Consultar Autos" seleccionada.', 'info');
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+             gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+             gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+             reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+             // NOTA: Aquí iría la lógica para mostrar la tabla de consulta de autos cuando se implemente.
+        });
+
+        menuRegistrarConductorLink.addEventListener('click', (event) => {
+            event.preventDefault();
+             console.log('Clic en "Registrar Conductor".'); // Log de depuración
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+             gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+             reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+             // Mostrar la sección de gestión de Conductores (Registro/Modificación)
+             gestionConductoresDiv.classList.remove('hidden');
+
+             // Resetear el formulario de conductores al estado inicial de verificación por código
+             resetFormConductor();
+
+             mostrarMensaje('Gestión de Conductores.', 'info');
+        });
+
+        menuConsultarConductoresLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            console.log('Clic en "Consultar Conductores".'); // Log de depuración
+            // Lógica para mostrar la tabla de consulta de conductores (pendiente)
+            mostrarMensaje('Opción "Consultar Conductores" seleccionada.', 'info');
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+             gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+             gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+             reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+             // NOTA: Aquí iría la lógica para mostrar la tabla de consulta de conductores cuando se implemente.
+        });
+
+        menuTurnosLink.addEventListener('click', (event) => {
+             event.preventDefault();
+             console.log('Clic en "Turnos".'); // Log de depuración
+             mostrarGestionTurnos(); // Llamar a la nueva función para mostrar la gestión de turnos
+        });
+
+        menuDespachosEnCursoLink.addEventListener('click', (event) => {
+             event.preventDefault();
+             console.log('Clic en "Despachos en curso".'); // Log de depuración
+             // Mostrar la tabla de servicios (filtrando por 'pendiente' y 'asignado')
+             mostrarMensaje('Mostrando servicios pendientes y en curso.', 'info');
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.remove('hidden'); // Mostrar la tabla de servicios
+             gestionAutosDiv.classList.add('hidden');
+             gestionConductoresDiv.classList.add('hidden');
+             gestionTurnosDiv.classList.add('hidden');
+             reporteServiciosConductorDiv.classList.add('hidden');
+
+
+             renderizarTablaServicios(['pendiente', 'asignado']); // Renderizar la tabla mostrando pendientes y en curso
+        });
+
+        // Evento para el enlace "Reporte de Servicios por Conductor"
+        menuReporteServiciosConductorLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            console.log('Clic en "Reporte de Servicios por Conductor".'); // Log de depuración
+            mostrarReporteServiciosConductor(); // Llamar a la nueva función para mostrar la sección de reporte
+        });
+
+
+        // Función para mostrar el formulario de verificación en su estado inicial
+        function mostrarFormularioSolicitud() {
+            console.log('Ejecutando mostrarFormularioSolicitud(). Reseteando UI.'); // Log de depuración
+            console.log('Estado inicial: formVerificacion.classList:', formVerificacion.classList); // Log de estado
+            console.log('Estado inicial: disponibleConductoresDiv.classList:', disponibleConductoresDiv.classList); // Log de estado
+
+            // *** CORRECCIÓN: Asegurar que el formulario de verificación se muestre ***
+            formVerificacion.classList.remove('hidden');
+            console.log('formVerificacion.classList.remove("hidden") ejecutado.'); // Log de depuración
+
+
+            // Asegurarse de que el contenedor de botones esté visible
+            verificarModificarBtnsDiv.classList.remove('hidden');
+             console.log('verificarModificarBtnsDiv visible.'); // Log de depuración
+
+
+            clienteEdicionDiv.classList.add('hidden');
+            clienteDatosDiv.classList.add('hidden');
+            modificarBtn.classList.add('hidden');
+            solicitarTaxiBtn.classList.add('hidden'); // Ocultar Solicitar Taxi al inicio
+            cancelarBtn.classList.add('hidden');
+            registrarBtn.classList.add('hidden');
+             console.log('Campos de cliente, botones de modificar/solicitar/cancelar/registrar ocultos.'); // Log de depuración
+
+
+            disponibleConductoresDiv.classList.add('hidden');
+            formularioServicio.classList.add('hidden');
+            serviciosActivosProgramadosDiv.classList.add('hidden'); // Ocultar la tabla de servicios
+            gestionAutosDiv.classList.add('hidden'); // Ocultar gestión de autos
+            gestionConductoresDiv.classList.add('hidden'); // Ocultar gestión de conductores
+            gestionTurnosDiv.classList.add('hidden'); // Ocultar gestión de turnos
+            reporteServiciosConductorDiv.classList.add('hidden'); // Ocultar la sección de reporte
+
+
+            mensajeDiv.classList.add('hidden');
+             console.log('Mensaje oculto.'); // Log de depuración
+
+
+            formSolicitud.reset();
+            telefonoClienteInput.value = '';
+             console.log('Formulario de solicitud reseteado, campo teléfono limpiado.'); // Log de depuración
+
+
+            nombresClienteInput.value = '';
+            direccionClienteInput.value = '';
+            nombresClienteEdit.value = '';
+            direccionClienteEdit.value = '';
+             console.log('Campos de nombres/dirección limpiados.'); // Log de depuración
+
+
+            verificarBtn.classList.remove('hidden');
+            verificarBtn.disabled = true;
+             console.log('Botón Verificar visible y deshabilitado.'); // Log de depuración
+
+
+            esResidenciaSelect.value = '';
+            camposDinamicos.classList.add('hidden');
+             console.log('Selector de residencia y campos dinámicos reseteados/ocultos.'); // Log de depuración
+
+
+            // Asegurarse de que los campos de origen y destino estén visibles y habilitados por defecto para el estado inicial
+            origenFieldsServicioDinamico.classList.remove('hidden'); // Usar el nuevo ID
+            direccionDestinoInputDinamico.classList.remove('hidden'); // Usar el nuevo ID
+            direccionOrigenInputDinamico.value = ''; // Usar el nuevo ID
+            direccionOrigenInputDinamico.disabled = false; // Usar el nuevo ID
+            direccionOrigenInputDinamico.required = true; // Usar el nuevo ID
+            direccionDestinoInputDinamico.value = ''; // Limpiar destino al volver al formulario inicial // Usar el nuevo ID
+            direccionDestinoInputDinamico.disabled = false; // Usar el nuevo ID
+            direccionDestinoInputDinamico.required = true; // Usar el nuevo ID
+
+            tarifaServicioInput.value = ''; // Limpiar el campo de tarifa
+
+             console.log('Campos de origen/destino dinámicos y tarifa visibles/habilitados y limpiados.'); // Log de depuración
+
+
+            listaConductoresElement.innerHTML = '';
+            mensajeNoConductores.classList.add('hidden');
+             console.log('Lista de conductores limpiada y mensaje de no conductores oculto.'); // Log de depuración
+
+
+            clienteActual = null;
+            servicioPendienteParaAsignar = null; // Resetear el servicio pendiente
+             console.log('clienteActual y servicioPendienteParaAsignar reseteados.'); // Log de depuración
+
+            // Log de estado final
+            console.log('Final state: formVerificacion.classList:', formVerificacion.classList); // Log de estado
+            console.log('Final state: disponibleConductoresDiv.classList:', disponibleConductoresDiv.classList); // Log de estado
+             console.log('mostrarFormularioSolicitud() completado. UI debería mostrar formulario de verificación.'); // Log de depuración
+        }
+
+        // --- Funciones y lógica para Gestión de Autos (Registro/Modificación) ---
+
+        // Función para resetear el formulario de Auto al estado inicial (only placa)
+        function resetFormAuto() {
+             formAuto.reset();
+             placaAutoInput.value = '';
+             autoFieldsDiv.classList.add('hidden'); // Ocultar campos de marca, modelo, tipo
+             registrarAutoBtn.classList.add('hidden'); // Ocultar botón Registrar
+             modificarAutoBtn.classList.add('hidden'); // Ocultar botón Modificar
+             cancelarAutoBtn.classList.add('hidden'); // Ocultar botón Cancelar
+             verificarPlacaBtn.classList.remove('hidden'); // Asegurar que Verificar Placa esté visible
+             verificarPlacaBtn.disabled = true; // Deshabilitar hasta que se ingrese placa
+             autoActual = null; // Resetear auto actual
+             mensajeDiv.classList.add('hidden'); // Ocultar mensajes
+        }
+
+        // Validar placa en tiempo real y habilitar/deshabilitar botón Verificar Placa
+        placaAutoInput.addEventListener('input', () => {
+             const placa = placaAutoInput.value.trim();
+             verificarPlacaBtn.disabled = placa.length === 0;
+
+             // Si la placa se vacía, resetear el formulario de auto
+             if (placa.length === 0) {
+                 resetFormAuto();
+             } else {
+                  // Asegurarse de que solo Verificar Placa esté visible si hay texto en el input
+                  autoFieldsDiv.classList.add('hidden');
+                  registrarAutoBtn.classList.add('hidden');
+                  modificarAutoBtn.classList.add('hidden');
+                  cancelarAutoBtn.classList.add('hidden');
+                  verificarPlacaBtn.classList.remove('hidden');
+             }
+        });
+
+        // Verificar auto al presionar Enter en el campo de placa
+        placaAutoInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' && !verificarPlacaBtn.disabled) {
+                event.preventDefault();
+                verificarPlacaBtn.click();
+            }
+        });
+
+
+        // Evento para el botón Verificar Placa
+        verificarPlacaBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+
+            const placa = placaAutoInput.value.trim();
+            if (placa.length === 0) {
+                mostrarMensaje('Por favor, ingrese el número de placa.', 'danger');
+                return;
+            }
+
+            const auto = buscarAutoPorPlaca(placa);
+
+            // Ocultar el botón Verificar Placa
+            verificarPlacaBtn.classList.add('hidden');
+            // Mostrar siempre los campos de auto después de verificar
+            autoFieldsDiv.classList.remove('hidden');
+
+
+            if (auto) {
+                // Auto encontrado
+                autoActual = { ...auto };
+
+                // Llenar los campos con los datos del auto existente
+                marcaAutoInput.value = auto.marca;
+                modeloAutoInput.value = auto.modelo;
+                tipoAutoSelect.value = auto.tipo;
+
+                // Mostrar botones para auto existente
+                modificarAutoBtn.classList.remove('hidden'); // Mostrar Modificar Auto
+                cancelarAutoBtn.classList.remove('hidden'); // Mostrar Cancelar
+                registrarAutoBtn.classList.add('hidden'); // Ocultar Registrar Auto (no se registra si ya existe)
+
+                mostrarMensaje(`Auto con placa ${auto.placa} encontrado.`, 'success');
+
+            } else {
+               // Auto NO encontrado
+               autoActual = null; // Asegurar que no haya auto actual
+
+               // Limpiar los campos de auto (ya están vacíos si se usó input listener, pero seguridad)
+               marcaAutoInput.value = '';
+               modeloAutoInput.value = '';
+               tipoAutoSelect.value = '';
+
+               // Mostrar botones para auto NUEVO
+               modificarAutoBtn.classList.add('hidden'); // Ocultar Modificar Auto
+               cancelarAutoBtn.classList.remove('hidden'); // Mostrar Cancelar
+               registrarAutoBtn.classList.remove('hidden'); // Mostrar Registrar Auto
+
+               mostrarMensaje(`Auto con placa ${placa} no encontrado. Complete los campos para registrarlo.`, 'danger');
+            }
+        });
+
+        // Evento para el botón Registrar Auto
+        registrarAutoBtn.addEventListener('click', () => {
+             const placa = placaAutoInput.value.trim();
+             const marca = marcaAutoInput.value.trim();
+             const modelo = modeloAutoInput.value.trim();
+             const tipo = tipoAutoSelect.value;
+
+             // Validar que se hayan llenado los campos necesarios para registrar
+             if (!placa || !marca || !modelo || !tipo) {
+                 mostrarMensaje('Por favor complete todos los campos para registrar el auto.', 'danger');
+                 return;
+             }
+
+             // Verificar si la placa ya existe (doble chequeo por si acaso)
+             if (buscarAutoPorPlaca(placa)) {
+                 mostrarMensaje(`Error: Ya existe un auto registrado con la placa ${placa}.`, 'danger');
+                 verificarPlacaBtn.click(); // Simular clic para cargar datos existentes
+                 return;
+             }
+
+             // Registrar el nuevo auto
+             const nuevoAuto = registrarAuto(placa, marca, modelo, tipo);
+             autoActual = nuevoAuto; // Actualizar autoActual con el nuevo auto
+
+             mostrarMensaje(`Auto con placa ${autoActual.placa} registrado correctamente.`, 'success');
+
+             // Después de registrar, ¿qué sucede? Volver al estado inicial de gestión de autos
+             resetFormAuto();
+
+             // Opcional: Podrías redirigir a la pantalla de consulta de autos si existiera
+             // menuConsultarAutosLink.click(); // Simular clic en consultar
+
+         });
+
+         // Evento para el botón Modificar Auto
+         modificarAutoBtn.addEventListener('click', () => {
+             if (!autoActual) {
+                 mostrarMensaje('Error: No hay auto seleccionado para modificar.', 'danger');
+                 return;
+             }
+
+             const marca = marcaAutoInput.value.trim();
+             const modelo = modeloAutoInput.value.trim();
+             const tipo = tipoAutoSelect.value;
+
+             // Validar que se hayan llenado los campos para modificar
+             if (!marca || !modelo || !tipo) {
+                 mostrarMensaje('Por favor complete todos los campos para modificar el auto.', 'danger');
+                 return;
+             }
+
+             // Actualizar el auto en el array simulado
+             const autoActualizado = actualizarAuto(autoActual.id, marca, modelo, tipo);
+
+             if (autoActualizado) {
+                 autoActual = autoActualizado; // Actualizar autoActual
+                 mostrarMensaje(`Datos del auto con placa ${autoActual.placa} actualizados correctamente.`, 'success');
+                 // Después de modificar, volver al estado inicial de gestión de autos
+                 resetFormAuto();
+             } else {
+                 mostrarMensaje('Error al actualizar los datos del auto.', 'danger');
+             }
+
+         });
+
+         // Evento para el botón Cancelar (en el formulario de auto)
+         cancelarAutoBtn.addEventListener('click', () => {
+             resetFormAuto(); // Vuelve al estado inicial de verificación por placa
+         });
+
+         // --- Funciones y lógica para Gestión de Conductores ---
+
+         // Validar código de conductor en tiempo real y habilitar/deshabilitar botón Verificar Conductor
+         codigoConductorInput.addEventListener('input', () => {
+             const codigo = codigoConductorInput.value.trim();
+             verificarConductorBtn.disabled = codigo.length === 0;
+
+             // Si el código se vacía, resetear el formulario de conductor
+             if (codigo.length === 0) {
+                 resetFormConductor();
+             } else {
+                  // Asegurarse de que solo Verificar Conductor esté visible si hay texto en el input
+                  conductorFieldsDiv.classList.add('hidden');
+                  registrarConductorBtn.classList.add('hidden');
+                  modificarConductorBtn.classList.add('hidden');
+                  cancelarConductorBtn.classList.add('hidden');
+                  verificarConductorBtn.classList.remove('hidden');
+             }
+         });
+
+         // Verificar conductor al presionar Enter en el campo de código
+         codigoConductorInput.addEventListener('keypress', (event) => {
+             if (event.key === 'Enter' && !verificarConductorBtn.disabled) {
+                 event.preventDefault();
+                 verificarConductorBtn.click();
+             }
+         });
+
+         // Evento para el botón Verificar Conductor
+         verificarConductorBtn.addEventListener('click', (event) => {
+             event.preventDefault();
+
+             const codigo = codigoConductorInput.value.trim();
+             if (codigo.length === 0) {
+                 mostrarMensaje('Por favor, ingrese el código del conductor.', 'danger');
+                 return;
+             }
+
+             const conductor = buscarConductorPorCodigo(codigo);
+
+             // Ocultar el botón Verificar Conductor
+             verificarConductorBtn.classList.add('hidden');
+             // Mostrar siempre los campos de conductor después de verificar
+             conductorFieldsDiv.classList.remove('hidden');
+
+             if (conductor) {
+                 // Conductor encontrado
+                 conductorActual = { ...conductor };
+
+                 // Llenar los campos con los datos del conductor existente
+                 nombresConductorInput.value = conductor.nombre;
+                 telefonoConductorInput.value = conductor.telefono;
+
+                 // Mostrar botones para conductor existente
+                 modificarConductorBtn.classList.remove('hidden'); // Mostrar Modificar Conductor
+                 cancelarConductorBtn.classList.remove('hidden'); // Mostrar Cancelar
+                 registrarConductorBtn.classList.add('hidden'); // Ocultar Registrar Conductor
+
+                 mostrarMensaje(`Conductor con código ${conductor.codigo} encontrado.`, 'success');
+
+             } else {
+                 // Conductor NO encontrado
+                 conductorActual = null; // Asegurar que no haya conductor actual
+
+                 // Limpiar los campos de conductor
+                 nombresConductorInput.value = '';
+                 telefonoConductorInput.value = '';
+
+                 // Mostrar botones para conductor NUEVO
+                 modificarConductorBtn.classList.add('hidden'); // Ocultar Modificar Conductor
+                 cancelarConductorBtn.classList.remove('hidden'); // Mostrar Cancelar
+                 registrarConductorBtn.classList.remove('hidden'); // Mostrar Registrar Conductor
+
+                 mostrarMensaje(`Conductor con código ${codigo} no encontrado. Complete los campos para registrarlo.`, 'danger');
+             }
+         });
+
+         // Evento para el botón Registrar Conductor
+         registrarConductorBtn.addEventListener('click', () => {
+             const codigo = codigoConductorInput.value.trim();
+             const nombres = nombresConductorInput.value.trim();
+             const telefono = telefonoConductorInput.value.trim();
+
+             // Validar campos
+             if (!codigo || !nombres || !telefono) {
+                 mostrarMensaje('Por favor complete todos los campos para registrar el conductor.', 'danger');
+                 return;
+             }
+
+             // Verificar si el código ya existe
+             if (buscarConductorPorCodigo(codigo)) {
+                 mostrarMensaje(`Error: Ya existe un conductor registrado con el código ${codigo}.`, 'danger');
+                 verificarConductorBtn.click(); // Simular clic para cargar datos existentes
+                 return;
+             }
+
+             // Registrar nuevo conductor
+             const nuevoConductor = registrarConductor(codigo, nombres, telefono);
+             conductorActual = nuevoConductor;
+
+             mostrarMensaje(`Conductor ${conductorActual.nombre} registrado correctamente con código ${conductorActual.codigo}.`, 'success');
+
+             // Después de registrar, volver al estado inicial de gestión de conductores
+             resetFormConductor();
+         });
+
+         // Evento para el botón Modificar Conductor
+         modificarConductorBtn.addEventListener('click', () => {
+             if (!conductorActual) {
+                 mostrarMensaje('Error: No hay conductor seleccionado para modificar.', 'danger');
+                 return;
+             }
+
+             const nombres = nombresConductorInput.value.trim();
+             const telefono = telefonoConductorInput.value.trim();
+
+             // Validar campos
+             if (!nombres || !telefono) {
+                 mostrarMensaje('Por favor complete todos los campos para modificar el conductor.', 'danger');
+                 return;
+             }
+
+             // Actualizar conductor
+             const conductorActualizado = actualizarConductor(conductorActual.id, nombres, telefono);
+
+             if (conductorActualizado) {
+                 conductorActual = conductorActualizado;
+                 mostrarMensaje(`Datos del conductor con código ${conductorActual.codigo} actualizados correctamente.`, 'success');
+                 // Después de modificar, volver al estado inicial
+                 resetFormConductor();
+             } else {
+                 mostrarMensaje('Error al actualizar los datos del conductor.', 'danger');
+             }
+         });
+
+         // Evento para el botón Cancelar (en el formulario de conductor)
+         cancelarConductorBtn.addEventListener('click', () => {
+             resetFormConductor(); // Vuelve al estado inicial de verificación por código
+         });
+
+         // --- Funciones y lógica para Gestión de Turnos ---
+
+         // Función para mostrar la sección de gestión de turnos
+         function mostrarGestionTurnos() {
+             console.log('Mostrando gestión de turnos.'); // Log de depuración
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionAutosDiv.classList.add('hidden');
+             gestionConductoresDiv.classList.add('hidden');
+             reporteServiciosConductorDiv.classList.add('hidden');
+
+
+             // Mostrar la sección de gestión de turnos
+             gestionTurnosDiv.classList.remove('hidden');
+
+             // Resetear los formularios de turno
+             resetFormIniciarTurno();
+             cargarConductoresEnTurno(); // Cargar la lista de conductores en turno para finalizar
+         }
+
+         // Función para resetear el formulario de Iniciar Turno
+         function resetFormIniciarTurno() {
+             formIniciarTurno.reset();
+             codigoConductorTurnoInicioInput.value = '';
+             placaAutoTurnoInicioInput.value = '';
+         }
+
+         // Función para cargar el selector de conductores en turno para Finalizar Turno
+         function cargarConductoresEnTurno() {
+             console.log('Cargando conductores en turno para finalizar.'); // Log de depuración
+             const conductoresEnTurno = obtenerConductoresPorEstado(2); // Estado 2 = En Turno
+             conductorTurnoFinSelect.innerHTML = '<option value="">Seleccione un conductor en turno...</option>'; // Resetear opciones
+
+             if (conductoresEnTurno.length > 0) {
+                 mensajeNoConductoresEnTurno.classList.add('hidden');
+                 conductorTurnoFinSelect.disabled = false;
+                 conductoresEnTurno.forEach(conductor => {
+                     const option = document.createElement('option');
+                     option.value = conductor.id; // Usamos el ID del conductor como valor
+                     option.textContent = `${conductor.nombre} (Código: ${conductor.codigo}, Placa: ${conductor.vehiculoAsignado})`;
+                     conductorTurnoFinSelect.appendChild(option);
+                 });
+                  console.log(`Cargados ${conductoresEnTurno.length} conductores en turno.`); // Log de depuración
+             } else {
+                 mensajeNoConductoresEnTurno.classList.remove('hidden');
+                 conductorTurnoFinSelect.disabled = true;
+                  console.log('No hay conductores en turno para cargar.'); // Log de depuración
+             }
+         }
+
+
+         // Evento para el formulario de Iniciar Turno
+         formIniciarTurno.addEventListener('submit', (event) => {
+             event.preventDefault();
+             console.log('Intentando iniciar turno.'); // Log de depuración
+
+             const codigoConductor = codigoConductorTurnoInicioInput.value.trim().toUpperCase();
+             const placaAuto = placaAutoTurnoInicioInput.value.trim().toUpperCase();
+
+             const conductor = buscarConductorPorCodigo(codigoConductor);
+             const auto = buscarAutoPorPlaca(placaAuto);
+
+             // Validaciones
+             if (!conductor) {
+                 mostrarMensaje(`Error: Conductor con código ${codigoConductor} no encontrado.`, 'danger');
+                 console.warn(`Inicio de turno fallido: Conductor ${codigoConductor} no encontrado.`); // Log de depuración
+                 return;
+             }
+
+             if (auto) { // Verificar si el auto existe
+                 // Auto encontrado, continuar con la verificación del estado del conductor y la asignación del auto
+             } else {
+                 mostrarMensaje(`Error: Auto con placa ${placaAuto} no encontrado.`, 'danger');
+                  console.warn(`Inicio de turno fallido: Auto ${placaAuto} no encontrado.`); // Log de depuración
+                 return;
+             }
+
+
+             if (conductor.estado !== 0) { // Estado 0 = Disponible
+                 mostrarMensaje(`Error: El conductor ${conductor.nombre} no está disponible para iniciar turno (Estado actual: ${conductor.estado === 1 ? 'Ocupado' : 'En Turno'}).`, 'danger');
+                  console.warn(`Inicio de turno fallido: Conductor ${codigoConductor} no disponible (Estado: ${conductor.estado}).`); // Log de depuración
+                 return;
+             }
+
+             // Verificar si el auto ya está asignado a otro conductor
+             const autoAsignadoA = conductores.find(c => c.vehiculoAsignado === placaAuto);
+             if (autoAsignadoA) {
+                 mostrarMensaje(`Error: El auto con placa ${placaAuto} ya está asignado al conductor ${autoAsignadoA.nombre} (Código: ${autoAsignadoA.codigo}).`, 'danger');
+                  console.warn(`Inicio de turno fallido: Auto ${placaAuto} ya asignado a conductor ${autoAsignadoA.codigo}.`); // Log de depuración
+                 return;
+             }
+
+
+             // Iniciar Turno
+             actualizarEstadoConductor(conductor.id, 2, placaAuto); // Estado 2 = En Turno, asignar vehículo
+             mostrarMensaje(`Turno iniciado para el conductor ${conductor.nombre} con el auto ${placaAuto}.`, 'success');
+             console.log(`Turno iniciado: Conductor ${conductor.codigo} con Auto ${placaAuto}.`); // Log de depuración
+
+
+             resetFormIniciarTurno(); // Limpiar el formulario de inicio
+             cargarConductoresEnTurno(); // Actualizar la lista de conductores en turno
+
+
+         });
+
+         // Evento para el formulario de Finalizar Turno
+         formFinalizarTurno.addEventListener('submit', (event) => {
+             event.preventDefault();
+             console.log('Intentando finalizar turno.'); // Log de depuración
+
+             const conductorId = parseInt(conductorTurnoFinSelect.value);
+
+             if (!conductorId) {
+                 mostrarMensaje('Por favor, seleccione un conductor para finalizar el turno.', 'danger');
+                  console.warn('Fin de turno fallido: No se seleccionó conductor.'); // Log de depuración
+                 return;
+             }
+
+             const conductor = obtenerConductorPorId(conductorId);
+
+             // Validaciones
+             if (!conductor) {
+                 mostrarMensaje('Error: Conductor seleccionado no encontrado.', 'danger');
+                 console.error(`Fin de turno fallido: Conductor con ID ${conductorId} no encontrado.`); // Log de error
+                 return;
+             }
+
+             if (conductor.estado !== 2) { // Estado 2 = En Turno
+                 mostrarMensaje(`Error: El conductor ${conductor.nombre} no está en turno para finalizar. (Estado actual: ${conductor.estado === 0 ? 'Disponible' : 'Ocupado'}).`, 'danger');
+                 console.warn(`Fin de turno fallido: Conductor ${conductor.codigo} no está en estado En Turno (Estado: ${conductor.estado}).`); // Log de depuración
+                 return;
+             }
+
+             // Finalizar Turno
+             actualizarEstadoConductor(conductor.id, 0, null); // Estado 0 = Disponible, desasignar vehículo
+             mostrarMensaje(`Turno finalizado para el conductor ${conductor.nombre}.`, 'success');
+             console.log(`Turno finalizado: Conductor ${conductor.codigo}.`); // Log de depuración
+
+
+             formFinalizarTurno.reset(); // Limpiar el formulario de fin
+             cargarConductoresEnTurno(); // Actualizar la lista de conductores en turno
+
+
+         });
+
+         // --- Funciones y lógica para Reporte de Servicios por Conductor ---
+
+         // Función para mostrar la sección de reporte
+         function mostrarReporteServiciosConductor() {
+             console.log('Mostrando sección de reporte de servicios por conductor.'); // Log de depuración
+             // Ocultar todas las demás secciones principales
+             formVerificacion.classList.add('hidden');
+             formularioServicio.classList.add('hidden');
+             disponibleConductoresDiv.classList.add('hidden');
+             serviciosActivosProgramadosDiv.classList.add('hidden');
+             gestionAutosDiv.classList.add('hidden');
+             gestionConductoresDiv.classList.add('hidden');
+             gestionTurnosDiv.classList.add('hidden');
+
+             // Mostrar la sección de reporte
+             reporteServiciosConductorDiv.classList.remove('hidden');
+
+             // Resetear el formulario de fechas y ocultar resultados
+             formReporteFechas.reset();
+             reporteResultadosDiv.classList.add('hidden');
+             tablaReporteConductoresBody.innerHTML = ''; // Limpiar tabla de reporte
+             mensajeNoServiciosReporte.classList.add('hidden');
+             mensajeDiv.classList.add('hidden'); // Ocultar mensajes generales
+
+             console.log('Sección de reporte mostrada y reseteada.'); // Log de depuración
+         }
+
+         // Evento para el formulario de Generar Reporte (Reporte de Servicios por Conductor)
+         formReporteFechas.addEventListener('submit', (event) => {
+             event.preventDefault();
+             console.log('Intentando generar reporte.'); // Log de depuración
+
+             const fechaInicioStr = fechaInicioReporteInput.value;
+             const fechaFinStr = fechaFinReporteInput.value;
+
+             if (!fechaInicioStr || !fechaFinStr) {
+                 mostrarMensaje('Por favor, seleccione ambas fechas para generar el reporte.', 'danger');
+                 console.warn('Generación de reporte fallida: Fechas no seleccionadas.'); // Log de depuración
+                 return;
+             }
+
+             // Convertir fechas a objetos Date (ajustando para que la fecha fin incluya todo el día)
+             const fechaInicio = new Date(fechaInicioStr);
+             const fechaFin = new Date(fechaFinStr);
+             // Ajustar fechaFin para incluir hasta el final del día seleccionado
+             fechaFin.setHours(23, 59, 59, 999);
+
+             console.log(`Filtrando servicios entre ${fechaInicio.toISOString()} y ${fechaFin.toISOString()}`); // Log de depuración
+
+
+             // Filtrar servicios completados dentro del rango de fechas
+             const serviciosFiltrados = servicios.filter(servicio => {
+                 const fechaServicio = new Date(servicio.fechaHora);
+                 return servicio.estado === 'completado' &&
+                        fechaServicio >= fechaInicio &&
+                        fechaServicio <= fechaFin;
+             });
+
+             console.log(`Se encontraron ${serviciosFiltrados.length} servicios finalizados en el rango.`); // Log de depuración
+
+
+             // Agrupar servicios por conductor y calcular totales
+             const reportePorConductor = serviciosFiltrados.reduce((acc, servicio) => {
+                 const conductorId = servicio.conductorId;
+                 if (!acc[conductorId]) {
+                     acc[conductorId] = {
+                         conductorId: conductorId,
+                         serviciosCount: 0,
+                         totalTarifa: 0
+                     };
+                 }
+                 acc[conductorId].serviciosCount++;
+                 acc[conductorId].totalTarifa += servicio.tarifa;
+                 return acc;
+             }, {});
+
+             console.log('Reporte agrupado por conductor:', reportePorConductor); // Log de depuración
+
+
+             // Renderizar la tabla de reporte
+             tablaReporteConductoresBody.innerHTML = ''; // Limpiar tabla actual
+
+             const conductoresConReporte = Object.values(reportePorConductor);
+
+             if (conductoresConReporte.length === 0) {
+                 mensajeNoServiciosReporte.classList.remove('hidden');
+                 tablaReporteConductoresBody.classList.add('hidden');
+                 reporteResultadosDiv.classList.remove('hidden'); // Mostrar la sección de resultados aunque esté vacía
+                 mostrarMensaje('No se encontraron servicios finalizados en el rango de fechas seleccionado.', 'info');
+                 console.log('No hay conductores con servicios finalizados en el rango. Mostrando mensaje.'); // Log de depuración
+             } else {
+                 mensajeNoServiciosReporte.classList.add('hidden');
+                 tablaReporteConductoresBody.classList.remove('hidden');
+                 reporteResultadosDiv.classList.remove('hidden'); // Mostrar la sección de resultados
+                 console.log(`Generando tabla para ${conductoresConReporte.length} conductores.`); // Log de depuración
+
+
+                 conductoresConReporte.forEach(item => {
+                     const conductor = obtenerConductorPorId(item.conductorId);
+                     if (conductor) {
+                         const row = document.createElement('tr');
+                         row.innerHTML = `
+                             <td>${conductor.codigo}</td>
+                             <td>${conductor.nombre}</td>
+                             <td>${item.serviciosCount}</td>
+                             <td>$${item.totalTarifa.toFixed(2)}</td>
+                         `;
+                         tablaReporteConductoresBody.appendChild(row);
+                     }
+                 });
+                 mostrarMensaje('Reporte generado correctamente.', 'success');
+                 console.log('Tabla de reporte renderizada.'); // Log de depuración
+             }
+         });
+
+         // Evento para el botón Guardar PDF (placeholder)
+         guardarPdfReporteBtn.addEventListener('click', () => {
+             // Implementación real de guardar PDF requiere librerías como jsPDF o html2canvas
+             // En este entorno simple, mostraremos un mensaje.
+             mostrarMensaje('La funcionalidad de "Guardar PDF" requiere librerías adicionales y no está implementada en este ejemplo simple.', 'info');
+             console.log('Botón "Guardar PDF" clickeado (funcionalidad no implementada).'); // Log de depuración
+         });
+
+         // Evento para el botón Imprimir (placeholder)
+         imprimirReporteBtn.addEventListener('click', () => {
+             // La impresión básica se puede hacer con window.print(), pero puede no formatear la tabla correctamente.
+             // Para una impresión formateada, se necesitarían estilos CSS específicos para impresión o librerías.
+             mostrarMensaje('La funcionalidad de "Imprimir" realizará una impresión básica de la página actual.', 'info');
+             console.log('Botón "Imprimir" clickeado.'); // Log de depuración
+             window.print(); // Intenta imprimir la página actual
+         });
+
+
+        // Inicializar la aplicación cuando el DOM esté completamente cargado
+        document.addEventListener('DOMContentLoaded', () => {
+            reiniciarSistema(); // Empieza mostrando solo el formulario de login
+        });
+
+    </script>
+</body>
+</html>

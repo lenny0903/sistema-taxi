@@ -1,5 +1,9 @@
-import eventlet
-eventlet.monkey_patch()  # ¡PRIMERÍSIMA LÍNEA ACTIVA! Nada de Flask puede ir arriba de esto
+import sys
+
+# 1. Condicionamos eventlet para que no rompa el contexto de consola al migrar
+if 'db' not in sys.argv:
+    import eventlet
+    eventlet.monkey_patch()
 
 import os
 import shutil
@@ -21,16 +25,23 @@ from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
+#from models.operacion_pendiente import OperacionPendiente
 import routes
 import config
 from tasks.scheduler import iniciar_scheduler
+
 MONTO_CUOTA_SEMANAL = 40000
 
-socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
+# 2. Inicializamos SocketIO de manera segura según el comando ejecutado
+if 'db' not in sys.argv:
+    socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
+else:
+    socketio = SocketIO(cors_allowed_origins="*")
+
 scheduler = APScheduler() # Instancia global
+
 def ejecutar_respaldo_automatico():
     base_path = os.getcwd()
-    # 🛠️ CAMBIO AQUÍ: Eliminamos 'instance' de la ruta
     ruta_db = os.path.join(base_path, 'taxis.db') 
     carpeta_backups = os.path.join(base_path, 'backups_automaticos')
     
@@ -41,7 +52,6 @@ def ejecutar_respaldo_automatico():
     ruta_destino = os.path.join(carpeta_backups, nombre_backup)
     
     try:
-        # Verificamos si el archivo realmente existe antes de copiar
         if os.path.exists(ruta_db):
             shutil.copy2(ruta_db, ruta_destino)
             print(f"✅ [BACKUP] Respaldo generado con éxito: {nombre_backup}")
@@ -53,30 +63,28 @@ def ejecutar_respaldo_automatico():
 
 def gestionar_almacenamiento_backups(carpeta):
     backups = sorted([os.path.join(carpeta, f) for f in os.listdir(carpeta)], key=os.path.getmtime)
-    while len(backups) > 24: # Guardamos solo un día completo (24 horas)
+    while len(backups) > 24: 
         os.remove(backups.pop(0))
 
 def create_app():
-   # 1. PRIMERO: Crea la aplicación
+    # 1. PRIMERO: Crea la aplicación
     app = Flask(__name__)
     
     # 2. DESPUÉS: Ya puedes usar 'app' para configurar
     app.config.from_object('config')
     
-    # 3. Blindaje de seguridad (Sobrescribe solo lo necesario)
+    # 3. Blindaje de seguridad
     LLAVE_FIJA = "taxis_tachira_2026_fija_pro" 
     app.config['SECRET_KEY'] = LLAVE_FIJA
     app.config['JWT_SECRET_KEY'] = LLAVE_FIJA
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-    # ---------------------------------------------------
 
     app.config['DEBUG'] = config.DEBUG
     print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
     migrate = Migrate(app, db, render_as_batch=True)
     app.migrate = migrate
-    # ELIMINA O COMENTA ESTA LÍNEA (Genera conflicto con la de arriba)
-    # app.secret_key = "clave_super_secreta_unica"   
+
     from routes.telegram_bot import telegram_bp
     app.register_blueprint(telegram_bp, url_prefix="/telegram")
     socketio.init_app(app)
@@ -88,19 +96,21 @@ def create_app():
         import models
         from models.lista_espera import ListaEspera
         from models.cola_notificaciones import ColaNotificaciones
+        #from models.operacion_pendiente import OperacionPendiente
         db.create_all()
-         # 🔹 Activar WAL mode en cada conexión SQLite
+        
         @event.listens_for(db.engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL;")
             cursor.close()
-         # Verificación opcional
+
         result = db.session.execute(text("PRAGMA journal_mode;")).scalar() 
         print(" Journal mode actual:", result)
 
-    # 🔹 Inicializar el scheduler con app y socketio (fuera del app_context)
-    iniciar_scheduler(app, socketio)
+    # 🔹 Inicializar el scheduler condicionado (Evita fallos al correr migraciones)
+    if 'db' not in sys.argv:
+        iniciar_scheduler(app, socketio)
 
     # Registrar blueprints...
     from routes.auth import auth_bp
@@ -119,14 +129,9 @@ def create_app():
     from routes.reservas import reservas_bp
     from routes.views import views_bp
     from routes.puntos_espera import puntos_bp
-    #from routes.lista_espera_multiple import lista_espera_multiple_bp
     from routes.cola_despachos import cola_despachos_bp
     from routes.registrar_pagos import pagos_bp
     from routes.incidencias import incidencias_bp
-    from routes.registrar_pagos import pagos_bp
-    
-    
-    
     
     app.register_blueprint(init_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -144,7 +149,6 @@ def create_app():
     app.register_blueprint(views_bp)
     app.register_blueprint(reservas_bp)
     app.register_blueprint(puntos_bp)
-    #app.register_blueprint(lista_espera_multiple_bp, url_prefix="/lista_espera_multiple")
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
     app.register_blueprint(incidencias_bp, url_prefix="/incidencias")
@@ -153,22 +157,18 @@ def create_app():
 
     @app.route("/")
     def home():
-        # Entrada oficial: siempre carga index.html
         return render_template("index.html")
 
     @app.route("/index.html")
     def index_html():
-        # Alias opcional, también carga index.html
         return render_template("index.html")
 
     @app.route("/login")
     def login_redirect():
-        # Si alguien entra a /login, lo mandamos al login oficial
         return redirect(url_for("home"))
 
     @app.route("/panel.html")
     def panel_html():
-        # Obtenemos las tarifas y las convertimos a una lista de diccionarios
         tarifas = MatrizTarifa.query.all()
         destinos_lista = [
             {
@@ -177,36 +177,25 @@ def create_app():
                 "municipio": t.municipio
             } for t in tarifas
         ]
-    
-        # Pasamos la lista procesada al template
         return render_template("dashboard.html", destinos=destinos_lista)
+
     def configurar_webhook():
         import requests
         TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
-        URL_PUBLICA = "https://responsible-brought-flashers-commons.trycloudflare.com" # Ejemplo: https://taxis.tu-dominio.com
+        URL_PUBLICA = "https://responsible-brought-flashers-commons.trycloudflare.com"
         url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={URL_PUBLICA}/telegram/webhook"
         requests.get(url)     
     
-    scheduler.init_app(app)
-    
-    # 2. Programar la tarea
-    # Se recomienda usar 'replace_existing=True' por si reinicias la app
-    scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
-    
-    # 3. Iniciar
-    scheduler.start()
-    
-    print("🚀 Servidor y Scheduler iniciados en modo Producción...")#app.register_blueprint(views_bp)
+    # 🔹 Condicionar la ejecución del scheduler interno para que ignore los comandos 'db'
+    if 'db' not in sys.argv:
+        scheduler.init_app(app)
+        scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
+        scheduler.start()
+        print("🚀 Servidor y Scheduler iniciados en modo Producción...")
 
     return app
 
-
 if __name__ == "__main__":
     app = create_app()
-    
-    # IMPORTANTE: No fuerces debug=True aquí. 
-    # Deja que el archivo 'config.py' decida si es producción o desarrollo.
-    # El socketio.run leerá la configuración de la app.
-    
     print(f"🚀 Servidor iniciado. Debug activado: {app.config['DEBUG']}")
     socketio.run(app, host="0.0.0.0", port=5000)

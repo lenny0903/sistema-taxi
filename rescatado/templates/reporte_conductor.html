@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte de Conductores</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-4">📊 Reporte de Conductores</h1>
+    <table class="min-w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border border-gray-300 px-4 py-2 text-left">Conductor</th>
+          <th class="border border-gray-300 px-4 py-2 text-center">Total Servicios</th>
+          <th class="border border-gray-300 px-4 py-2 text-center">Total Tarifas</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-conductores">
+        <!-- Aquí se insertarán las filas dinámicamente -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // Llamada al endpoint del backend
+    fetch("/reportes/conductor")
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById("tabla-conductores");
+        tbody.innerHTML = "";
+        data.forEach(item => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-gray-100">
+              <td class="border border-gray-300 px-4 py-2">${item.conductor}</td>
+              <td class="border border-gray-300 px-4 py-2 text-center">${item.total_servicios}</td>
+              <td class="border border-gray-300 px-4 py-2 text-center">${item.total_tarifas}</td>
+            </tr>
+          `;
+        });
+      })
+      .catch(error => {
+        console.error("Error cargando el reporte:", error);
+      });
+  </script>
+</body>
+</html>
+

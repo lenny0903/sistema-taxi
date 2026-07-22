@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Panel Administrador</h2>
+<h3>Despachos</h3>
+<table class="table table-striped">
+  <thead>
+    <tr><th>ID</th><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th><th>Acción</th></tr>
+  </thead>
+  <tbody>
+    {% for d in despachos %}
+    <tr>
+      <td>{{ d.id_despacho }}</td>
+      <td>{{ d.origen }}</td>
+      <td>{{ d.destino }}</td>
+      <td>{{ d.tarifa }}</td>
+      <td>{{ d.estado }}</td>
+      <td>
+        <form method="post" action="/despachos/eliminar_html/{{ d.id_despacho }}">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

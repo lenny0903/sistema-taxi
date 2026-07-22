@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Panel Operador</h2>
+<form method="post" action="/despachos/crear_html">
+  <div class="mb-3">
+    <label for="origen" class="form-label">Origen</label>
+    <input type="text" class="form-control" id="origen" name="origen" required>
+  </div>
+  <div class="mb-3">
+    <label for="destino" class="form-label">Destino</label>
+    <input type="text" class="form-control" id="destino" name="destino" required>
+  </div>
+  <div class="mb-3">
+    <label for="tarifa" class="form-label">Tarifa</label>
+    <input type="number" class="form-control" id="tarifa" name="tarifa" required>
+  </div>
+  <button type="submit" class="btn btn-success">Crear despacho</button>
+</form>
+
+<h3 class="mt-4">Despachos activos</h3>
+<table class="table table-striped">
+  <thead>
+    <tr><th>ID</th><th>Origen</th><th>Destino</th><th>Tarifa</th><th>Estado</th></tr>
+  </thead>
+  <tbody>
+    {% for d in despachos %}
+    <tr>
+      <td>{{ d.id_despacho }}</td>
+      <td>{{ d.origen }}</td>
+      <td>{{ d.destino }}</td>
+      <td>{{ d.tarifa }}</td>
+      <td>{{ d.estado }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

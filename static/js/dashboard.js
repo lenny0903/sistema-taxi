@@ -2099,20 +2099,8 @@ function refrescarTodo() {
         cargarAutosDisponiblesSelect();
     }
 }
-// --- ESCUCHA PROFESIONAL DE TELEGRAM ---
-// Si ya tienes 'const socket = io();' arriba en el archivo, no lo dupliques.
-// Si no lo tienes, asegúrate de añadirlo al inicio del archivo.
-
-// 🛡️ Aseguramos que usamos la instancia global que definimos en el HTML
-(function() {
-    const socket = window.socket; // Referencia al socket global
-
-    if (socket) {
-        socket.on('turno_finalizado', (data) => {
-            console.log("🔔 Aviso desde Telegram: Turno finalizado por", data.conductor);
-            refrescarTodo(); 
-        });
-    } else {
-        console.error("⚠️ El socket no está inicializado, verifica el orden de carga.");
-    }
-})();
+// Escuchar cuando se finaliza un turno desde cualquier lado (Telegram o el mapa)
+window.socket.on('turno_finalizado', function(data) {
+    console.log("⚡ Evento 'turno_finalizado' recibido en el panel:", data);
+    refrescarTodo(); // Dispara tu función global para actualizar todas las tablas
+});

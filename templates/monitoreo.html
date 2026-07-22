@@ -126,10 +126,17 @@
                                 marcadores[c.codigo] = L.marker(coords, { icon: iconoSeleccionado })
                                     .addTo(map)
                                     .bindTooltip(c.codigo, { permanent: true, direction: 'top' });
+                                console.log(`📍 Creado marcador para ${c.codigo} en [${coords}]`);
                             } else {
-                                // Solo actualizamos posición e icono (si cambió la precisión)
+                                // Actualizamos posición de forma forzada
                                 marcadores[c.codigo].setLatLng(coords);
                                 marcadores[c.codigo].setIcon(iconoSeleccionado);
+                                
+                                // Forzamos a que el mapa redibuje la capa si es necesario
+                                if (map.hasLayer(marcadores[c.codigo])) {
+                                    marcadores[c.codigo].update();
+                                }
+                                console.log(`🔄 Movido marcador de ${c.codigo} a [${coords}]`);
                             }
                         } else {
                             // ¡CRÍTICO! Sin Ubicación

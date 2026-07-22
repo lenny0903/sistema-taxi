@@ -220,6 +220,25 @@ def finalizar_desde_mapa(conductor_id):
     if not turno:
         return jsonify({"error": "Turno no encontrado"}), 404
     
-    # Llamamos a tu función existente, pasando el ID del turno que acabamos de encontrar
-    # Nota: Tu función original espera turno_id
-    return finalizar_turno(turno.id_turno, es_bot=False)        
+    # 1. Ejecutamos la función y guardamos el resultado
+    respuesta = finalizar_turno(turno.id_turno, es_bot=False)
+    
+   # 2. Emitimos el aviso por SocketIO al panel de operadores
+    try:
+        from models.conductores import Conductor
+        from flask import current_app
+        
+        conductor = Conductor.query.get(conductor_id)
+        if conductor:
+            print("🚀 Emitiendo evento 'turno_finalizado' al navegador desde el mapa...")
+            # Si guardaste socketio en extensions o en la app, lo buscamos de forma segura:
+            # Opción A: Buscándolo en las extensiones de la app actual
+            # (O si tienes el socketio importado de forma global en otro archivo de configuración, dime cuál es)
+            
+            # Intentemos emitir usando el manejador global si lo tienes accesible, o a través de current_app:
+            current_app.extensions['socketio'].emit('turno_finalizado', {'conductor': conductor.nombre})
+    except Exception as e:
+        print(f"⚠️ Error emitiendo socket desde mapa: {e}")
+        
+    # 3. Retornamos la respuesta original
+    return respuesta

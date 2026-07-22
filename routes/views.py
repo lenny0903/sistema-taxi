@@ -93,9 +93,8 @@ from app import db # Asegúrate de importar tu objeto db
 
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
-    # Filtramos solo aquellos que tienen estado activo Y además tienen latitud/longitud
     sql = text("""
-        SELECT codigo, estado, latitud, longitud, id, ultima_actualizacion 
+        SELECT codigo, estado, latitud, longitud, id, ultima_actualizacion, horizontal_accuracy 
         FROM conductores 
         WHERE estado = 'activo' 
         AND latitud IS NOT NULL 
@@ -110,8 +109,45 @@ def obtener_ubicaciones_activas():
             "estado": row.estado,
             "latitud": row.latitud,
             "longitud": row.longitud,
-            "modo": "gps", # Si pasó el filtro de arriba, es porque tiene GPS activo
+            "modo": "gps",
+            "horizontal_accuracy": row.horizontal_accuracy, # <--- ¡Agrega esto!
             "ultima_actualizacion": str(row.ultima_actualizacion),
             "id_conductor": row.id
         })
     return jsonify(lista_conductores)
+
+from flask import request, jsonify
+from sqlalchemy import text
+# Asegúrate de importar tu objeto db y el blueprint correspondiente
+
+@views_bp.route("/api/recibir_gps", methods=["POST"])
+def recibir_gps():
+    datos = request.json
+    if not datos:
+        return jsonify({"status": "error", "message": "No se recibieron datos"}), 400
+
+    codigo = datos.get("codigo")  # Ejemplo: "B50"
+    lat = datos.get("latitud")
+    lon = datos.get("longitud")
+    
+    if not codigo or lat is None or lon is None:
+        return jsonify({"status": "error", "message": "Faltan parámetros"}), 400
+
+    try:
+        # Actualiza la posición en tu base de datos SQLite / PostgreSQL
+        sql = text("""
+            UPDATE unidades 
+            SET latitud = :lat, longitud = :lon, estado = 'activo'
+            WHERE codigo = :codigo
+        """)
+        db.session.execute(sql, {"lat": lat, "lon": lon, "codigo": codigo})
+        db.session.commit()
+        
+        return jsonify({"status": "ok", "message": "Ubicación actualizada"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@views_bp.route("/conductor/<codigo>")
+def vista_conductor(codigo):
+    return render_template("conductor.html", codigo=codigo)        

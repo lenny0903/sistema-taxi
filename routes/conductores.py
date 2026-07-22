@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from app import MONTO_CUOTA_SEMANAL
 from extensions import db
 from models.conductores import Conductor
@@ -343,14 +343,17 @@ def actualizar_ubicacion():
         lat = float(lat)
         lon = float(lon)
         
-        # Validación básica de coordenadas reales en Venezuela (ejemplo)
-        # Táchira está aprox entre 7.0 y 8.5 de latitud, -71.5 y -72.5 de longitud
+        # Validación básica de coordenadas reales
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-             return jsonify({"error": "Coordenadas fuera de rango"}), 400
+             return jsonify({"error": "Coordinadas fuera de rango"}), 400
              
         conductor.latitud = lat
         conductor.longitud = lon
         db.session.commit()
+        
+        # 👇 ¡ESTO ES LO QUE FALTABA! Retornar éxito al finalizar el try
+        return jsonify({"status": "éxito", "mensaje": "Ubicación actualizada correctamente"}), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500
@@ -418,3 +421,7 @@ def habilitar_conductor(id_conductor):
     conductor.estado = "disponible" 
     db.session.commit()
     return jsonify({"status": "éxito", "mensaje": "Conductor activado"}), 200
+
+@conductores_bp.route("/conductor/<codigo>")
+def vista_conductor(codigo):
+    return render_template("conductor.html", codigo=codigo)

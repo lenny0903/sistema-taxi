@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Unidad - {{ codigo }}</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px 20px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; width: 100%; }
+        h2 { color: #333; }
+        #estado { font-weight: bold; color: #007bff; margin: 20px 0; }
+        button { background: #28a745; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; }
+        button.detener { background: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Unidad: <span id="lblCodigo">{{ codigo }}</span></h2>
+        <div id="estado">Transmisión detenida</div>
+        <button id="btnToggle" onclick="toggleGPS()">Iniciar Transmisión GPS</button>
+    </div>
+
+    <script>
+        let watchId = null;
+        const codigoUnidad = document.getElementById("lblCodigo").innerText;
+        const btnToggle = document.getElementById("btnToggle");
+        const divEstado = document.getElementById("estado");
+
+        let transmitiendo = false;
+
+        function toggleGPS() {
+            if (!transmitiendo) {
+                if ("geolocation" in navigator) {
+                    divEstado.innerText = "Obteniendo señal GPS...";
+                    // Usamos watchPosition para rastreo continuo pero optimizado por el navegador
+                    watchId = navigator.geolocation.watchPosition(enviarCoordenadas, gestionarError, {
+                        enableHighAccuracy: true,
+                        maximumAge: 10000,
+                        timeout: 20000
+                    });
+                    transmitiendo = true;
+                    btnToggle.innerText = "Detener Transmisión";
+                    btnToggle.className = "detener";
+                    divEstado.innerText = "Transmitiendo ubicación en vivo...";
+                } else {
+                    alert("Tu navegador no soporta geolocalización.");
+                }
+            } else {
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                transmitiendo = false;
+                btnToggle.innerText = "Iniciar Transmisión GPS";
+                btnToggle.className = "";
+                divEstado.innerText = "Transmisión detenida";
+            }
+        }
+
+        function enviarCoordenadas(position) {
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+
+            // Envío por fetch (HTTP POST ligero a Flask)
+           fetch('/conductores/actualizar_ubicacion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: codigoUnidad, latitud: lat, longitud: lon })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let hora = new Date().toLocaleTimeString();
+                divEstado.innerText = `Última actualización: ${hora}`;
+            })
+            .catch(error => {
+                console.error("Error al enviar coordenadas:", error);
+                divEstado.innerText = "Error de red al enviar datos";
+            });
+        }
+
+        function gestionarError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    divEstado.innerText = "Permiso de GPS denegado.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    divEstado.innerText = "Información de GPS no disponible.";
+                    break;
+                case error.TIMEOUT:
+                    divEstado.innerText = "Tiempo de espera agotado para el GPS.";
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

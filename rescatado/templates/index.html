@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Gestión de Taxis</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+        <h1 class="text-2xl font-bold mb-6 text-center">Iniciar Sesión</h1>
+        
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label for="usuario" class="block text-sm font-medium text-gray-700">Usuario</label>
+                <input type="text" id="usuario" name="usuario" required
+                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="clave" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                <input type="password" id="clave" name="clave" required
+                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <button type="submit"
+                    class="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700">
+                Entrar
+            </button>
+        </form>
+
+        <p id="loginError" class="mt-4 text-red-600 text-sm hidden">Credenciales inválidas</p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const usuario = document.getElementById('usuario').value.trim();
+            const clave = document.getElementById('clave').value.trim();
+
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuario, password: clave })
+
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    // Guardar token y rol en localStorage
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('rol', data.rol_nombre);
+                    localStorage.setItem('rolDescripcion', data.rol_descripcion);
+
+                    // Redirigir a la interfaz principal
+                    window.location.href = '/panel.html';
+                } else {
+                    document.getElementById('loginError').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Error en login:', err);
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        });
+    </script>
+
+</body>
+</html>
