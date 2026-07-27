@@ -1,38 +1,41 @@
 import sys
+import io
 
-# 1. Condicionamos eventlet para que no rompa el contexto de consola al migrar
+# 0. Forzar UTF-8 absoluto antes de cualquier otra cosa (vital para Windows y NSSM)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# 1. Aplicar el parche de eventlet de forma limpia al inicio absoluto
 if 'db' not in sys.argv:
     import eventlet
     eventlet.monkey_patch()
 
+# 2. Resto de importaciones
 import os
 import shutil
 import sqlite3
 from datetime import datetime, timedelta
 
-# Ahora sí, imports de Flask y extensiones de forma segura
 from flask import Flask, jsonify, render_template, url_for, redirect, request, send_from_directory
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_apscheduler import APScheduler
 from flask_socketio import SocketIO
-from sqlalchemy import event, text 
+from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
-# Imports de base de datos y modelos locales
 from extensions import db
 from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
-#from models.operacion_pendiente import OperacionPendiente
 import routes
 import config
 from tasks.scheduler import iniciar_scheduler
 
 MONTO_CUOTA_SEMANAL = 40000
 
-# 2. Inicializamos SocketIO de manera segura según el comando ejecutado
+# Inicializamos SocketIO de manera segura según el comando ejecutado
 if 'db' not in sys.argv:
     socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
 else:
@@ -42,7 +45,7 @@ scheduler = APScheduler() # Instancia global
 
 def ejecutar_respaldo_automatico():
     base_path = os.getcwd()
-    ruta_db = os.path.join(base_path, 'taxis.db') 
+    ruta_db = os.path.join(base_path, 'taxis.db')
     carpeta_backups = os.path.join(base_path, 'backups_automaticos')
     
     if not os.path.exists(carpeta_backups):
@@ -54,33 +57,30 @@ def ejecutar_respaldo_automatico():
     try:
         if os.path.exists(ruta_db):
             shutil.copy2(ruta_db, ruta_destino)
-            print(f"✅ [BACKUP] Respaldo generado con éxito: {nombre_backup}")
+            print(f"[OK] [BACKUP] Respaldo generado con éxito: {nombre_backup}")
             gestionar_almacenamiento_backups(carpeta_backups)
         else:
-            print(f"⚠️ [ERROR] No se encontró la DB en: {ruta_db}")
+            print(f"[ALERTA] [ERROR] No se encontró la DB en: {ruta_db}")
     except Exception as e:
-        print(f"❌ [ERROR BACKUP] Fallo técnico: {e}")
+        print(f"[ERROR] [ERROR BACKUP] Fallo técnico: {e}")
 
 def gestionar_almacenamiento_backups(carpeta):
     backups = sorted([os.path.join(carpeta, f) for f in os.listdir(carpeta)], key=os.path.getmtime)
-    while len(backups) > 24: 
+    while len(backups) > 24:
         os.remove(backups.pop(0))
 
 def create_app():
-    # 1. PRIMERO: Crea la aplicación
     app = Flask(__name__)
     
-    # 2. DESPUÉS: Ya puedes usar 'app' para configurar
     app.config.from_object('config')
     
-    # 3. Blindaje de seguridad
-    LLAVE_FIJA = "taxis_tachira_2026_fija_pro" 
+    LLAVE_FIJA = "taxis_tachira_2026_fija_pro"
     app.config['SECRET_KEY'] = LLAVE_FIJA
     app.config['JWT_SECRET_KEY'] = LLAVE_FIJA
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
     app.config['DEBUG'] = config.DEBUG
-    print(" Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
+    print("Base conectada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
     migrate = Migrate(app, db, render_as_batch=True)
     app.migrate = migrate
@@ -91,12 +91,11 @@ def create_app():
     db.init_app(app)
     jwt = JWTManager(app)
     app.extensions['jwt'] = jwt
-   
+    
     with app.app_context():
         import models
         from models.lista_espera import ListaEspera
         from models.cola_notificaciones import ColaNotificaciones
-        #from models.operacion_pendiente import OperacionPendiente
         db.create_all()
         
         @event.listens_for(db.engine, "connect")
@@ -105,14 +104,13 @@ def create_app():
             cursor.execute("PRAGMA journal_mode=WAL;")
             cursor.close()
 
-        result = db.session.execute(text("PRAGMA journal_mode;")).scalar() 
-        print(" Journal mode actual:", result)
+        result = db.session.execute(text("PRAGMA journal_mode;")).scalar()
+        print("Journal mode actual:", result)
 
-    # 🔹 Inicializar el scheduler condicionado (Evita fallos al correr migraciones)
     if 'db' not in sys.argv:
         iniciar_scheduler(app, socketio)
 
-    # Registrar blueprints...
+    # Registrar blueprints
     from routes.auth import auth_bp
     from routes.usuarios import usuarios_bp
     from routes.roles import roles_bp
@@ -152,8 +150,6 @@ def create_app():
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
     app.register_blueprint(incidencias_bp, url_prefix="/incidencias")
-    
-    print(app.url_map)
 
     @app.route("/")
     def home():
@@ -179,23 +175,32 @@ def create_app():
         ]
         return render_template("dashboard.html", destinos=destinos_lista)
 
+    @app.route('/configurar_webhook')
     def configurar_webhook():
+        url_tunel = request.args.get('url')
+        if not url_tunel:
+            return "Falta la URL del túnel", 400
+            
         import requests
         TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
-        URL_PUBLICA = "https://responsible-brought-flashers-commons.trycloudflare.com"
-        url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={URL_PUBLICA}/telegram/webhook"
-        requests.get(url)     
-    
-    # 🔹 Condicionar la ejecución del scheduler interno para que ignore los comandos 'db'
+        url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
+        try:
+            respuesta = requests.get(url)
+            print("[BOT] [TELEGRAM] Webhook configurado:", respuesta.json())
+            return f"Webhook configurado con éxito a: {url_tunel}/telegram/webhook", 200
+        except Exception as e:
+            print("[ERROR] [TELEGRAM] No se pudo configurar el webhook:", e)
+            return f"Error al configurar: {e}", 500
+
     if 'db' not in sys.argv:
         scheduler.init_app(app)
         scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
         scheduler.start()
-        print("🚀 Servidor y Scheduler iniciados en modo Producción...")
+        print("[SISTEMA] Servidor y Scheduler iniciados en modo Producción...")
 
     return app
 
 if __name__ == "__main__":
     app = create_app()
-    print(f"🚀 Servidor iniciado. Debug activado: {app.config['DEBUG']}")
-    socketio.run(app, host="0.0.0.0", port=5000)
+    print("[SERVIDOR] Servidor iniciado con WebSockets (Eventlet)...")
+    socketio.run(app, host="0.0.0.0", port=5000, debug=app.config['DEBUG'])

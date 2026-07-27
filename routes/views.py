@@ -96,7 +96,7 @@ def obtener_ubicaciones_activas():
     sql = text("""
         SELECT codigo, estado, latitud, longitud, id, ultima_actualizacion, horizontal_accuracy 
         FROM conductores 
-        WHERE estado = 'activo' 
+        WHERE estado IN ('activo', 'en curso') 
         AND latitud IS NOT NULL 
         AND longitud IS NOT NULL
     """)

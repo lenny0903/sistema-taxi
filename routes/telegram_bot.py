@@ -47,8 +47,8 @@ def webhook():
             # 1. Verificamos SIEMPRE si realmente hay un turno activo
             turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
             
-            # 2. Solo guardamos si el estado es 'activo' Y existe un turno real en la base de datos
-            if conductor and conductor.estado == "activo" and turno_activo:
+            # 2. Solo guardamos si el estado es 'activo' o 'en curso' Y existe un turno real
+            if conductor and conductor.estado in ("activo", "en curso") and turno_activo:
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
                 conductor.ultima_actualizacion = datetime.utcnow()
@@ -56,10 +56,8 @@ def webhook():
                 print(f"✅ Ubicación guardada para {conductor.codigo}")
                 return jsonify({"status": "loc_actualizada"}), 200
             
-            # 3. Si no hay turno activo, ignoramos (y opcionalmente avisamos)
+            # 3. Si no cumple, se ignora silenciosamente (sin spamear al conductor)
             else:
-                # Comentamos o eliminamos el enviar_mensaje aquí si es demasiado molesto
-                # El conductor sigue enviando ubicación, así que no queremos bombardearlo con mensajes
                 return jsonify({"status": "ignorado_sin_turno"}), 200
         # 2. PROCESAMIENTO DE TEXTO
         elif 'text' in msg:
@@ -197,7 +195,7 @@ def enviar_menu_botones(chat_id):
         'reply_markup': json.dumps(teclado) 
     }
     
-    requests.post(url, json=payload)
+    requests.post(url, data=payload)
 
 def limpiar_teclado_conductor(chat_id):
     TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"

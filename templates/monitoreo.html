@@ -111,7 +111,7 @@
                             </tr>`);
                     } 
                     // B) Si está ACTIVO
-                    else if (c.estado === 'activo') {
+                    else if (c.estado === 'activo' || c.estado === 'en curso') {
                         const tieneUbicacion = c.latitud !== null && c.longitud !== null;
                         
                         if (tieneUbicacion) {

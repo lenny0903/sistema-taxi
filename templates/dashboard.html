@@ -60,74 +60,75 @@
 
   <!-- Layout principal -->
   <div class="flex">
-    <!-- Menú lateral -->
-   <nav class="w-64 bg-white shadow-md h-screen p-4">
-      <ul class="space-y-2">
+   <!-- Menú lateral -->
+    <nav class="w-64 bg-white shadow-md h-screen flex flex-col justify-between p-3">
+      <ul class="space-y-1 overflow-y-auto flex-grow pr-1">
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('conductores')" class="w-full text-left">Conductores(F7)</button>
+          <button onclick="mostrarSeccion('conductores')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Conductores(F7)</button>
         </li>
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('autos')" class="w-full text-left">Autos(F4)</button>
+          <button onclick="mostrarSeccion('autos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Autos(F4)</button>
         </li>
         
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('pagos')" class="w-full text-left font-semibold text-blue-700">
+          <button onclick="mostrarSeccion('pagos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-semibold text-blue-700">
             Pagos Semanales(F8)
           </button>
         </li>
 
         <li>
-          <button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left">Turnos Activos(F3)</button>
+          <button onclick="mostrarSeccion('turnosActivos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Turnos Activos(F3)</button>
         </li>
         <li>
-          <button onclick="mostrarSeccion('despachos')" class="w-full text-left">Crear Despacho(F1)</button>
+          <button onclick="mostrarSeccion('despachos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Crear Despacho(F1)</button>
         </li>
         <li>
-          <button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left">Despachos Activos(F2)</button>
+          <button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Despachos Activos(F2)</button>
         </li>
         <li>
-          <button onclick="mostrarSeccion('reportes')" class="w-full text-left">Reportes</button>
+          <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
         </li>
         <li>
-          <button onclick="generarRespaldo()" class="w-full text-left">Respaldo</button>
+          <button onclick="generarRespaldo()" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Respaldo</button>
         </li>
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('usuarios')" class="w-full text-left">Usuarios</button>
+          <button onclick="mostrarSeccion('usuarios')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Usuarios</button>
         </li>
         <li class="menu-admin">
-          <button class="w-full text-left" onclick="abrirModalCambio()">Cambiar contraseña</button>
+          <button class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100" onclick="abrirModalCambio()">Cambiar contraseña</button>
         </li>
         <li>
-          <button type="button" data-bs-toggle="modal" data-bs-target="#modalCalculadoraBs" class="w-full text-left text-blue-600 font-medium hover:text-blue-800">
+          <button type="button" data-bs-toggle="modal" data-bs-target="#modalCalculadoraBs" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-blue-600 font-medium">
             🧮 Conversor COP a VES
           </button>
         </li>
         <li class="menu-admin">
-            <a class="nav-link" href="{{ url_for('views.panel_admin') }}">
+            <a class="nav-link block py-1.5 px-2 rounded hover:bg-gray-100" href="{{ url_for('views.panel_admin') }}">
                 <i class="fas fa-money-bill-wave"></i> 
                 <span>Gestionar Tarifas</span>
             </a>
         </li>
-        <li class="mt-auto border-t border-gray-700 bg-gray-800 p-4">
-            <div class="flex items-center justify-between">
-                <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    🤖 API: AUTOMÁTICA
-                </span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
-                    <div id="bgGlobalWhatsApp" class="w-9 h-5 bg-green-600 rounded-full transition-colors relative">
-                        <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3.5 w-3.5 transition-transform translate-x-4"></div>
-                    </div>
-                </label>
-            </div>
-        </li>
         <li class="menu-admin">
-          <button onclick="abrirMonitoreo()" class="w-full text-left font-bold text-red-600 hover:text-red-800">
+          <button onclick="abrirMonitoreo()" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-bold text-red-600">
             📡 Monitoreo en Tiempo Real (F9)
           </button>
         </li>
       </ul>
       
+      <!-- Bloque inferior de WhatsApp fijo -->
+      <div class="border-t border-gray-200 bg-gray-50 p-2.5 rounded mt-2">
+          <div class="flex items-center justify-between">
+              <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  🤖 API: AUTOMÁTICA
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
+                  <div id="bgGlobalWhatsApp" class="w-8 h-4 bg-green-600 rounded-full transition-colors relative">
+                      <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3 w-3 transition-transform translate-x-4"></div>
+                  </div>
+              </label>
+          </div>
+      </div>
     </nav>
 
     
@@ -1294,9 +1295,12 @@ async function cargarConductoresEnTurnoCrear() {
                 Array.isArray(data) && data.length > 0
                   ? data.map((t, index) => {
                     // 1. Calculamos si la última actualización fue hace más de 15 minutos (ejemplo)
-                    const ultimaActualizacion = new Date(t.conductor.ultima_actualizacion);
-                    const hace15Minutos = new Date(Date.now() - 15 * 60 * 1000);
-                    const estaDesconectado = ultimaActualizacion < hace15Minutos;
+                     // 1. Calculamos si la última actualización fue hace más de 15 minutos (ejemplo)
+                    // DESPUÉS (forma robusta basada en milisegundos UTC / Epoch):
+                    const fechaActualizacion = new Date(t.conductor.ultima_actualizacion).getTime(); 
+                    const tiempoActual = Date.now(); 
+                    const quinceMinutosEnMs = 15 * 60 * 1000; 
+                    const estaDesconectado = (tiempoActual - fechaActualizacion) > quinceMinutosEnMs;
                     
                     // 2. Definimos estilos de alerta
                     const filaClase = estaDesconectado ? "bg-red-50" : "";

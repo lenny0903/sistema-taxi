@@ -176,6 +176,7 @@ def listar_turnos_activos():
             "inicio": t.inicio.isoformat() if t.inicio else None,
             "fin": t.fin.isoformat() if t.fin else None
         })
+        resultado = [t.to_dict() for t in turnos]
     return jsonify(resultado), 200
 
 @turnos_bp.route("/", methods=["GET"])

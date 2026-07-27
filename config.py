@@ -28,7 +28,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 # --------------------------------------------------------
 
 SECRET_KEY = os.getenv("SECRET_KEY", "clave-secreta-demo")
-DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
 FLASK_ENV = os.getenv("FLASK_ENV", "production") 
 

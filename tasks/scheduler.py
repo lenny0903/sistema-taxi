@@ -24,7 +24,7 @@ def iniciar_scheduler(app, socketio):
     if not scheduler.running:
         scheduler.start()
         
-    print("🚀 [SISTEMA] Scheduler activo.")
+    print("\U0001f680 [SISTEMA] Scheduler activo.")
 
 def job_verificar_reservas():
     if _app is None:
