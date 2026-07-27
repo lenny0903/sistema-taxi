@@ -1827,8 +1827,21 @@ async function cargarDespachosActivos() {
     } catch (err) {
         console.error("❌ Fallo de validación:", err.message);
         
-        // Limpiar mensaje de error para el operador
-        let msg = err.message.includes("Error") ? err.message.split(": ").pop() : err.message;
+        let msg = err.message;
+        
+        // Si el mensaje contiene un JSON en texto, intentamos extraer la propiedad 'error' limpia
+        try {
+            const parsed = JSON.parse(msg);
+            if (parsed.error) msg = parsed.error;
+        } catch (e) {
+            // Si no es un JSON, limpiamos texto plano
+            if (msg.includes("Error")) {
+                msg = msg.split(": ").pop();
+            }
+        }
+        
+        // Eliminamos cualquier llave sobrante por seguridad
+        msg = msg.replace(/[{}]/g, "").trim();
         
         mostrarToast("📍 ATENCIÓN: " + msg, "error");
     }

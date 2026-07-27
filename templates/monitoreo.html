@@ -178,18 +178,31 @@
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         }
-        function darDeBaja(idConductor) {
+        async function darDeBaja(idConductor) {
             if (confirm("¿Estás seguro de finalizar la jornada?")) {
-                // Debes crear o usar una ruta que reciba el id_conductor y ejecute 
-                // la misma lógica que tu función finalizar_turno.
-                fetch(`/turnos/finalizar_desde_mapa/${idConductor}`, { 
-                    method: 'POST' 
-                })
-                .then(res => {
-                    if (res.ok) {
-                        actualizarMapa(); // Esto refrescará y, como pusiste latitud=None, desaparecerá
+                try {
+                    // Nota: Si tu ruta del backend espera un ID de turno o un id_conductor, 
+                    // asegúrate de apuntar a la ruta correcta que maneje la validación.
+                    const res = await fetch(`/turnos/finalizar_desde_mapa/${idConductor}`, { 
+                        method: 'POST' 
+                    });
+                    
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        // Aquí atrapamos el error 400 del backend (ej: "tiene un despacho en curso")
+                        const errorMsg = data.error || "No se pudo finalizar la jornada";
+                        mostrarToast("📍 ATENCIÓN: " + errorMsg, "error");
+                        return;
                     }
-                });
+
+                    mostrarToast("✅ Jornada finalizada con éxito.");
+                    actualizarMapa(); 
+
+                } catch (e) {
+                    console.error("Error de red:", e);
+                    mostrarToast("❌ Error al conectar con el servidor.", "error");
+                }
             }
         }
 
