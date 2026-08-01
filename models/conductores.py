@@ -14,7 +14,7 @@ class Conductor(db.Model):
     # Nuevos campos para geolocalización
     latitud = db.Column(db.Float, nullable=True)
     longitud = db.Column(db.Float, nullable=True)
-    ultima_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ultima_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __repr__(self):
         return f"<Conductor {self.nombre} ({self.codigo})>"
