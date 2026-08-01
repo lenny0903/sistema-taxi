@@ -333,7 +333,7 @@ def actualizar_ubicacion():
     lat = data.get('latitud')
     lon = data.get('longitud')
 
-    # Buscamos al conductor por su código único
+    # Buscamos al conductor por su código único o ID
     conductor = Conductor.query.filter(
         (Conductor.codigo == codigo) | (Conductor.id_conductor == codigo)
     ).first()
@@ -341,25 +341,36 @@ def actualizar_ubicacion():
     if not conductor:
         return jsonify({"error": f"Conductor con código {codigo} no encontrado"}), 404
 
+    # 🛑 BLINDAJE: Verificar si el conductor tiene un turno en estado 'activo'
+    # Ajusta 'Turno' y 'conductor_id' según el nombre exacto de tu modelo de Turnos
+    turno_activo = Turno.query.filter_by(
+        conductor_id=conductor.id_conductor, 
+        estado='activo'
+    ).first()
+
+    if not turno_activo:
+        return jsonify({
+            "status": "ignorado", 
+            "mensaje": "Ubicación rechazada: El conductor no tiene un turno activo"
+        }), 400
+
     try:
         lat = float(lat)
         lon = float(lon)
         
         # Validación básica de coordenadas reales
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-             return jsonify({"error": "Coordinadas fuera de rango"}), 400
+             return jsonify({"error": "Coordenadas fuera de rango"}), 400
              
         conductor.latitud = lat
         conductor.longitud = lon
         db.session.commit()
         
-        # 👇 ¡ESTO ES LO QUE FALTABA! Retornar éxito al finalizar el try
         return jsonify({"status": "éxito", "mensaje": "Ubicación actualizada correctamente"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500
-    
+        return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500    
 
 @conductores_bp.route('/conductores/en_espera', methods=['GET'])
 def listar_conductores_espera():
