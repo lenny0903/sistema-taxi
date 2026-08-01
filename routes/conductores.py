@@ -334,7 +334,9 @@ def actualizar_ubicacion():
     lon = data.get('longitud')
 
     # Buscamos al conductor por su código único
-    conductor = Conductor.query.filter_by(codigo=codigo).first()
+    conductor = Conductor.query.filter(
+        (Conductor.codigo == codigo) | (Conductor.id_conductor == codigo)
+    ).first()
 
     if not conductor:
         return jsonify({"error": f"Conductor con código {codigo} no encontrado"}), 404
@@ -389,30 +391,21 @@ def obtener_ubicaciones():
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])
     ).all()
     
-    limite_fresco = datetime.utcnow() - timedelta(minutes=3)
     resultado = []
     
     for c in conductores:
-        # Verificamos si la coordenada es fresca
-        ultima_act = c.ultima_actualizacion
-        es_reciente = ultima_act and ultima_act > limite_fresco
-        
-        # Determinamos si debe ser tratado como 'gps' o 'manual'
-        es_manual = not (es_reciente and c.latitud is not None and c.longitud is not None)
-        
         resultado.append({
             "id_conductor": c.id_conductor,
             "codigo": c.codigo,
             "nombre": c.nombre,
-            "latitud": c.latitud if not es_manual else None,
-            "longitud": c.longitud if not es_manual else None,
+            "latitud": c.latitud,       # Directo de la BD sin restricciones de tiempo
+            "longitud": c.longitud,     # Directo de la BD sin restricciones de tiempo
             "estado": c.estado,
-            "modo": "manual" if es_manual else "gps", # <--- EL CAMBIO CLAVE
-            "ultima_actualizacion": ultima_act.isoformat() if ultima_act else None
+            "modo": "gps" if c.latitud is not None else "manual",
+            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
         })
     
-    return jsonify(resultado)
-    
+    return jsonify(resultado)    
     
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):

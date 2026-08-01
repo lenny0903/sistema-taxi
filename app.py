@@ -194,7 +194,13 @@ def create_app():
 
     if 'db' not in sys.argv:
         scheduler.init_app(app)
-        scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
+        scheduler.add_job(
+            id='Backup_Cada_12_Horas', 
+            func=ejecutar_respaldo_automatico, 
+            trigger='interval', 
+            hours=12, 
+            replace_existing=True
+        )
         scheduler.start()
         print("[SISTEMA] Servidor y Scheduler iniciados en modo Producción...")
 

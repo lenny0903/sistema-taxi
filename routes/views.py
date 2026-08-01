@@ -79,15 +79,11 @@ def pagina_mapa():
 
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
-    # 🔑 CONSULTA ACTUALIZADA: Solo muestra en el mapa a los conductores 
-    # que tienen un turno activo creado desde la central web.
     sql = text("""
-        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id, c.ultima_actualizacion, c.horizontal_accuracy 
+        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, c.ultima_actualizacion, c.horizontal_accuracy 
         FROM conductores c
-        JOIN turnos t ON c.id = t.conductor_id
-        WHERE t.estado = 'activo' 
-        AND c.latitud IS NOT NULL 
-        AND c.longitud IS NOT NULL
+        JOIN turnos t ON c.id_conductor = t.conductor_id
+        WHERE t.estado = 'activo'
     """)
     resultados = db.session.execute(sql).fetchall()
     
@@ -96,15 +92,14 @@ def obtener_ubicaciones_activas():
         lista_conductores.append({
             "codigo": row.codigo,
             "estado": row.estado,
-            "latitud": row.latitud,
+            "latitud": row.latitud,       # Aquí verás si realmente trae el número o llega null de la BD
             "longitud": row.longitud,
             "modo": "gps",
             "horizontal_accuracy": row.horizontal_accuracy,
             "ultima_actualizacion": str(row.ultima_actualizacion),
-            "id_conductor": row.id
+            "id_conductor": row.id_conductor
         })
     return jsonify(lista_conductores)
-
 @views_bp.route("/api/recibir_gps", methods=["POST"])
 def recibir_gps():
     datos = request.json
