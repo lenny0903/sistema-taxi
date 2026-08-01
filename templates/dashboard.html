@@ -1259,21 +1259,14 @@ async function cargarConductoresEnTurnoCrear() {
     });
  
 
-   // Tabla para desplegar turnos activos
+ // Tabla para desplegar turnos activos
   async function cargarTurnos() {
     console.trace("▶️ cargarTurnos disparado");
     
-    // 1. Limpieza total inmediata
-    //const contenedor = document.getElementById('turnosActivosLista');
-    //if (!contenedor) return;
-    //contenedor.innerHTML = '<p class="text-center">Cargando...</p>';
-
     try {
       const data = await apiFetch('/turnos/activos?v=' + new Date().getTime());
-      // 2. Verificación de seguridad
       console.log("▶️ Datos recibidos en cargarTurnos:", data);
       const contenedor = document.getElementById('turnosActivosLista');
-      console.log("▶️ Ejecutando cargarTurnos()", data);
 
       contenedor.innerHTML = `
         <h3 class="text-xl font-bold mt-6">Turnos activos</h3>
@@ -1294,9 +1287,7 @@ async function cargarConductoresEnTurnoCrear() {
               ${
                 Array.isArray(data) && data.length > 0
                   ? data.map((t, index) => {
-                    // 1. Calculamos si la última actualización fue hace más de 15 minutos (ejemplo)
-                     // 1. Calculamos si la última actualización fue hace más de 15 minutos (ejemplo)
-                    // DESPUÉS (forma robusta basada en milisegundos UTC / Epoch):
+                    // 1. Calculamos si la última actualización fue hace más de 15 minutos
                     const fechaActualizacion = new Date(t.conductor.ultima_actualizacion).getTime(); 
                     const tiempoActual = Date.now(); 
                     const quinceMinutosEnMs = 15 * 60 * 1000; 
@@ -1316,29 +1307,30 @@ async function cargarConductoresEnTurnoCrear() {
                         <td class="border px-2 py-1">${t.auto?.placa || '—'}</td>
                         <td class="border px-2 py-1">${t.punto ? `${t.punto.codigo} - ${t.punto.nombre}` : '—'}</td>
                         <td class="border px-2 py-1">${t.inicio}</td>
-                        <td class="border px-2 py-1 text-center">
+                        <td class="border px-2 py-1 text-center flex justify-center gap-1">
                             ${estaDesconectado ? `
-                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1"
-                                        onclick="avisarConductor(${t.conductor.id_conductor})">
-                                    Reconectar
+                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                                        onclick="avisarConductor(${t.conductor.id_conductor})"
+                                        title="Avisar al conductor que no envía GPS">
+                                    Avisar GPS
                                 </button>
                             ` : ''}
-                            <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                            <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
                                     onclick="finalizarTurno(${t.id_turno})">
                                 Finalizar
                             </button>
                         </td>
                       </tr>
                     `;
-                }).join('')
-                  : `<tr><td colspan="6" class="text-center py-2">No hay turnos activos</td></tr>`
+                  }).join('')
+                  : `<tr><td colspan="7" class="text-center py-2">No hay turnos activos</td></tr>`
               }
             </tbody>
           </table>
         </div>  
       `;
 
-      return data; // 🔑 solo devuelve turnos, no toca despachos
+      return data; 
     } catch (err) {
       console.error("❌ Error cargando turnos:", err);
       const contenedor = document.getElementById('turnosActivosLista');
@@ -1827,21 +1819,8 @@ async function cargarDespachosActivos() {
     } catch (err) {
         console.error("❌ Fallo de validación:", err.message);
         
-        let msg = err.message;
-        
-        // Si el mensaje contiene un JSON en texto, intentamos extraer la propiedad 'error' limpia
-        try {
-            const parsed = JSON.parse(msg);
-            if (parsed.error) msg = parsed.error;
-        } catch (e) {
-            // Si no es un JSON, limpiamos texto plano
-            if (msg.includes("Error")) {
-                msg = msg.split(": ").pop();
-            }
-        }
-        
-        // Eliminamos cualquier llave sobrante por seguridad
-        msg = msg.replace(/[{}]/g, "").trim();
+        // Limpiar mensaje de error para el operador
+        let msg = err.message.includes("Error") ? err.message.split(": ").pop() : err.message;
         
         mostrarToast("📍 ATENCIÓN: " + msg, "error");
     }

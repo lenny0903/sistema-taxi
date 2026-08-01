@@ -197,12 +197,7 @@ def create_app():
         scheduler.add_job(id='Backup_Prueba', func=ejecutar_respaldo_automatico, trigger='interval', hours=24, replace_existing=True)
         scheduler.start()
         print("[SISTEMA] Servidor y Scheduler iniciados en modo Producción...")
-    with app.app_context():
-        print("\n--- RUTAS REGISTRADAS EN FLASK ---")
-        for rule in app.url_map.iter_rules():
-            methods = ','.join(rule.methods - {'OPTIONS', 'HEAD'})
-            print(f"Endpoint: {rule.endpoint:35} Métodos: {methods:15} Ruta: {rule.rule}")
-        print("----------------------------------\n")
+
     return app
 
 if __name__ == "__main__":

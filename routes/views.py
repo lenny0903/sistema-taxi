@@ -1,19 +1,17 @@
-from flask import Blueprint, app, render_template, request, redirect, session
+from flask import Blueprint, render_template, request, redirect, session, jsonify
+from datetime import datetime, timedelta
+from sqlalchemy import text
+from werkzeug.security import check_password_hash
+from extensions import db
+
 from models.matriz_tarifas import MatrizTarifa
 from models.turnos import Turno
 from models.usuarios import Usuario
-from models.despachos import Despacho
-from werkzeug.security import check_password_hash
-from extensions import db
-from flask import Blueprint, render_template, request, redirect, session, jsonify
+from models.despachos import Despacho  # <--- Importación limpia y directa en singular
 from models.conductores import Conductor
 
 views_bp = Blueprint("views", __name__)
-
-# 🔒 Elimina esta ruta para no pisar index.html
-# @views_bp.route("/")
-# def home():
-#     return redirect("/login")
+views_bp = Blueprint("views", __name__)
 
 @views_bp.route("/login_alt")
 def login_page_alt():
@@ -36,7 +34,6 @@ def login_html():
 @views_bp.route("/panel_operador")
 def panel_operador():
     despachos = Despacho.query.all()
-    # AGREGA ESTO:
     tarifas = MatrizTarifa.query.all()
     destinos_lista = [{"destino": t.destino, "precio_cop": t.precio_cop, "municipio": t.municipio} for t in tarifas]
     
@@ -47,7 +44,6 @@ def panel_admin():
     despachos = Despacho.query.all()
     destinos_query = MatrizTarifa.query.all()
     
-    # Esto saldrá en tu terminal de Linux Mint
     print(f"DEBUG: Se encontraron {len(destinos_query)} registros en la matriz.")
     
     return render_template("panel_admin.html", 
@@ -63,10 +59,8 @@ def actualizar_tarifa():
     tarifa = MatrizTarifa.query.get(id_tarifa)
     
     if tarifa:
-        # 🛠️ SINCRONIZACIÓN TOTAL:
-        # Mapeamos lo que viene del JS (data.get) al modelo de SQLAlchemy (tarifa.campo)
-        tarifa.destino = data.get('destino') # <--- ¡Esta línea faltaba!
-        tarifa.municipio = data.get('municipio') # <--- ¡Y esta también!
+        tarifa.destino = data.get('destino')
+        tarifa.municipio = data.get('municipio')
         tarifa.precio_cop = data.get('precio_cop')
         
         db.session.commit()
@@ -76,29 +70,24 @@ def actualizar_tarifa():
 
 @views_bp.route("/control/<codigo>")
 def pagina_control(codigo):
-    # Buscamos al conductor por su código para verificar que existe
     conductor = Conductor.query.filter_by(codigo=codigo).first_or_404()
     return render_template("control_conductor.html", conductor=conductor)
+
 @views_bp.route("/monitoreo")
 def pagina_mapa():
     return render_template("monitoreo.html")
 
-
-from datetime import datetime, timedelta
-from models.conductores import Conductor
-
-# En views.py, cambia temporalmente tu consulta por esto:
-from sqlalchemy import text # Asegúrate de importar text
-from app import db # Asegúrate de importar tu objeto db
-
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
+    # 🔑 CONSULTA ACTUALIZADA: Solo muestra en el mapa a los conductores 
+    # que tienen un turno activo creado desde la central web.
     sql = text("""
-        SELECT codigo, estado, latitud, longitud, id, ultima_actualizacion, horizontal_accuracy 
-        FROM conductores 
-        WHERE estado IN ('activo', 'en curso') 
-        AND latitud IS NOT NULL 
-        AND longitud IS NOT NULL
+        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id, c.ultima_actualizacion, c.horizontal_accuracy 
+        FROM conductores c
+        JOIN turnos t ON c.id = t.conductor_id
+        WHERE t.estado = 'activo' 
+        AND c.latitud IS NOT NULL 
+        AND c.longitud IS NOT NULL
     """)
     resultados = db.session.execute(sql).fetchall()
     
@@ -110,15 +99,11 @@ def obtener_ubicaciones_activas():
             "latitud": row.latitud,
             "longitud": row.longitud,
             "modo": "gps",
-            "horizontal_accuracy": row.horizontal_accuracy, # <--- ¡Agrega esto!
+            "horizontal_accuracy": row.horizontal_accuracy,
             "ultima_actualizacion": str(row.ultima_actualizacion),
             "id_conductor": row.id
         })
     return jsonify(lista_conductores)
-
-from flask import request, jsonify
-from sqlalchemy import text
-# Asegúrate de importar tu objeto db y el blueprint correspondiente
 
 @views_bp.route("/api/recibir_gps", methods=["POST"])
 def recibir_gps():
@@ -126,7 +111,7 @@ def recibir_gps():
     if not datos:
         return jsonify({"status": "error", "message": "No se recibieron datos"}), 400
 
-    codigo = datos.get("codigo")  # Ejemplo: "B50"
+    codigo = datos.get("codigo")
     lat = datos.get("latitud")
     lon = datos.get("longitud")
     
@@ -134,9 +119,8 @@ def recibir_gps():
         return jsonify({"status": "error", "message": "Faltan parámetros"}), 400
 
     try:
-        # Actualiza la posición en tu base de datos SQLite / PostgreSQL
         sql = text("""
-            UPDATE unidades 
+            UPDATE conductores 
             SET latitud = :lat, longitud = :lon, estado = 'activo'
             WHERE codigo = :codigo
         """)
@@ -150,4 +134,4 @@ def recibir_gps():
 
 @views_bp.route("/conductor/<codigo>")
 def vista_conductor(codigo):
-    return render_template("conductor.html", codigo=codigo)        
+    return render_template("conductor.html", codigo=codigo)

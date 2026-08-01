@@ -50,8 +50,8 @@ def crear_turno():
 
         # Validar que el conductor esté disponible
         conductor = Conductor.query.get(conductor_id)
-        if not conductor or conductor.estado not in ["disponible", "esperando"]:
-            return jsonify({"error": "El conductor no ha sido habilitado por el operador"}), 400
+        #if not conductor or conductor.estado not in ["disponible", "esperando"]:
+        #    return jsonify({"error": "El conductor no ha sido habilitado por el operador"}), 400
         # Validar que el auto esté disponible
         auto = Auto.query.get(auto_id)
         if not auto or auto.estado != "disponible":
@@ -176,7 +176,7 @@ def listar_turnos_activos():
             "inicio": t.inicio.isoformat() if t.inicio else None,
             "fin": t.fin.isoformat() if t.fin else None
         })
-        resultado = [t.to_dict() for t in turnos]
+        
     return jsonify(resultado), 200
 
 @turnos_bp.route("/", methods=["GET"])
