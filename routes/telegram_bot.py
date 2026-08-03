@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import json
 from flask_socketio import emit
@@ -43,17 +43,25 @@ def webhook():
             if not conductor:
                 return jsonify({"status": "ignorado_sin_conductor"}), 200
             
-            # Busca directamente si la central ya le creó un turno activo
             turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
             
             if turno_activo:
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
                 conductor.ultima_actualizacion = datetime.utcnow()
+
+                # Capturar la opción elegida SOLO cuando transmiten por primera vez
+                if 'message' in update and 'live_period' in msg['location']:
+                    segundos = msg['location']['live_period']
+                    
+                    opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
+                    conductor.opcion_gps = opciones.get(segundos, f"{segundos // 3600}h")
+                    conductor.expiracion_gps = datetime.utcnow() + timedelta(seconds=segundos)
+                
                 db.session.commit()
-                print(f"✅ Ubicación guardada silenciosamente para {conductor.codigo}")
+                print(f"✅ Ubicación guardada para {conductor.codigo} ({conductor.opcion_gps})")
             else:
-                print(f"⚠️ El conductor {conductor.codigo} envió ubicación pero no tiene turno activo en la web.")
+                print(f"⚠️ El conductor {conductor.codigo} envió ubicación sin turno activo.")
             
             return jsonify({"status": "loc_actualizada"}), 200
 

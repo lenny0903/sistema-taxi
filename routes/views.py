@@ -77,28 +77,56 @@ def pagina_control(codigo):
 def pagina_mapa():
     return render_template("monitoreo.html")
 
+from datetime import datetime
+from sqlalchemy import text
+from flask import jsonify
+
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
+    # 1. Agregamos opcion_gps y expiracion_gps a la consulta SQL
     sql = text("""
-        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, c.ultima_actualizacion, c.horizontal_accuracy 
+        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, 
+               c.ultima_actualizacion, c.horizontal_accuracy,
+               c.opcion_gps, c.expiracion_gps
         FROM conductores c
         JOIN turnos t ON c.id_conductor = t.conductor_id
         WHERE t.estado = 'activo'
     """)
     resultados = db.session.execute(sql).fetchall()
     
+    ahora = datetime.utcnow()
     lista_conductores = []
+    
     for row in resultados:
+        # 2. Calcular tiempo restante
+        tiempo_restante = "Desconocido"
+        if row.expiracion_gps and row.expiracion_gps > ahora:
+            diferencia = row.expiracion_gps - ahora
+            horas, resto = divmod(diferencia.seconds, 3600)
+            minutos, _ = divmod(resto, 60)
+            
+            if horas > 0:
+                tiempo_restante = f"{horas}h {minutos}m restantes"
+            else:
+                tiempo_restante = f"{minutos}m restantes"
+                
+        elif row.expiracion_gps and row.expiracion_gps <= ahora:
+            tiempo_restante = "⚠️ Expirado"
+
+        # 3. Armar diccionario con los campos nuevos
         lista_conductores.append({
             "codigo": row.codigo,
             "estado": row.estado,
-            "latitud": row.latitud,       # Aquí verás si realmente trae el número o llega null de la BD
+            "latitud": row.latitud,
             "longitud": row.longitud,
             "modo": "gps",
             "horizontal_accuracy": row.horizontal_accuracy,
             "ultima_actualizacion": str(row.ultima_actualizacion),
-            "id_conductor": row.id_conductor
+            "id_conductor": row.id_conductor,
+            "opcion_gps": row.opcion_gps or "En vivo",
+            "tiempo_restante": tiempo_restante
         })
+        
     return jsonify(lista_conductores)
 @views_bp.route("/api/recibir_gps", methods=["POST"])
 def recibir_gps():

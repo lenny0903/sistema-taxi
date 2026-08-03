@@ -19,4 +19,5 @@ node_modules/
 
 # Configuración local y secretos
 .env
-.vscode/
+.vscode/__pycache__/
+*.pyc

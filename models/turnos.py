@@ -1,5 +1,4 @@
 from models.puntos_espera import PuntoEspera
-from datetime import datetime
 from extensions import db
 from datetime import datetime, timedelta
 import pytz
