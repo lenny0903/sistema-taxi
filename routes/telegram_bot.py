@@ -38,7 +38,7 @@ def webhook():
         chat_id = str(msg['from']['id'])
         conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
 
-       # 1. PROCESAMIENTO DE UBICACIÓN
+       # 1. PROCESAMIENTO DE UBICACIÓN (Normal o Editada de Live Location)
         if 'location' in msg:
             if not conductor:
                 return jsonify({"status": "ignorado_sin_conductor"}), 200
@@ -46,20 +46,23 @@ def webhook():
             turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
             
             if turno_activo:
+                # Actualizar coordenadas y marca de tiempo exacta del envío
                 conductor.latitud = msg['location']['latitude']
                 conductor.longitud = msg['location']['longitude']
                 conductor.ultima_actualizacion = datetime.utcnow()
 
-                # Capturar la opción elegida SOLO cuando transmiten por primera vez
-                if 'message' in update and 'live_period' in msg['location']:
+                # Capturar o renovar duración de Live Location si Telegram la envía
+                if 'live_period' in msg['location']:
                     segundos = msg['location']['live_period']
-                    
                     opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
                     conductor.opcion_gps = opciones.get(segundos, f"{segundos // 3600}h")
                     conductor.expiracion_gps = datetime.utcnow() + timedelta(seconds=segundos)
+                elif not conductor.expiracion_gps:
+                    # Garantizar un margen si entra por primera vez via edited_message
+                    conductor.expiracion_gps = datetime.utcnow() + timedelta(hours=8)
                 
                 db.session.commit()
-                print(f"✅ Ubicación guardada para {conductor.codigo} ({conductor.opcion_gps})")
+                print(f"✅ Ubicación recibida de {conductor.codigo} -> Lat: {conductor.latitud}, Lng: {conductor.longitud}")
             else:
                 print(f"⚠️ El conductor {conductor.codigo} envió ubicación sin turno activo.")
             

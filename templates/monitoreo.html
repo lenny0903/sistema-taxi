@@ -101,17 +101,19 @@
 
         const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
+            maxNativeZoom: 17, // Evita pedir fotos inexistentes a Esri
             maxZoom: 19
         });
 
-        // Capa transparente con los nombres de las calles y avenidas
-        const capaEtiquetas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri',
-            maxZoom: 19
+        // 👈 REEMPLAZO AQUÍ: Usamos las etiquetas transparentes de CartoDB / OpenStreetMap
+        const capaEtiquetasOSM = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap, &copy; CARTO',
+            maxZoom: 19,
+            subdomains: 'abcd'
         });
 
-        // Unimos el satélite con los nombres de las calles
-        const capaHibrida = L.layerGroup([capaSatelital, capaEtiquetas]);
+        // Unimos el satélite con las etiquetas locales de OpenStreetMap
+        const capaHibrida = L.layerGroup([capaSatelital, capaEtiquetasOSM]);
 
         // 2. Crear mapa con capa estándar por defecto
         const map = L.map('map', {
@@ -131,14 +133,15 @@
         // 4. Tus íconos
         const iconVerde = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
-            iconSize: [32, 32], iconAnchor: [16, 16]
+            iconSize: [32, 32], 
+            iconAnchor: [16, 16]
         });
 
         const iconNaranja = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209939.png',
-            iconSize: [32, 32], iconAnchor: [16, 16]
+            iconSize: [32, 32], 
+            iconAnchor: [16, 16]
         });
-
         let marcadores = {};
         const listaActiva = document.querySelector('#tabla-activa tbody');
 
@@ -160,7 +163,7 @@
                     if (c.estado === 'disponible') {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
-                            delete marcadores[c.codigo]; // ✅ Corregido aquí
+                            delete marcadores[c.codigo];
                         }
                         return;
                     }
@@ -169,17 +172,55 @@
                         const tieneUbicacion = c.latitud !== null && c.longitud !== null;
                         
                         if (tieneUbicacion) {
-                            const infoTiempo = `${c.opcion_gps} (${c.tiempo_restante})`;
-    
+                            // 1. EVALUACIÓN DE SEÑAL ACTIVA / CONGELADA (BLINDADO)
+                            let estaDesactualizado = false;
+                            let minutosSinReportar = 0;
+
+                            if (c.ultima_actualizacion) {
+                                // Asegurar la 'Z' para que JavaScript no se confunda con la zona horaria UTC
+                                const fechaTexto = c.ultima_actualizacion.endsWith('Z') ? c.ultima_actualizacion : c.ultima_actualizacion + 'Z';
+                                const fechaUltima = new Date(fechaTexto);
+                                const ahora = new Date();
+
+                                minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
+                                
+                                // Si pasaron más de 4 minutos o la fecha dio error (NaN), se marca desactualizado
+                                estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > 4;
+                            } else {
+                                // Si la fecha es null (ej. datos simulados viejos)
+                                estaDesactualizado = true;
+                            }
+
+                            // 2. CONSTRUCCIÓN DE TEXTO DE TIEMPO (EVITA UNDEFINED)
+                            const opcionGps = c.opcion_gps || 'Sin datos';
+                            const tiempoRestante = c.tiempo_restante || 'Inactivo';
+
+                            // 3. ETIQUETA VISUAL DE ESTADO COMPACTA (1 O 2 LÍNEAS FINAS)
+                            let etiquetaEstado = '';
+
+                            if (estaDesactualizado) {
+                                const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
+                                etiquetaEstado = `
+                                    <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
+                                    <small style="font-size: 11px; color: #777;">⏱️ ${opcionGps}</small>
+                                `;
+                            } else {
+                                etiquetaEstado = `
+                                    <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
+                                    <small style="font-size: 11px; color: #555;">⏱️ ${opcionGps} (${tiempoRestante})</small>
+                                `;
+                            }
+
+                            // 4. INSERTAR EN LA TABLA (Con padding reducido para filas delgadas)
                             listaActiva.insertAdjacentHTML('beforeend', `
                                 <tr>
-                                    <td>${c.codigo}</td>
-                                    <td>
-                                        <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
-                                        <small style="font-size: 12px; color: #555;">⏱️ ${infoTiempo}</small>
+                                    <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                                    <td style="padding: 4px 8px; vertical-align: middle;">
+                                        ${etiquetaEstado}
                                     </td>
                                 </tr>`);
                             
+                            // 5. MARCADORES EN EL MAPA
                             const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                             const precision = parseFloat(c.horizontal_accuracy) || 0;
                             const iconoSeleccionado = (precision > 50) ? iconNaranja : iconVerde;
@@ -195,6 +236,14 @@
                                     marcadores[c.codigo].update();
                                 }
                             }
+
+                            // 6. OPACIDAD VISUAL SEGÚN EL ESTADO DE LA SEÑAL
+                            if (estaDesactualizado) {
+                                marcadores[c.codigo].setOpacity(0.35); // Transparente/Tenue
+                            } else {
+                                marcadores[c.codigo].setOpacity(1.0);  // Opaco/Normal
+                            }
+
                         } else {
                             listaActiva.insertAdjacentHTML('beforeend', `
                                 <tr style="background-color: #fff3cd;">
@@ -206,7 +255,7 @@
                             
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
-                                delete marcadores[c.codigo]; // ✅ Corregido aquí también
+                                delete marcadores[c.codigo];
                             }
                         }
                     }

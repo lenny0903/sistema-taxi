@@ -121,13 +121,14 @@ def obtener_ubicaciones_activas():
             "longitud": row.longitud,
             "modo": "gps",
             "horizontal_accuracy": row.horizontal_accuracy,
-            "ultima_actualizacion": str(row.ultima_actualizacion),
+            "ultima_actualizacion": row.ultima_actualizacion.isoformat() if row.ultima_actualizacion else None, # 👈 Formato ISO estándar para JS
             "id_conductor": row.id_conductor,
             "opcion_gps": row.opcion_gps or "En vivo",
             "tiempo_restante": tiempo_restante
         })
         
     return jsonify(lista_conductores)
+
 @views_bp.route("/api/recibir_gps", methods=["POST"])
 def recibir_gps():
     datos = request.json
@@ -142,12 +143,21 @@ def recibir_gps():
         return jsonify({"status": "error", "message": "Faltan parámetros"}), 400
 
     try:
+        # 👈 Se agregó ultima_actualizacion = :ahora
         sql = text("""
             UPDATE conductores 
-            SET latitud = :lat, longitud = :lon, estado = 'activo'
+            SET latitud = :lat, 
+                longitud = :lon, 
+                estado = 'activo',
+                ultima_actualizacion = :ahora
             WHERE codigo = :codigo
         """)
-        db.session.execute(sql, {"lat": lat, "lon": lon, "codigo": codigo})
+        db.session.execute(sql, {
+            "lat": lat, 
+            "lon": lon, 
+            "codigo": codigo,
+            "ahora": datetime.utcnow()
+        })
         db.session.commit()
         
         return jsonify({"status": "ok", "message": "Ubicación actualizada"})
