@@ -83,10 +83,11 @@ from flask import jsonify
 
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
+    # 1. Leemos expiracion_gps y opcion_gps DIRECTAMENTE de la tabla conductores (c)
     sql = text("""
         SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, 
                c.ultima_actualizacion, c.horizontal_accuracy,
-               t.opcion_gps, t.expiracion_gps
+               c.opcion_gps, c.expiracion_gps
         FROM conductores c
         JOIN turnos t ON c.id_conductor = t.conductor_id
         WHERE t.estado = 'activo'
@@ -97,12 +98,21 @@ def obtener_ubicaciones_activas():
     lista_conductores = []
     
     for row in resultados:
-        # Si expiracion_gps es NULL, mostramos 'Jornada Activa' en vez de NULL
         tiempo_restante = "Jornada Activa"
-        
-        if row.expiracion_gps:
-            if row.expiracion_gps > ahora:
-                diferencia = row.expiracion_gps - ahora
+        expiracion = row.expiracion_gps
+
+        # Convertir a datetime si la base de datos lo entrega como string
+        if isinstance(expiracion, str):
+            try:
+                # Soporta formatos ISO o estándar SQL
+                expiracion = datetime.fromisoformat(expiracion.replace('Z', ''))
+            except ValueError:
+                expiracion = None
+
+        # 2. Cálculo del tiempo si existe fecha de expiración
+        if expiracion:
+            if expiracion > ahora:
+                diferencia = expiracion - ahora
                 horas, resto = divmod(diferencia.seconds, 3600)
                 minutos, _ = divmod(resto, 60)
                 
@@ -120,13 +130,13 @@ def obtener_ubicaciones_activas():
             "longitud": row.longitud,
             "modo": "gps",
             "horizontal_accuracy": row.horizontal_accuracy,
-            "ultima_actualizacion": row.ultima_actualizacion.isoformat() if row.ultima_actualizacion else None,
+            "ultima_actualizacion": row.ultima_actualizacion.isoformat() if hasattr(row.ultima_actualizacion, 'isoformat') else str(row.ultima_actualizacion or ''),
             "id_conductor": row.id_conductor,
             "opcion_gps": row.opcion_gps or "En vivo",
             "tiempo_restante": tiempo_restante
         })
         
-    return jsonify(lista_conductores)@views_bp.route("/api/recibir_gps", methods=["POST"])
+    return jsonify(lista_conductores)
 def recibir_gps():
     datos = request.json
     if not datos:
