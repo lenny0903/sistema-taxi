@@ -263,6 +263,32 @@
             })
             .catch(error => console.error('Error al actualizar:', error));
         }
+        function actualizarContadorJS(expiracionIso, elementoHtml) {
+            if (!expiracionIso) return;
+            
+            const fechaFin = new Date(expiracionIso).getTime();
+            
+            const intervalo = setInterval(() => {
+                const ahora = new Date().getTime();
+                const diferencia = fechaFin - ahora;
+                
+                if (diferencia <= 0) {
+                    clearInterval(intervalo);
+                    elementoHtml.textContent = "Expirado";
+                    return;
+                }
+                
+                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
+                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
+                
+                if (horas > 0) {
+                    elementoHtml.textContent = `${horas}h ${minutos}m ${segundos}s restantes [Tiempo límite]`;
+                } else {
+                    elementoHtml.textContent = `${minutos}m ${segundos}s restantes [Tiempo límite]`;
+                }
+            }, 1000);
+        }
         function mostrarToast(mensaje) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -305,7 +331,7 @@
             }
         });
 
-        setInterval(actualizarMapa, 5000);
+        setInterval(actualizarMapa, 1000);
         actualizarMapa();
     </script>
 </body>

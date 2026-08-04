@@ -13,7 +13,7 @@ CODIGOS_REALES = [
 ]
 
 def simular_envio_gps(codigo, latitud, longitud):
-    url = f"{BASE_URL}/api/recibir_gps"
+    url = f"{BASE_URL}/conductores/actualizar_ubicacion"
     payload = {
         "codigo": codigo,
         "latitud": latitud,
