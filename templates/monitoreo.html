@@ -191,23 +191,23 @@
                                 estaDesactualizado = true;
                             }
 
-                            // 2. CONSTRUCCIÓN DE TEXTO DE TIEMPO (EVITA UNDEFINED)
-                            const opcionGps = c.opcion_gps || 'Sin datos';
-                            const tiempoRestante = c.tiempo_restante || 'Inactivo';
+                            // 2. CONSTRUCCIÓN DE TEXTO DE TIEMPO Y OPCIÓN GPS (LIMPIO)
+                            const tiempoRestante = c.tiempo_restante ? `⏱️ ${c.tiempo_restante}` : '⏱️ Activo';
+                            const modoGps = c.opcion_gps ? ` [${c.opcion_gps}]` : '';
 
-                            // 3. ETIQUETA VISUAL DE ESTADO COMPACTA (1 O 2 LÍNEAS FINAS)
+                            // 3. ETIQUETA VISUAL DE ESTADO COMPACTA
                             let etiquetaEstado = '';
 
                             if (estaDesactualizado) {
                                 const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
                                 etiquetaEstado = `
                                     <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
-                                    <small style="font-size: 11px; color: #777;">⏱️ ${opcionGps}</small>
+                                    <small style="font-size: 11px; color: #777;">⏱️ Sin señal</small>
                                 `;
                             } else {
                                 etiquetaEstado = `
                                     <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
-                                    <small style="font-size: 11px; color: #555;">⏱️ ${opcionGps} (${tiempoRestante})</small>
+                                    <small style="font-size: 11px; color: #555;">${tiempoRestante}${modoGps}</small>
                                 `;
                             }
 
