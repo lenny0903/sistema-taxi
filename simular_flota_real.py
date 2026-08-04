@@ -34,7 +34,7 @@ if __name__ == "__main__":
     lon_centro = -72.2230
 
     # Ejecutaremos 5 rondas de prueba
-    for ronda in range(1, 50):
+    for ronda in range(1, 30):
         print(f"\n--- Ronda de actualización #{ronda} ---")
         
         for codigo in CODIGOS_REALES:

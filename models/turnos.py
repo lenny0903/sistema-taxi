@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 
 def hora_venezuela():
-    return datetime.now() - timedelta(hours=4)
+    return datetime.now()
 class Turno(db.Model):
     __tablename__ = "turnos"
 

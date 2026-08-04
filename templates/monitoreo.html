@@ -177,9 +177,9 @@
                             let minutosSinReportar = 0;
 
                             if (c.ultima_actualizacion) {
-                                // Asegurar la 'Z' para que JavaScript no se confunda con la zona horaria UTC
-                                const fechaTexto = c.ultima_actualizacion.endsWith('Z') ? c.ultima_actualizacion : c.ultima_actualizacion + 'Z';
-                                const fechaUltima = new Date(fechaTexto);
+                                // Parsear la fecha como hora local sin forzar UTC ('Z')
+                                const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
+                                const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
                                 const ahora = new Date();
 
                                 minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);

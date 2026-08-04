@@ -143,20 +143,25 @@ def recibir_gps():
         return jsonify({"status": "error", "message": "Faltan parámetros"}), 400
 
     try:
-        # 👈 Se agregó ultima_actualizacion = :ahora
+        ahora = datetime.now()
+        # 👈 Se actualiza la expiración para que no quede atascada en el pasado
+        expiracion = ahora + timedelta(hours=8)
+
         sql = text("""
             UPDATE conductores 
             SET latitud = :lat, 
                 longitud = :lon, 
                 estado = 'activo',
-                ultima_actualizacion = :ahora
+                ultima_actualizacion = :ahora,
+                expiracion_gps = :expiracion
             WHERE codigo = :codigo
         """)
         db.session.execute(sql, {
             "lat": lat, 
             "lon": lon, 
             "codigo": codigo,
-            "ahora": datetime.now()
+            "ahora": ahora,
+            "expiracion": expiracion
         })
         db.session.commit()
         
