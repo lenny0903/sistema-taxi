@@ -137,7 +137,7 @@ def finalizar_turno(turno_id, es_bot=False):
         # --------------------------
 
         turno.estado = "finalizado"
-        turno.fin = datetime.utcnow()
+        turno.fin = datetime.now()
         db.session.commit()
         # Si viene del bot, retornamos un diccionario simple, no un jsonify
         if es_bot:
