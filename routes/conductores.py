@@ -396,28 +396,57 @@ def confirmar_turno(id_conductor):
     return jsonify({"status": "éxito", "mensaje": "Conductor habilitado para turno"})
 
 
-@conductores_bp.route("/ubicaciones_activas", methods=["GET"])
-def obtener_ubicaciones():
-    conductores = Conductor.query.filter(
-        Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])
-    ).all()
-    
-    resultado = []
-    
-    for c in conductores:
-        resultado.append({
-            "id_conductor": c.id_conductor,
-            "codigo": c.codigo,
-            "nombre": c.nombre,
-            "latitud": c.latitud,       # Directo de la BD sin restricciones de tiempo
-            "longitud": c.longitud,     # Directo de la BD sin restricciones de tiempo
-            "estado": c.estado,
-            "modo": "gps" if c.latitud is not None else "manual",
-            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None
-        })
-    
+@conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
+def obtener_ubicaciones():  
+    conductores = Conductor.query.filter(  
+        Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
+    ).all()  
+      
+    resultado = []  
+    ahora = datetime.now()
+      
+    for c in conductores:  
+        # Buscar el turno activo del conductor para leer el tiempo de expiración
+        turno_activo = Turno.query.filter_by(
+            conductor_id=c.id_conductor, 
+            estado='activo'
+        ).first()
+
+        tiempo_restante = None
+        opcion_gps = "En vivo"
+
+        if turno_activo:
+            if hasattr(turno_activo, 'opcion_gps') and turno_activo.opcion_gps:
+                opcion_gps = turno_activo.opcion_gps
+
+            # Calcular el tiempo restante basándonos en la expiración del turno
+            if hasattr(turno_activo, 'expiracion_gps') and turno_activo.expiracion_gps:
+                if turno_activo.expiracion_gps > ahora:
+                    diferencia = turno_activo.expiracion_gps - ahora
+                    horas, resto = divmod(diferencia.seconds, 3600)
+                    minutos, _ = divmod(resto, 60)
+                    
+                    if horas > 0:
+                        tiempo_restante = f"{horas}h {minutos}m restantes"
+                    else:
+                        tiempo_restante = f"{minutos}m restantes"
+                else:
+                    tiempo_restante = "Expirado"
+
+        resultado.append({  
+            "id_conductor": c.id_conductor,  
+            "codigo": c.codigo,  
+            "nombre": c.nombre,  
+            "latitud": c.latitud,  
+            "longitud": c.longitud,  
+            "estado": c.estado,  
+            "modo": "gps" if c.latitud is not None else "manual",  
+            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None,
+            "opcion_gps": opcion_gps,
+            "tiempo_restante": tiempo_restante # 👈 AQUÍ VA EL TIEMPO CALCULADO
+        })  
+      
     return jsonify(resultado)    
-    
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)
