@@ -83,7 +83,6 @@ from flask import jsonify
 
 @views_bp.route("/conductores/ubicaciones_activas")
 def obtener_ubicaciones_activas():
-    # Tomamos opcion_gps y expiracion_gps desde la tabla turnos (t)
     sql = text("""
         SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, 
                c.ultima_actualizacion, c.horizontal_accuracy,
@@ -98,7 +97,9 @@ def obtener_ubicaciones_activas():
     lista_conductores = []
     
     for row in resultados:
-        tiempo_restante = "Activo"
+        # Si expiracion_gps es NULL, mostramos 'Jornada Activa' en vez de NULL
+        tiempo_restante = "Jornada Activa"
+        
         if row.expiracion_gps:
             if row.expiracion_gps > ahora:
                 diferencia = row.expiracion_gps - ahora
@@ -106,9 +107,9 @@ def obtener_ubicaciones_activas():
                 minutos, _ = divmod(resto, 60)
                 
                 if horas > 0:
-                    tiempo_restante = f"{horas}h {minutos}m"
+                    tiempo_restante = f"{horas}h {minutos}m restantes"
                 else:
-                    tiempo_restante = f"{minutos}m"
+                    tiempo_restante = f"{minutos}m restantes"
             else:
                 tiempo_restante = "Expirado"
 
@@ -125,8 +126,7 @@ def obtener_ubicaciones_activas():
             "tiempo_restante": tiempo_restante
         })
         
-    return jsonify(lista_conductores)
-@views_bp.route("/api/recibir_gps", methods=["POST"])
+    return jsonify(lista_conductores)@views_bp.route("/api/recibir_gps", methods=["POST"])
 def recibir_gps():
     datos = request.json
     if not datos:
