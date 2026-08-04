@@ -43,28 +43,24 @@ def webhook():
             if not conductor:
                 return jsonify({"status": "ignorado_sin_conductor"}), 200
             
-            turno_activo = Turno.query.filter_by(conductor_id=conductor.id_conductor, estado="activo").first()
-            
-            if turno_activo:
-                # Actualizar coordenadas y marca de tiempo exacta del envío
-                conductor.latitud = msg['location']['latitude']
-                conductor.longitud = msg['location']['longitude']
-                conductor.ultima_actualizacion = datetime.utcnow()
+            # Guardar coordenadas siempre que el conductor envíe su ubicación
+            conductor.latitud = msg['location']['latitude'] 
+            conductor.longitud = msg['location']['longitude'] 
+            conductor.ultima_actualizacion = datetime.now() 
 
-                # Capturar o renovar duración de Live Location si Telegram la envía
-                if 'live_period' in msg['location']:
-                    segundos = msg['location']['live_period']
-                    opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
-                    conductor.opcion_gps = opciones.get(segundos, f"{segundos // 3600}h")
-                    conductor.expiracion_gps = datetime.utcnow() + timedelta(seconds=segundos)
-                elif not conductor.expiracion_gps:
-                    # Garantizar un margen si entra por primera vez via edited_message
-                    conductor.expiracion_gps = datetime.utcnow() + timedelta(hours=8)
-                
-                db.session.commit()
-                print(f"✅ Ubicación recibida de {conductor.codigo} -> Lat: {conductor.latitud}, Lng: {conductor.longitud}")
-            else:
-                print(f"⚠️ El conductor {conductor.codigo} envió ubicación sin turno activo.")
+            # Capturar o renovar duración de Live Location si Telegram la envía 
+            if 'live_period' in msg['location']: 
+                segundos = msg['location']['live_period'] 
+                opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"} 
+                conductor.opcion_gps = opciones.get(segundos, f"{segundos // 3600}h") 
+                conductor.expiracion_gps = datetime.now() + timedelta(seconds=segundos) 
+            else: 
+                # Si no envía live_period pero manda ubicación, le asignamos 8 horas por defecto
+                conductor.opcion_gps = "permanente"
+                conductor.expiracion_gps = datetime.now() + timedelta(hours=8) 
+             
+            db.session.commit() 
+            print(f"✅ Ubicación recibida de {conductor.codigo} -> Lat: {conductor.latitud}, Lng: {conductor.longitud}")
             
             return jsonify({"status": "loc_actualizada"}), 200
 

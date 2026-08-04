@@ -94,7 +94,7 @@ def obtener_ubicaciones_activas():
     """)
     resultados = db.session.execute(sql).fetchall()
     
-    ahora = datetime.utcnow()
+    ahora = datetime.now()
     lista_conductores = []
     
     for row in resultados:
@@ -156,7 +156,7 @@ def recibir_gps():
             "lat": lat, 
             "lon": lon, 
             "codigo": codigo,
-            "ahora": datetime.utcnow()
+            "ahora": datetime.now()
         })
         db.session.commit()
         
