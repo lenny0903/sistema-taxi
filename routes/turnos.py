@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models.turnos import Turno
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from models.conductores import Conductor
 from models.autos import Auto
 from models.despachos import Despacho
@@ -71,7 +71,30 @@ def crear_turno():
             punto_id=punto_id,
             estado="activo"
         )
+        # Capturar la opción de GPS seleccionada (si no viene, usa 'hasta que desactive' por defecto)
+        opcion_gps = data.get("opcion_gps", "hasta que desactive")
+        ahora = datetime.now()
+        expiracion_gps = None
 
+        opcion_clean = str(opcion_gps).strip().lower()
+
+        if "15" in opcion_clean:
+            expiracion_gps = ahora + timedelta(minutes=15)
+        elif "1" in opcion_clean and "15" not in opcion_clean:
+            expiracion_gps = ahora + timedelta(hours=1)
+        elif "8" in opcion_clean:
+            expiracion_gps = ahora + timedelta(hours=8)
+
+        # Asignar al conductor
+        conductor.opcion_gps = opcion_gps
+        conductor.expiracion_gps = expiracion_gps
+        conductor.estado = "activo"
+        
+        # Opcional: si tu modelo Turno tiene estas columnas, guardas también la copia histórica
+        if hasattr(turno, 'opcion_gps'):
+            turno.opcion_gps = opcion_gps
+        if hasattr(turno, 'expiracion_gps'):
+            turno.expiracion_gps = expiracion_gps
         # Cambiar estados
         conductor.estado = "activo"
         auto.estado = "activo"
@@ -126,7 +149,9 @@ def finalizar_turno(turno_id, es_bot=False):
             conductor.longitud = None   
             # Esto hará que el filtro en 'views.py' (latitud != None) 
             # excluya a este conductor inmediatamente al recargar.
-
+            # 💡 LIMPIEZA DE GPS: Reseteamos los campos para el próximo turno
+            conductor.opcion_gps = None
+            conductor.expiracion_gps = None
        # --- AQUÍ LA CORRECCIÓN ---
         # 1. Buscamos el auto relacionado (asumiendo que tu modelo Turno tiene auto_id)
         auto = db.session.get(Auto, turno.auto_id) if turno.auto_id else None
