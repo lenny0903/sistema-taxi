@@ -406,32 +406,34 @@ def obtener_ubicaciones():
     ahora = datetime.now()
       
     for c in conductores:  
-        # Buscar el turno activo del conductor para leer el tiempo de expiración
-        turno_activo = Turno.query.filter_by(
-            conductor_id=c.id_conductor, 
-            estado='activo'
-        ).first()
+        tiempo_restante = "Jornada Activa"
+        
+        # 1. Leer opcion_gps directamente del conductor
+        opcion_gps = getattr(c, 'opcion_gps', None) or "En vivo"
 
-        tiempo_restante = None
-        opcion_gps = "En vivo"
+        # 2. Leer expiracion_gps directamente del conductor
+        expiracion = getattr(c, 'expiracion_gps', None)
 
-        if turno_activo:
-            if hasattr(turno_activo, 'opcion_gps') and turno_activo.opcion_gps:
-                opcion_gps = turno_activo.opcion_gps
+        # Si la fecha viene como string desde SQLite, la convertimos a datetime
+        if isinstance(expiracion, str):
+            try:
+                expiracion = datetime.fromisoformat(expiracion.replace('Z', ''))
+            except ValueError:
+                expiracion = None
 
-            # Calcular el tiempo restante basándonos en la expiración del turno
-            if hasattr(turno_activo, 'expiracion_gps') and turno_activo.expiracion_gps:
-                if turno_activo.expiracion_gps > ahora:
-                    diferencia = turno_activo.expiracion_gps - ahora
-                    horas, resto = divmod(diferencia.seconds, 3600)
-                    minutos, _ = divmod(resto, 60)
-                    
-                    if horas > 0:
-                        tiempo_restante = f"{horas}h {minutos}m restantes"
-                    else:
-                        tiempo_restante = f"{minutos}m restantes"
+        # 3. Calcular tiempo restante
+        if expiracion:
+            if expiracion > ahora:
+                diferencia = expiracion - ahora
+                horas, resto = divmod(diferencia.seconds, 3600)
+                minutos, _ = divmod(resto, 60)
+                
+                if horas > 0:
+                    tiempo_restante = f"{horas}h {minutos}m restantes"
                 else:
-                    tiempo_restante = "Expirado"
+                    tiempo_restante = f"{minutos}m restantes"
+            else:
+                tiempo_restante = "Expirado"
 
         resultado.append({  
             "id_conductor": c.id_conductor,  
@@ -441,13 +443,12 @@ def obtener_ubicaciones():
             "longitud": c.longitud,  
             "estado": c.estado,  
             "modo": "gps" if c.latitud is not None else "manual",  
-            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if c.ultima_actualizacion else None,
+            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if hasattr(c.ultima_actualizacion, 'isoformat') else str(c.ultima_actualizacion or ''),
             "opcion_gps": opcion_gps,
-            "tiempo_restante": tiempo_restante # 👈 AQUÍ VA EL TIEMPO CALCULADO
+            "tiempo_restante": tiempo_restante
         })  
       
-    return jsonify(resultado)    
-@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
+    return jsonify(resultado)@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)
     # Si estaba esperando, lo pasamos a activo para que el monitoreo lo pinte de una vez
