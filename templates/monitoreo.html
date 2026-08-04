@@ -149,6 +149,11 @@
             fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
+                // 1. OBTENER EL CONTENEDOR CON SCROLL Y GUARDAR LA POSICIÓN
+                // Si listaActiva es <tbody> o <table>, obtenemos su contenedor con scroll:
+                const contenedorScroll = listaActiva.closest('div') || listaActiva.parentElement;
+                const scrollPrevio = contenedorScroll ? contenedorScroll.scrollTop : 0;
+
                 listaActiva.innerHTML = '';
 
                 const codigosServidor = data.map(c => c.codigo);
@@ -177,17 +182,13 @@
                             let minutosSinReportar = 0;
 
                             if (c.ultima_actualizacion) {
-                                // Parsear la fecha como hora local sin forzar UTC ('Z')
                                 const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
                                 const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
                                 const ahora = new Date();
 
                                 minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
-                                
-                                // Si pasaron más de 4 minutos o la fecha dio error (NaN), se marca desactualizado
                                 estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > 4;
                             } else {
-                                // Si la fecha es null (ej. datos simulados viejos)
                                 estaDesactualizado = true;
                             }
 
@@ -211,7 +212,7 @@
                                 `;
                             }
 
-                            // 4. INSERTAR EN LA TABLA (Con padding reducido para filas delgadas)
+                            // 4. INSERTAR EN LA TABLA
                             listaActiva.insertAdjacentHTML('beforeend', `
                                 <tr>
                                     <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
@@ -239,9 +240,9 @@
 
                             // 6. OPACIDAD VISUAL SEGÚN EL ESTADO DE LA SEÑAL
                             if (estaDesactualizado) {
-                                marcadores[c.codigo].setOpacity(0.35); // Transparente/Tenue
+                                marcadores[c.codigo].setOpacity(0.35);
                             } else {
-                                marcadores[c.codigo].setOpacity(1.0);  // Opaco/Normal
+                                marcadores[c.codigo].setOpacity(1.0);
                             }
 
                         } else {
@@ -260,6 +261,11 @@
                         }
                     }
                 });
+
+                // 2. RESTAURAR LA POSICIÓN DEL SCROLL AL FINALIZAR LA RECONSTRUCCIÓN
+                if (contenedorScroll) {
+                    contenedorScroll.scrollTop = scrollPrevio;
+                }
             })
             .catch(error => console.error('Error al actualizar:', error));
         }
