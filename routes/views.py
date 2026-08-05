@@ -100,8 +100,7 @@ def obtener_ubicaciones_activas():
         expiracion = row.expiracion_gps
         opcion_raw = str(row.opcion_gps or '').strip().lower()
 
-        # Parsear expiracion_gps
-        # Parsear expiracion_gps
+        # 1. Normalizar expiracion_gps a objeto datetime
         if isinstance(expiracion, str):
             try:
                 exp_clean = expiracion.replace('T', ' ').replace('Z', '').split('.')[0]
@@ -109,9 +108,7 @@ def obtener_ubicaciones_activas():
             except ValueError:
                 expiracion = None
 
-        # 💡 CORRECCIÓN CRÍTICA:
-        # Solo usar 'fecha_inicio' del turno. NUNCA usar 'ultima_actualizacion' 
-        # porque 'ultima_actualizacion' cambia con el GPS o se congela si se apaga el teléfono.
+        # 2. Si no hay expiracion_gps registrada en el conductor, calcularla usando fecha_inicio del TURNO
         if not expiracion:
             inicio = row.fecha_inicio
             if isinstance(inicio, str):
@@ -121,21 +118,22 @@ def obtener_ubicaciones_activas():
                 except ValueError:
                     inicio = None
             
-            if inicio:
+            # Solo si tenemos fecha_inicio válida (objeto datetime)
+            if isinstance(inicio, datetime):
                 if "15" in opcion_raw:
                     expiracion = inicio + timedelta(minutes=15)
                 elif "1" in opcion_raw and "15" not in opcion_raw:
                     expiracion = inicio + timedelta(hours=1)
-                elif "8" in opcion_raw or opcion_raw == "":
+                elif "8" in opcion_raw:
                     expiracion = inicio + timedelta(hours=8)
 
-        # Determinar si es "En vivo" sin límite de tiempo
+        # 3. Determinar el label y tiempo restante
         es_en_vivo = ("hasta" in opcion_raw) or ("desactive" in opcion_raw) or (opcion_raw == "en vivo")
 
         if es_en_vivo:
             opcion_label = "En vivo"
             tiempo_restante = "Jornada Activa"
-        elif expiracion:
+        elif expiracion and isinstance(expiracion, datetime):
             opcion_label = "Tiempo límite"
             if expiracion > ahora:
                 total_seg = int((expiracion - ahora).total_seconds())
