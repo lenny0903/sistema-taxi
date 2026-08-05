@@ -178,24 +178,22 @@ def recibir_gps():
 
     try:
         ahora = datetime.now()
-        # 👈 Se actualiza la expiración para que no quede atascada en el pasado
-        expiracion = ahora + timedelta(hours=8)
 
+        # Solo actualizamos las coordenadas, el estado y la hora del último reporte GPS.
+        # No tocamos expiracion_gps para respetar la fecha de término fijada al iniciar el turno.
         sql = text("""
             UPDATE conductores 
             SET latitud = :lat, 
                 longitud = :lon, 
                 estado = 'activo',
-                ultima_actualizacion = :ahora,
-                expiracion_gps = :expiracion
+                ultima_actualizacion = :ahora
             WHERE codigo = :codigo
         """)
         db.session.execute(sql, {
             "lat": lat, 
             "lon": lon, 
             "codigo": codigo,
-            "ahora": ahora,
-            "expiracion": expiracion
+            "ahora": ahora
         })
         db.session.commit()
         
