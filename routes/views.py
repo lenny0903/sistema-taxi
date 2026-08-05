@@ -109,7 +109,7 @@ def obtener_ubicaciones_activas():
 
         # Si no hay fecha de expiración, la calculamos a partir del inicio del turno
         if not expiracion:
-            inicio = row.fecha_inicio or row.ultima_actualizacion
+            inicio = row.fecha_inicio
             if isinstance(inicio, str):
                 try:
                     inicio = datetime.fromisoformat(inicio.replace('Z', ''))
