@@ -101,27 +101,32 @@ def obtener_ubicaciones_activas():
         opcion_raw = str(row.opcion_gps or '').strip().lower()
 
         # Parsear expiracion_gps
+        # Parsear expiracion_gps
         if isinstance(expiracion, str):
             try:
-                expiracion = datetime.fromisoformat(expiracion.replace('Z', ''))
+                exp_clean = expiracion.replace('T', ' ').replace('Z', '').split('.')[0]
+                expiracion = datetime.strptime(exp_clean, "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 expiracion = None
 
-        # Si no hay fecha de expiración, la calculamos a partir del inicio del turno
+        # 💡 CORRECCIÓN CRÍTICA:
+        # Solo usar 'fecha_inicio' del turno. NUNCA usar 'ultima_actualizacion' 
+        # porque 'ultima_actualizacion' cambia con el GPS o se congela si se apaga el teléfono.
         if not expiracion:
             inicio = row.fecha_inicio
             if isinstance(inicio, str):
                 try:
-                    inicio = datetime.fromisoformat(inicio.replace('Z', ''))
+                    ini_clean = inicio.replace('T', ' ').replace('Z', '').split('.')[0]
+                    inicio = datetime.strptime(ini_clean, "%Y-%m-%d %H:%M:%S")
                 except ValueError:
                     inicio = None
             
             if inicio:
                 if "15" in opcion_raw:
                     expiracion = inicio + timedelta(minutes=15)
-                elif "1" in opcion_raw:  # Captura "1", "1h", "1 hora"
+                elif "1" in opcion_raw and "15" not in opcion_raw:
                     expiracion = inicio + timedelta(hours=1)
-                elif "8" in opcion_raw or opcion_raw == "":  # Captura "8", "8h", "8 horas" o por defecto la jornada estándar de 8h
+                elif "8" in opcion_raw or opcion_raw == "":
                     expiracion = inicio + timedelta(hours=8)
 
         # Determinar si es "En vivo" sin límite de tiempo
