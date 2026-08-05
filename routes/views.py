@@ -133,14 +133,15 @@ def obtener_ubicaciones_activas():
         elif expiracion:
             opcion_label = "Tiempo límite"
             if expiracion > ahora:
-                diferencia = expiracion - ahora
-                horas, resto = divmod(diferencia.seconds, 3600)
-                minutos, _ = divmod(resto, 60)
-                
+                total_seg = int((expiracion - ahora).total_seconds())
+                horas = total_seg // 3600
+                minutos = (total_seg % 3600) // 60
+                segundos = total_seg % 60
+
                 if horas > 0:
                     tiempo_restante = f"{horas}h {minutos}m restantes"
                 else:
-                    tiempo_restante = f"{minutos}m restantes"
+                    tiempo_restante = f"{minutos}m {segundos}s restantes"
             else:
                 tiempo_restante = "Expirado"
         else:
