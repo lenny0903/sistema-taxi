@@ -89,7 +89,8 @@ def crear_turno():
         conductor.opcion_gps = opcion_gps
         conductor.expiracion_gps = expiracion_gps
         conductor.estado = "activo"
-        
+        conductor.ultima_actualizacion = hora_local()
+        conductor.alerta_enviada = False
         # Opcional: si tu modelo Turno tiene estas columnas, guardas también la copia histórica
         if hasattr(turno, 'opcion_gps'):
             turno.opcion_gps = opcion_gps
