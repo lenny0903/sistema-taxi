@@ -10,7 +10,6 @@ from models.autos import Auto
 from models.puntos_espera import PuntoEspera
 from sqlalchemy import func
 from models.cuota_semanal import CuotaSemanal
-from utils.time import hora_local
 # routes/conductores.py
 conductores_bp = Blueprint("conductores", __name__)  # sin url_prefix
 
@@ -193,7 +192,7 @@ def listar_conductores_disponibles():
     conductores = Conductor.query.filter_by(estado="disponible").all()
     resultado = []
     
-    hoy = hora_local()
+    hoy = datetime.now()
     semana_actual_num = int(hoy.strftime('%U')) 
     
     for c in conductores:
@@ -238,7 +237,7 @@ def es_solvente(conductor_id):
         return True, 0
 
     # 📊 2. AUDITORÍA CRONOLÓGICA IDENTICA A LA GRILLA
-    ahora = hora_local()
+    ahora = datetime.now()
     anio_actual = ahora.strftime('%Y')
     semana_actual_calendario = int(ahora.strftime('%V'))
     if semana_actual_calendario == 0:
@@ -334,6 +333,7 @@ def actualizar_ubicacion():
     lat = data.get('latitud')
     lon = data.get('longitud')
 
+    # Buscamos al conductor por su código único o ID
     conductor = Conductor.query.filter(
         (Conductor.codigo == codigo) | (Conductor.id_conductor == codigo)
     ).first()
@@ -341,11 +341,13 @@ def actualizar_ubicacion():
     if not conductor:
         return jsonify({"error": f"Conductor con código {codigo} no encontrado"}), 404
 
+    # VERIFICACIÓN: El conductor debe tener turno activo O su estado en la tabla conductor ser activo/disponible
     turno_activo = Turno.query.filter_by(
         conductor_id=conductor.id_conductor, 
         estado='activo'
     ).first()
 
+    # Si no tiene fila en Turnos pero su estado general es disponible/activo, permitimos actualizar GPS
     esta_activo = turno_activo or conductor.estado in ['activo', 'disponible', 'esperando', 'solicitando_cierre']
 
     if not esta_activo:
@@ -358,44 +360,22 @@ def actualizar_ubicacion():
         lat = float(lat)
         lon = float(lon)
         
+        # Validación básica de coordenadas reales
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
              return jsonify({"error": "Coordenadas fuera de rango"}), 400
              
         conductor.latitud = lat
         conductor.longitud = lon
-        conductor.ultima_actualizacion = hora_local()
-
-        # 🔹 PERMITE RECIBIR TIEMPOS EN SIMULACIÓN
-        if 'opcion_gps' in data:
-            conductor.opcion_gps = data['opcion_gps']
-
-        if data.get('expiracion_gps'):
-            try:
-                if isinstance(data['expiracion_gps'], str):
-                    fecha_limpia = (
-                        data['expiracion_gps'].replace('T', ' ').split('.')[0]
-                    )
-                    conductor.expiracion_gps = datetime.strptime(
-                        fecha_limpia, "%Y-%m-%d %H:%M:%S"
-                    )
-                else:
-                    conductor.expiracion_gps = data['expiracion_gps']
-            except Exception as e:
-                print(f"⚠️ Error parseando expiracion_gps: {e}")
-        # 👈 NOTA: Si no viene expiracion_gps en 'data', NO HACEMOS NADA y conservamos la que ya tenía guardada la base de datos.
-
+        conductor.ultima_actualizacion = datetime.now() # 👈 IMPORTANTE: Actualizar fecha para que limpie el "GPS Inactivo"
+        
         db.session.commit()
-        return (
-            jsonify(
-                {"status": "éxito", "mensaje": "Ubicación actualizada correctamente"}
-            ),
-            200,
-        )
+        
+        return jsonify({"status": "éxito", "mensaje": "Ubicación actualizada correctamente"}), 200
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Error al guardar ubicación: " + str(e)}), 500
-        
+    
 @conductores_bp.route('/conductores/en_espera', methods=['GET'])
 def listar_conductores_espera():
     try:
@@ -427,7 +407,7 @@ def obtener_ubicaciones():
     ).all()  
       
     resultado = []  
-    ahora = hora_local()
+    ahora = datetime.now()
       
     for c in conductores:  
         turno_activo = Turno.query.filter_by(
@@ -435,9 +415,13 @@ def obtener_ubicaciones():
             estado='activo'
         ).first()
 
+        tiempo_restante = None
+
+        # 1. Leer opcion_gps y expiracion_gps
         opcion_val = getattr(c, 'opcion_gps', None) or (turno_activo.opcion_gps if turno_activo and hasattr(turno_activo, 'opcion_gps') else None)
         exp_gps = getattr(c, 'expiracion_gps', None) or (turno_activo.expiracion_gps if turno_activo and hasattr(turno_activo, 'expiracion_gps') else None)
 
+        # Convertir string a datetime si proviene así de SQLite
         if isinstance(exp_gps, str):
             try:
                 exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
@@ -446,7 +430,9 @@ def obtener_ubicaciones():
 
         opcion_str = str(opcion_val or '').strip().lower()
 
+        # 2. Si no hay expiración explícita pero pusiste opciones de tiempo ("15 min", "1 hora", "8 horas")
         if not exp_gps and any(k in opcion_str for k in ["15", "1", "8"]):
+            # Tomamos fecha_inicio del turno, o ultima_actualizacion del conductor, o la fecha actual como base
             inicio = None
             if turno_activo and getattr(turno_activo, 'fecha_inicio', None):
                 inicio = turno_activo.fecha_inicio
@@ -460,8 +446,9 @@ def obtener_ubicaciones():
                     inicio = None
 
             if not inicio:
-                inicio = ahora
+                inicio = ahora  # Si no hay fecha previa, se calcula a partir de AHORA
 
+            # Calcular la expiración según el texto
             if "15" in opcion_str:
                 exp_gps = inicio + timedelta(minutes=15)
             elif "1" in opcion_str and "15" not in opcion_str:
@@ -469,17 +456,28 @@ def obtener_ubicaciones():
             elif "8" in opcion_str:
                 exp_gps = inicio + timedelta(hours=8)
 
-        # Formatear la etiqueta y la fecha objetivo
+        # 3. Determinar la etiqueta final de opción y calcular tiempo restante
         if "hasta" in opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or not opcion_str:
             opcion_gps_label = "En vivo"
+            tiempo_restante = None
+        elif exp_gps:
+            opcion_gps_label = "Tiempo límite"
+            if exp_gps > ahora:
+                diferencia = exp_gps - ahora
+                segundos_totales = int(diferencia.total_seconds())
+                horas = segundos_totales // 3600
+                minutos = (segundos_totales % 3600) // 60
+                segundos = segundos_totales % 60
+                
+                if horas > 0:
+                    tiempo_restante = f"{horas}h {minutos}m {segundos}s restantes"
+                else:
+                    tiempo_restante = f"{minutos}m {segundos}s restantes"
+            else:
+                tiempo_restante = "Expirado"
         else:
-            opcion_gps_label = f"[{opcion_val}]" if opcion_val else "[Tiempo límite]"
-
-        # String ISO estandarizado para JavaScript
-        exp_iso = exp_gps.strftime("%Y-%m-%dT%H:%M:%S") if exp_gps else None
-        
-        u_act = c.ultima_actualizacion
-        u_act_str = u_act.strftime("%Y-%m-%dT%H:%M:%S") if isinstance(u_act, datetime) else str(u_act or '')
+            opcion_gps_label = "En vivo"
+            tiempo_restante = None
 
         resultado.append({  
             "id_conductor": c.id_conductor,  
@@ -489,12 +487,14 @@ def obtener_ubicaciones():
             "longitud": c.longitud,  
             "estado": c.estado,  
             "modo": "gps" if c.latitud is not None else "manual",  
-            "ultima_actualizacion": u_act_str,
+            "ultima_actualizacion": c.ultima_actualizacion.isoformat() if hasattr(c.ultima_actualizacion, 'isoformat') and c.ultima_actualizacion else str(c.ultima_actualizacion or ''),
             "opcion_gps": opcion_gps_label,
-            "expiracion_gps": exp_iso  # 👈 Nombre unificado que lee el JavaScript
+            "tiempo_restante": tiempo_restante,
+            "expiracion_iso": exp_gps.isoformat() if exp_gps else None
         })  
       
     return jsonify(resultado)
+
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)

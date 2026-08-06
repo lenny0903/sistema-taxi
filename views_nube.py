@@ -9,9 +9,8 @@ from models.turnos import Turno
 from models.usuarios import Usuario
 from models.despachos import Despacho  # <--- Importación limpia y directa en singular
 from models.conductores import Conductor
-from utils.time import hora_local
 
-
+views_bp = Blueprint("views", __name__)
 views_bp = Blueprint("views", __name__)
 
 @views_bp.route("/login_alt")
@@ -94,7 +93,7 @@ def obtener_ubicaciones_activas():
     """)
     resultados = db.session.execute(sql).fetchall()
     
-    ahora = hora_local() 
+    ahora = datetime.now()
     lista_conductores = []
     
     for row in resultados:
@@ -109,7 +108,7 @@ def obtener_ubicaciones_activas():
             except ValueError:
                 expiracion = None
 
-       # 2. Si no hay expiracion_gps registrada, calcularla usando fecha_inicio del TURNO
+        # 2. Si no hay expiracion_gps registrada en el conductor, calcularla usando fecha_inicio del TURNO
         if not expiracion:
             inicio = row.fecha_inicio
             if isinstance(inicio, str):
@@ -119,15 +118,15 @@ def obtener_ubicaciones_activas():
                 except ValueError:
                     inicio = None
             
-            # Si tenemos inicio del turno, asignamos la expiración según la opción guardada
+            # Solo si tenemos fecha_inicio válida (objeto datetime)
             if isinstance(inicio, datetime):
                 if "15" in opcion_raw:
                     expiracion = inicio + timedelta(minutes=15)
-                elif "1" in opcion_raw and "15" not in opcion_raw and "limite" not in opcion_raw and "límite" not in opcion_raw:
+                elif "1" in opcion_raw and "15" not in opcion_raw:
                     expiracion = inicio + timedelta(hours=1)
-                else:
-                    # Si eligieron "Tiempo límite" (que equivale a jornada completa de 8h por defecto)
+                elif "8" in opcion_raw:
                     expiracion = inicio + timedelta(hours=8)
+
         # 3. Determinar el label y tiempo restante
         es_en_vivo = ("hasta" in opcion_raw) or ("desactive" in opcion_raw) or (opcion_raw == "en vivo")
 
@@ -162,7 +161,6 @@ def obtener_ubicaciones_activas():
             "ultima_actualizacion": row.ultima_actualizacion.isoformat() if hasattr(row.ultima_actualizacion, 'isoformat') else str(row.ultima_actualizacion or ''),
             "id_conductor": row.id_conductor,
             "opcion_gps": opcion_label,
-            "expiracion_iso": expiracion.isoformat() if hasattr(expiracion, 'isoformat') else str(expiracion or ''),
             "tiempo_restante": tiempo_restante
         })
         
@@ -182,7 +180,7 @@ def recibir_gps():
         return jsonify({"status": "error", "message": "Faltan parámetros"}), 400
 
     try:
-        ahora = hora_local() 
+        ahora = datetime.now()
 
         # Solo actualizamos las coordenadas, el estado y la hora del último reporte GPS.
         # No tocamos expiracion_gps para respetar la fecha de término fijada al iniciar el turno.

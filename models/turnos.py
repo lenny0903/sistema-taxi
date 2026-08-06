@@ -1,19 +1,17 @@
 from models.puntos_espera import PuntoEspera
 from extensions import db
 from datetime import datetime, timedelta
-import pytz
+from utils.time import hora_local  # 👈 Importamos tu función centralizada oficial
 
-def hora_venezuela():
-    return datetime.now()
 class Turno(db.Model):
     __tablename__ = "turnos"
 
     id_turno = db.Column(db.Integer, primary_key=True)
     conductor_id = db.Column(db.Integer, db.ForeignKey("conductores.id_conductor"), nullable=False)
     auto_id = db.Column(db.Integer, db.ForeignKey("autos.id_auto"), nullable=False)
-    punto_id = db.Column(db.Integer, db.ForeignKey("puntos_espera.id_punto"), nullable=False)  # nuevo campo
+    punto_id = db.Column(db.Integer, db.ForeignKey("puntos_espera.id_punto"), nullable=False)
     estado = db.Column(db.String(20), default="activo")  # activo, finalizado
-    inicio = db.Column(db.DateTime, default=hora_venezuela)
+    inicio = db.Column(db.DateTime, default=hora_local)  # 👈 Usa tu función real de Caracas
     fin = db.Column(db.DateTime)
 
     # Relaciones explícitas
@@ -24,13 +22,10 @@ class Turno(db.Model):
     def __repr__(self):
         return f"<Turno {self.id_turno} - Conductor {self.conductor_id} - Auto {self.auto_id} - Punto {self.punto_id} - Estado {self.estado}>"
 
-   
-
     def to_dict(self):
         return {
             "id_turno": self.id_turno,
             "estado": self.estado,
-            # Como la fecha ya se guardó con la hora local real, solo le pegamos el sufijo -04:00
             "inicio": self.inicio.isoformat() + "-04:00" if self.inicio else None,
             "fin": self.fin.isoformat() + "-04:00" if self.fin else None,
             "conductor": {

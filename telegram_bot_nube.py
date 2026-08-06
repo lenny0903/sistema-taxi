@@ -2,16 +2,10 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 import requests
 import json
-import os
-import pytz
 from flask_socketio import emit
 from routes.turnos import finalizar_turno
-from utils.time import hora_local
-from dotenv import load_dotenv
 
-load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
-
 
 def emitir_al_panel(evento, datos):
     try:
@@ -21,10 +15,9 @@ def emitir_al_panel(evento, datos):
         print(f"❌ Error al emitir evento: {e}")
 
 def confirmar_clic(callback_id):
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery"
     requests.post(url, data={'callback_query_id': callback_id})
-
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def webhook():
@@ -37,53 +30,41 @@ def webhook():
         if not update:
             return jsonify({"status": "ok"}), 200
 
-        # 1. Identificar el mensaje de forma segura
+        # Identificar el mensaje de forma segura
         msg = update.get('message') or update.get('edited_message')
         if not msg:
-            return jsonify({"status": "sin_mensaje"}), 200
-
-        # 2. Obtener el chat_id y buscar al conductor PRIMERO
+            return jsonify({"status": "ok"}), 200
+        
         chat_id = str(msg['from']['id'])
         conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
 
-        if not conductor:
-            print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD")
-            return jsonify({"status": "conductor_no_encontrado"}), 200
-
-        # 3. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location)
-        if "location" in msg:
-            ahora = hora_local()  # Fecha con zona horaria (aware)
-
-            conductor.latitud = msg["location"]["latitude"]
-            conductor.longitud = msg["location"]["longitude"]
-            conductor.ultima_actualizacion = ahora
-
-            segundos = msg["location"].get("live_period")
+       # 1. PROCESAMIENTO DE UBICACIÓN (Normal o Editada de Live Location)
+        if 'location' in msg:
+            if not conductor:
+                return jsonify({"status": "ignorado_sin_conductor"}), 200
             
-            # 🛡️ NORMALIZACIÓN DE ZONA HORARIA PARA EVITAR EL CHOQUE
-            exp_db = conductor.expiracion_gps
-            if exp_db and exp_db.tzinfo is None:
-                from utils.time import TZ_CARACAS
-                exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
+            # Guardar coordenadas siempre que el conductor envíe su ubicación
+            conductor.latitud = msg['location']['latitude'] 
+            conductor.longitud = msg['location']['longitude'] 
+            conductor.ultima_actualizacion = datetime.now() 
 
-            expirado = not exp_db or exp_db < ahora
-
-            # 1. Si ya expiró -> Se asigna la nueva fecha
-            # 2. Si no ha expirado pero el conductor cambió voluntariamente la duración del Live Location -> Se actualiza
-            if expirado:
-                duracion = segundos or 28800
-                opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
-                conductor.opcion_gps = opciones.get(duracion, f"{duracion // 3600}h")
-                conductor.expiracion_gps = ahora + timedelta(seconds=duracion)
-
-            # Sincronización con la tabla Turno
-            if hasattr(conductor, "turno_activo") and conductor.turno_activo:
-                conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
-                conductor.turno_activo.opcion_gps = conductor.opcion_gps
-
-            db.session.commit()
+            # Capturar o renovar duración de Live Location si Telegram la envía 
+            if 'live_period' in msg['location']: 
+                segundos = msg['location']['live_period'] 
+                opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"} 
+                conductor.opcion_gps = opciones.get(segundos, f"{segundos // 3600}h") 
+                conductor.expiracion_gps = datetime.now() + timedelta(seconds=segundos) 
+            else: 
+                # Si no envía live_period pero manda ubicación, le asignamos 8 horas por defecto
+                conductor.opcion_gps = "permanente"
+                conductor.expiracion_gps = datetime.now() + timedelta(hours=8) 
+             
+            db.session.commit() 
+            print(f"✅ Ubicación recibida de {conductor.codigo} -> Lat: {conductor.latitud}, Lng: {conductor.longitud}")
+            
             return jsonify({"status": "loc_actualizada"}), 200
-        # 4. PROCESAMIENTO DE TEXTO
+
+        # 2. PROCESAMIENTO DE TEXTO
         elif 'text' in msg:
             texto = msg['text']
             
@@ -94,7 +75,7 @@ def webhook():
 
             # --- BOTÓN ACTIVAR ---
             if texto == "🔗 Activar":
-                if conductor:
+                if Conductor.query.filter_by(telegram_id=chat_id).first():
                     enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.")
                     enviar_menu_botones(chat_id)
                 else:
@@ -117,17 +98,16 @@ def webhook():
                     enviar_menu_botones(chat_id)
                 return jsonify({"status": "resultado_vinculacion"}), 200
 
+            # Si escriben cualquier otra cosa por chat
             enviar_menu_botones(chat_id)
             return jsonify({"status": "texto_procesado"}), 200
 
-        return jsonify({"status": "ok"}), 200
-
     except Exception as e:
        print(f"❌ ERROR CRÍTICO: {e}")
-       return jsonify({"status": "error", "detalle": str(e)}), 500
-    
+       return jsonify({"status": "ok"}), 200
+
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
         'chat_id': chat_id,
@@ -140,7 +120,7 @@ def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     requests.post(url, data=payload)
 
 def enviar_menu_botones(chat_id):
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     
     # Menú minimalista: solo queda el botón de activación inicial
@@ -162,7 +142,7 @@ def enviar_menu_botones(chat_id):
     requests.post(url, data=payload)
 
 def limpiar_teclado_conductor(chat_id):
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
         'chat_id': chat_id,

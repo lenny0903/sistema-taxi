@@ -192,31 +192,8 @@
                                 estaDesactualizado = true;
                             }
 
-                           // 2. CÁLCULO DINÁMICO DEL CRONÓMETRO CLIENTE
-                            let textoTiempoRestante = '⏱️ Activo';
-
-                            if (c.expiracion_gps) {
-                                // Asegurar formato ISO estándar para la Date de JS (removiendo espacios si los hubiere)
-                                const isoString = c.expiracion_gps.includes('T') ? c.expiracion_gps : c.expiracion_gps.replace(' ', 'T');
-                                const fechaExp = new Date(isoString).getTime();
-                                const ahora = new Date().getTime();
-                                const diferencia = fechaExp - ahora;
-
-                                if (!isNaN(fechaExp) && diferencia > 0) {
-                                    const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                    const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
-                                    const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-
-                                    if (horas > 0) {
-                                        textoTiempoRestante = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
-                                    } else {
-                                        textoTiempoRestante = `⏱️ ${minutos}m ${segundos}s`;
-                                    }
-                                } else {
-                                    textoTiempoRestante = '⏳ Expirado';
-                                }
-                            }
-
+                            // 2. CONSTRUCCIÓN DE TEXTO DE TIEMPO Y OPCIÓN GPS (LIMPIO)
+                            const tiempoRestante = c.tiempo_restante ? `⏱️ ${c.tiempo_restante}` : '⏱️ Activo';
                             const modoGps = c.opcion_gps ? ` [${c.opcion_gps}]` : '';
 
                             // 3. ETIQUETA VISUAL DE ESTADO COMPACTA
@@ -231,7 +208,7 @@
                             } else {
                                 etiquetaEstado = `
                                     <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
-                                    <small style="font-size: 11px; color: #555;">${textoTiempoRestante}${modoGps}</small>
+                                    <small style="font-size: 11px; color: #555;">${tiempoRestante}${modoGps}</small>
                                 `;
                             }
 

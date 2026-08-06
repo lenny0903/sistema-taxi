@@ -182,7 +182,7 @@ def create_app():
             return "Falta la URL del túnel", 400
             
         import requests
-        TOKEN = "8818215412:AAEFE96X3yOejvx65oRlHVzBkAllIGdXQxg"
+        TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
         url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
         try:
             respuesta = requests.get(url)

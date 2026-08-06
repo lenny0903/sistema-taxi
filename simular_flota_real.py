@@ -1,49 +1,54 @@
-import requests
-import time
 import random
+import time
+import requests
 
-# URL de tu servidor local en la laptop
 BASE_URL = "http://127.0.0.1:5000"
 
-# Tus códigos reales extraídos directamente de la base de datos
-CODIGOS_REALES = [
-    "B07", "B10", "B15", "B16", "B18", 
-    "B19", "B20", "B21", "B22", "B23", 
-    "B24", "B25", "B26", "B27"
+# Mapeo de códigos a telegram_ids simulados (o reales de tu DB)
+# Asegúrate de que el B10 tenga su telegram_id configurado para que la consulta en el webhook lo reconozca
+CONDUCTORES_SIMULADOS = [
+    {"codigo": "B19", "telegram_id": "5987075437"},
+    {"codigo": "B22", "telegram_id": "8772520835"},
+    {"codigo": "B20", "telegram_id": "8723268955"},
 ]
 
-def simular_envio_gps(codigo, latitud, longitud):
-    url = f"{BASE_URL}/conductores/actualizar_ubicacion"
+
+def simular_envio_telegram(telegram_id, latitud, longitud):
+    # 👈 Cambia la URL agregando el prefijo del Blueprint (ej. /telegram/webhook)
+    url = f"{BASE_URL}/telegram/webhook" 
+
     payload = {
-        "codigo": codigo,
-        "latitud": latitud,
-        "longitud": longitud
+        "update_id": 1000001,
+        "edited_message": {
+            "from": {"id": int(telegram_id), "first_name": "Simulador"},
+            "chat": {"id": int(telegram_id), "type": "private"},
+            "location": {
+                "latitude": latitud,
+                "longitude": longitud,
+                "live_period": 28800,
+            },
+        },
     }
-    
+
     try:
         response = requests.post(url, json=payload)
-        print(f"📡 Conductor {codigo} -> Status: {response.status_code}")
+        print(f"📡 Telegram ID {telegram_id} -> Status: {response.status_code}")
     except Exception as e:
-        print(f"❌ Error al conectar para {codigo}: {e}")
+        print(f"❌ Error al conectar: {e}")
 
 if __name__ == "__main__":
-    print("--- INICIANDO SIMULADOR CON FLOTA REAL ---")
-    
-    # Coordenadas base en San Cristóbal
+    print("--- SIMULANDO ENVIOS REALES DE TELEGRAM (8 HORAS) ---")
     lat_centro = 7.7661
     lon_centro = -72.2230
 
-    # Ejecutaremos 5 rondas de prueba
-    for ronda in range(1, 50):
-        print(f"\n--- Ronda de actualización #{ronda} ---")
-        
-        for codigo in CODIGOS_REALES:
-            # Variación leve de coordenadas para simular movimiento en mapa
+    for ronda in range(1, 20):
+        print(f"\n--- Ronda #{ronda} ---")
+        for cond in CONDUCTORES_SIMULADOS:
             lat_aleatoria = lat_centro + random.uniform(-0.015, 0.015)
             lon_aleatoria = lon_centro + random.uniform(-0.015, 0.015)
-            
-            simular_envio_gps(codigo, lat_aleatoria, lon_aleatoria)
-        
+
+            simular_envio_telegram(
+                cond["telegram_id"], lat_aleatoria, lon_aleatoria
+            )
+
         time.sleep(5)
-    
-    print("\n--- SIMULACIÓN FINALIZADA ---")

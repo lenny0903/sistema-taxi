@@ -8,7 +8,7 @@ from models.despachos import Despacho
 from models.puntos_espera import PuntoEspera
 from routes.conductores import es_solvente
 from flask_jwt_extended import get_jwt, jwt_required
-
+from utils.time import hora_local  # Importamos la función centralizada de hora local
 
 turnos_bp = Blueprint("turnos", __name__, url_prefix="/turnos")
 
@@ -73,7 +73,7 @@ def crear_turno():
         )
         # Capturar la opción de GPS seleccionada (si no viene, usa 'hasta que desactive' por defecto)
         opcion_gps = data.get("opcion_gps", "hasta que desactive")
-        ahora = datetime.now()
+        ahora = hora_local()
         expiracion_gps = None
 
         opcion_clean = str(opcion_gps).strip().lower()
@@ -162,7 +162,7 @@ def finalizar_turno(turno_id, es_bot=False):
         # --------------------------
 
         turno.estado = "finalizado"
-        turno.fin = datetime.now()
+        turno.fin = hora_local()
         db.session.commit()
         # Si viene del bot, retornamos un diccionario simple, no un jsonify
         if es_bot:
