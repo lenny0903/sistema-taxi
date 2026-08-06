@@ -94,9 +94,11 @@ def job_verificar_gps_conductores():
             # 1. Tengan telegram_id registarado.
             # 2. Tengan su turno o expiracion_gps activa (en el futuro).
             # 3. No hayan actualizado su ubicación en los últimos 5 minutos.
+            # 🛡️ Consulta actualizada para abarcar expiración futura O turnos abiertos (None)
             conductores_dormidos = Conductor.query.filter(
                 Conductor.telegram_id.isnot(None),
-                Conductor.expiracion_gps > ahora,
+                Conductor.estado == 'activo',
+                (Conductor.expiracion_gps.is_(None) | (Conductor.expiracion_gps > ahora)),
                 Conductor.ultima_actualizacion < hace_5_minutos
             ).all()
 

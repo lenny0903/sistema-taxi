@@ -217,7 +217,13 @@
                                 }
                             }
 
-                            const modoGps = c.opcion_gps ? ` [${c.opcion_gps}]` : '';
+                            // Blindaje visual: Si la opción es muy larga o sospechosa, la ignoramos o simplificamos
+                            let opcionLimpia = c.opcion_gps || '';
+                            if (opcionLimpia.length > 25 || (opcionLimpia.includes('h') && parseInt(opcionLimpia) > 24)) {
+                                opcionLimpia = "Tiempo límite";
+                            }
+
+                            const modoGps = opcionLimpia ? ` [${opcionLimpia}]` : '';
 
                             // 3. ETIQUETA VISUAL DE ESTADO COMPACTA
                             let etiquetaEstado = '';

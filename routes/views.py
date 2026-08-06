@@ -100,7 +100,8 @@ def obtener_ubicaciones_activas():
     for row in resultados:
         expiracion = row.expiracion_gps
         opcion_raw = str(row.opcion_gps or '').strip().lower()
-
+        if len(opcion_raw) > 20 or "h" in opcion_raw and len(opcion_raw) > 5:
+            opcion_raw = "8 horas" # Valor seguro por defecto si detectamos basura
         # 1. Normalizar expiracion_gps a objeto datetime
         if isinstance(expiracion, str):
             try:

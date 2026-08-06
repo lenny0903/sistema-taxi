@@ -366,8 +366,8 @@ def actualizar_ubicacion():
         conductor.ultima_actualizacion = hora_local()
 
         # 🔹 PERMITE RECIBIR TIEMPOS EN SIMULACIÓN
-        if 'opcion_gps' in data:
-            conductor.opcion_gps = data['opcion_gps']
+        #if 'opcion_gps' in data:
+        #    conductor.opcion_gps = data['opcion_gps']
 
         if data.get('expiracion_gps'):
             try:
@@ -438,6 +438,19 @@ def obtener_ubicaciones():
         opcion_val = getattr(c, 'opcion_gps', None) or (turno_activo.opcion_gps if turno_activo and hasattr(turno_activo, 'opcion_gps') else None)
         exp_gps = getattr(c, 'expiracion_gps', None) or (turno_activo.expiracion_gps if turno_activo and hasattr(turno_activo, 'expiracion_gps') else None)
 
+        if isinstance(exp_gps, str):
+            try:
+                exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                exp_gps = None
+
+        opcion_str = str(opcion_val or '').strip().lower()
+
+        # 🛡️ FILTRO DE SEGURIDAD ANTI-BASURA:
+        # Si la opción tiene una longitud exagerada (como un error de texto o número largo) o no es válida, la reseteamos
+        if len(opcion_str) > 25 or (any(char.isdigit() for char in opcion_str) and 'h' in opcion_str and len(opcion_str) > 6 and '15' not in opcion_str):
+            opcion_val = "8 horas"
+            opcion_str = "8 horas"
         if isinstance(exp_gps, str):
             try:
                 exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")

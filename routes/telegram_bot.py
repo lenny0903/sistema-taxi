@@ -57,7 +57,8 @@ def webhook():
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
-
+            # 🛡️ Reseteamos la alerta aquí mismo al recibir ubicación nueva
+            conductor.alerta_enviada = False
             segundos = msg["location"].get("live_period")
             
             # 🛡️ NORMALIZACIÓN DE ZONA HORARIA PARA EVITAR EL CHOQUE
@@ -73,7 +74,14 @@ def webhook():
             if expirado:
                 duracion = segundos or 28800
                 opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
-                conductor.opcion_gps = opciones.get(duracion, f"{duracion // 3600}h")
+                
+                # 🛡️ Blindaje: Si la duración no está en las estándar, forzamos 8 horas por seguridad
+                if duracion in opciones:
+                    conductor.opcion_gps = opciones[duracion]
+                else:
+                    duracion = 28800
+                    conductor.opcion_gps = "8 horas"
+
                 conductor.expiracion_gps = ahora + timedelta(seconds=duracion)
 
             # Sincronización con la tabla Turno
