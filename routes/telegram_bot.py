@@ -42,15 +42,58 @@ def webhook():
         if not msg:
             return jsonify({"status": "sin_mensaje"}), 200
 
-        # 2. Obtener el chat_id y buscar al conductor PRIMERO
         chat_id = str(msg['from']['id'])
+
+        # 2. PROCESAMIENTO DE TEXTO (Lo subimos para que los no registrados puedan enviar su código Bxx o /start)
+        if 'text' in msg:
+            texto = msg['text']
+            
+            # --- COMANDO START ---
+            if texto.startswith('/start'):
+                enviar_menu_botones(chat_id)
+                return jsonify({"status": "menu_enviado"}), 200
+
+            # --- BOTÓN ACTIVAR ---
+            if texto == "🔗 Activar":
+                conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
+                if conductor_temp:
+                    enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.")
+                    enviar_menu_botones(chat_id)
+                else:
+                    enviar_mensaje(chat_id, "🆔 Por favor, escribe tu código (ejemplo: B64) para activar tu cuenta.")
+                    enviar_menu_botones(chat_id)
+                return jsonify({"status": "esperando_codigo"}), 200
+
+            # --- VALIDACIÓN DE CÓDIGO ---
+            elif texto.upper().startswith('B') and len(texto) >= 2:
+                codigo_buscado = texto.upper()
+                conductor_c = Conductor.query.filter_by(codigo=codigo_buscado).first()
+                if conductor_c:
+                    if conductor_c.telegram_id and conductor_c.telegram_id != chat_id:
+                        enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.")
+                    else:
+                        conductor_c.telegram_id = chat_id
+                        db.session.commit()
+                        enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada correctamente.")
+                    enviar_menu_botones(chat_id)
+                else:
+                    enviar_mensaje(chat_id, "🚫 Código no encontrado. Contacta al operador.")
+                    enviar_menu_botones(chat_id)
+                return jsonify({"status": "resultado_vinculacion"}), 200
+
+            enviar_menu_botones(chat_id)
+            return jsonify({"status": "texto_procesado"}), 200
+
+        # 3. BUSCAR AL CONDUCTOR PRIMERO (Para funciones como ubicación que exigen estar registrado)
         conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
 
         if not conductor:
             print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD")
+            enviar_mensaje(chat_id, "🆔 Bienvenido. Por favor, presiona el botón de abajo o escribe tu código de control:")
+            enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
-        # 3. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location)
+        # 4. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location)
         if "location" in msg:
             ahora = hora_local()  # Fecha con zona horaria (aware)
 
@@ -91,49 +134,14 @@ def webhook():
 
             db.session.commit()
             return jsonify({"status": "loc_actualizada"}), 200
-        # 4. PROCESAMIENTO DE TEXTO
-        elif 'text' in msg:
-            texto = msg['text']
-            
-            # --- COMANDO START ---
-            if texto.startswith('/start'):
-                enviar_menu_botones(chat_id)
-                return jsonify({"status": "menu_enviado"}), 200
 
-            # --- BOTÓN ACTIVAR ---
-            if texto == "🔗 Activar":
-                if conductor:
-                    enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.")
-                    enviar_menu_botones(chat_id)
-                else:
-                    enviar_mensaje(chat_id, "🆔 Por favor, escribe tu código (ejemplo: B64) para activar tu cuenta.")
-                return jsonify({"status": "esperando_codigo"}), 200
-
-            # --- VALIDACIÓN DE CÓDIGO ---
-            elif texto.startswith('B') and len(texto) >= 2:
-                conductor_c = Conductor.query.filter_by(codigo=texto).first()
-                if conductor_c:
-                    if conductor_c.telegram_id and conductor_c.telegram_id != chat_id:
-                        enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.")
-                    else:
-                        conductor_c.telegram_id = chat_id
-                        db.session.commit()
-                        enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada correctamente.")
-                    enviar_menu_botones(chat_id)
-                else:
-                    enviar_mensaje(chat_id, "🚫 Código no encontrado. Contacta al operador.")
-                    enviar_menu_botones(chat_id)
-                return jsonify({"status": "resultado_vinculacion"}), 200
-
-            enviar_menu_botones(chat_id)
-            return jsonify({"status": "texto_procesado"}), 200
-
+        enviar_menu_botones(chat_id)
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
        print(f"❌ ERROR CRÍTICO: {e}")
        return jsonify({"status": "error", "detalle": str(e)}), 500
-    
+        
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
