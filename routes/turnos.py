@@ -54,8 +54,19 @@ def crear_turno():
         #    return jsonify({"error": "El conductor no ha sido habilitado por el operador"}), 400
         # Validar que el auto esté disponible
         auto = Auto.query.get(auto_id)
-        if not auto or auto.estado != "disponible":
+        # 2. Validar que ambos existan
+        if not conductor or not auto:
+            return jsonify({"error": "Conductor o auto no encontrado"}), 400
+
+        # 3. Validar que el auto esté disponible
+        if auto.estado != "disponible":
             return jsonify({"error": "El auto no está disponible"}), 400
+
+        # 🛡️ 4. VALIDACIÓN BLINDADA DE COINCIDENCIA (Placa vs Código de Conductor)
+        if not auto.placa.lower().endswith(conductor.codigo.lower()):
+            return jsonify({
+                "error": f"Inconsistencia crítica: El vehículo seleccionado ({auto.placa}) no corresponde a la unidad del conductor ({conductor.codigo})."
+            }), 400
 
         # Validar que no tengan turno activo
         if Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first():
