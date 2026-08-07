@@ -28,119 +28,112 @@ def confirmar_clic(callback_id):
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def webhook():
-    from models.conductores import Conductor
-    from models.turnos import Turno
-    from extensions import db
-    try:
-        update = request.get_json()
-        print(f"DEBUG UPDATE: {update}")
-        if not update:
-            return jsonify({"status": "ok"}), 200
+     from models.conductores import Conductor 
+     from models.turnos import Turno 
+     from extensions import db 
+     try: 
+         update = request.get_json() 
+         print(f"DEBUG UPDATE: {update}") 
+         if not update: 
+             return jsonify({"status": "ok"}), 200 
 
-        # 1. Identificar el mensaje de forma segura
-        msg = update.get('message') or update.get('edited_message')
-        if not msg:
-            return jsonify({"status": "sin_mensaje"}), 200
+         # 1. Identificar el mensaje de forma segura 
+         msg = update.get('message') or update.get('edited_message') 
+         if not msg: 
+             return jsonify({"status": "sin_mensaje"}), 200 
 
-        chat_id = str(msg['from']['id'])
+         # 2. Obtener el chat_id y buscar al conductor PRIMERO 
+         chat_id = str(msg['from']['id']) 
+         conductor = Conductor.query.filter_by(telegram_id=chat_id).first() 
 
-        # 2. PROCESAMIENTO DE TEXTO (Lo subimos para que los no registrados puedan enviar su código Bxx o /start)
-        if 'text' in msg:
-            texto = msg['text']
-            
-            # --- COMANDO START ---
-            if texto.startswith('/start'):
-                enviar_menu_botones(chat_id)
-                return jsonify({"status": "menu_enviado"}), 200
+         if not conductor: 
+             print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD") 
+             enviar_mensaje(chat_id, "🆔 Bienvenido. Por favor, presiona el botón de abajo o escribe tu código de control:") 
+             enviar_menu_botones(chat_id) 
+             return jsonify({"status": "conductor_no_encontrado"}), 200 
 
-            # --- BOTÓN ACTIVAR ---
-            if texto == "🔗 Activar":
-                conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
-                if conductor_temp:
-                    enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.")
-                    enviar_menu_botones(chat_id)
-                else:
-                    enviar_mensaje(chat_id, "🆔 Por favor, escribe tu código (ejemplo: B64) para activar tu cuenta.")
-                    enviar_menu_botones(chat_id)
-                return jsonify({"status": "esperando_codigo"}), 200
+         # 3. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location) 
+         if "location" in msg: 
+             ahora = hora_local()  # Fecha con zona horaria (aware) 
 
-            # --- VALIDACIÓN DE CÓDIGO ---
-            elif texto.upper().startswith('B') and len(texto) > 1 and texto.upper()[1:].isdigit():
-                codigo_buscado = texto.upper()
-                conductor_c = Conductor.query.filter_by(codigo=codigo_buscado).first()
-                if conductor_c:
-                    if conductor_c.telegram_id and conductor_c.telegram_id != chat_id:
-                        enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.")
-                    else:
-                        conductor_c.telegram_id = chat_id
-                        db.session.commit()
-                        enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada correctamente.")
-                    enviar_menu_botones(chat_id)
-                else:
-                    enviar_mensaje(chat_id, "🚫 Código no encontrado. Contacta al operador.")
-                    enviar_menu_botones(chat_id)
-                return jsonify({"status": "resultado_vinculacion"}), 200
+             conductor.latitud = msg["location"]["latitude"] 
+             conductor.longitud = msg["location"]["longitude"] 
+             conductor.ultima_actualizacion = ahora 
+             conductor.alerta_enviada = False 
+             segundos = msg["location"].get("live_period") 
+              
+             exp_db = conductor.expiracion_gps 
+             if exp_db and exp_db.tzinfo is None: 
+                 from utils.time import TZ_CARACAS 
+                 exp_db = exp_db.replace(tzinfo=TZ_CARACAS) 
 
-            enviar_menu_botones(chat_id)
-            return jsonify({"status": "texto_procesado"}), 200
+             expirado = not exp_db or exp_db < ahora 
 
-        # 3. BUSCAR AL CONDUCTOR PRIMERO (Para funciones como ubicación que exigen estar registrado)
-        conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
+             if expirado: 
+                 duracion = segundos or 28800 
+                 opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"} 
+                  
+                 if duracion in opciones: 
+                     conductor.opcion_gps = opciones[duracion] 
+                 else: 
+                     duracion = 28800 
+                     conductor.opcion_gps = "8 horas" 
 
-        if not conductor:
-            print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD")
-            enviar_mensaje(chat_id, "🆔 Bienvenido. Por favor, presiona el botón de abajo o escribe tu código de control:")
-            enviar_menu_botones(chat_id)
-            return jsonify({"status": "conductor_no_encontrado"}), 200
+                 conductor.expiracion_gps = ahora + timedelta(seconds=duracion) 
 
-        # 4. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location)
-        if "location" in msg:
-            ahora = hora_local()  # Fecha con zona horaria (aware)
+             if hasattr(conductor, "turno_activo") and conductor.turno_activo: 
+                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps 
+                 conductor.turno_activo.opcion_gps = conductor.opcion_gps 
 
-            conductor.latitud = msg["location"]["latitude"]
-            conductor.longitud = msg["location"]["longitude"]
-            conductor.ultima_actualizacion = ahora
-            # 🛡️ Reseteamos la alerta aquí mismo al recibir ubicación nueva
-            conductor.alerta_enviada = False
-            segundos = msg["location"].get("live_period")
-            
-            # 🛡️ NORMALIZACIÓN DE ZONA HORARIA PARA EVITAR EL CHOQUE
-            exp_db = conductor.expiracion_gps
-            if exp_db and exp_db.tzinfo is None:
-                from utils.time import TZ_CARACAS
-                exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
+             db.session.commit() 
+             return jsonify({"status": "loc_actualizada"}), 200 
 
-            expirado = not exp_db or exp_db < ahora
+         # 4. PROCESAMIENTO DE TEXTO 
+         elif 'text' in msg: 
+             texto = msg['text'] 
+              
+             # --- COMANDO START --- 
+             if texto.startswith('/start'): 
+                 enviar_menu_botones(chat_id) 
+                 return jsonify({"status": "menu_enviado"}), 200 
 
-            # 1. Si ya expiró -> Se asigna la nueva fecha
-            # 2. Si no ha expirado pero el conductor cambió voluntariamente la duración del Live Location -> Se actualiza
-            if expirado:
-                duracion = segundos or 28800
-                opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
-                
-                # 🛡️ Blindaje: Si la duración no está en las estándar, forzamos 8 horas por seguridad
-                if duracion in opciones:
-                    conductor.opcion_gps = opciones[duracion]
-                else:
-                    duracion = 28800
-                    conductor.opcion_gps = "8 horas"
+             # --- BOTÓN ACTIVAR --- 
+             if texto == "🔗 Activar": 
+                 if conductor: 
+                     enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.") 
+                 else: 
+                     enviar_mensaje(chat_id, "🆔 Por favor, escribe tu código (ejemplo: B64) para activar tu cuenta.") 
+                 enviar_menu_botones(chat_id) # 👈 Asegurado para que nunca falte el botón visualmente
+                 return jsonify({"status": "esperando_codigo"}), 200 
 
-                conductor.expiracion_gps = ahora + timedelta(seconds=duracion)
+             # --- VALIDACIÓN DE CÓDIGO (Estrictamente B seguido solo de números) --- 
+             elif texto.upper().startswith('B') and len(texto) > 1 and texto.upper()[1:].isdigit(): 
+                 codigo_buscado = texto.upper()
+                 conductor_c = Conductor.query.filter_by(codigo=codigo_buscado).first() 
+                 if conductor_c: 
+                     if conductor_c.telegram_id and conductor_c.telegram_id != chat_id: 
+                         enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.") 
+                     else: 
+                         conductor_c.telegram_id = chat_id 
+                         db.session.commit() 
+                         enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada correctamente.") 
+                     enviar_menu_botones(chat_id) 
+                 else: 
+                     enviar_mensaje(chat_id, "🚫 Código no encontrado. Contacta al operador.") 
+                     enviar_menu_botones(chat_id) 
+                 return jsonify({"status": "resultado_vinculacion"}), 200 
 
-            # Sincronización con la tabla Turno
-            if hasattr(conductor, "turno_activo") and conductor.turno_activo:
-                conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
-                conductor.turno_activo.opcion_gps = conductor.opcion_gps
+             enviar_menu_botones(chat_id) 
+             return jsonify({"status": "texto_procesado"}), 200 
 
-            db.session.commit()
-            return jsonify({"status": "loc_actualizada"}), 200
+         return jsonify({"status": "ok"}), 200 
 
-        enviar_menu_botones(chat_id)
-        return jsonify({"status": "ok"}), 200
+     except Exception as e: 
+        print(f"❌ ERROR CRÍTICO: {e}") 
+        return jsonify({"status": "error", "detalle": str(e)}), 500
+    
 
-    except Exception as e:
-       print(f"❌ ERROR CRÍTICO: {e}")
-       return jsonify({"status": "error", "detalle": str(e)}), 500
+    
         
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
