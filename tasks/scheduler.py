@@ -98,12 +98,18 @@ def job_verificar_gps_conductores():
             conductores_dormidos = Conductor.query.filter(
                 Conductor.telegram_id.isnot(None),
                 Conductor.estado == 'activo',
+                # 1. Permiso vigente O turno abierto indefinido (None)
                 (Conductor.expiracion_gps.is_(None) | (Conductor.expiracion_gps > ahora)),
+                # 2. Obligatorio que YA HAYA REPORTADO al menos una vez (evita molestar al que nunca abrió la app)
+                Conductor.ultima_actualizacion.isnot(None), 
+                # 3. Y que se le haya caído la señal hace más de 5 minutos
                 Conductor.ultima_actualizacion < hace_5_minutos
             ).all()
 
             for c in conductores_dormidos:
                 # Opcional: Validar una bandera en tu modelo para no saturarlo con mensajes
+                if c.expiracion_gps is not None and c.expiracion_gps < ahora:
+                    continue
                 if getattr(c, 'alerta_enviada', False): 
                     continue
 
