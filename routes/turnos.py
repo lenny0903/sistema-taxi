@@ -63,9 +63,9 @@ def crear_turno():
             return jsonify({"error": "El auto no está disponible"}), 400
 
         # 🛡️ 4. VALIDACIÓN BLINDADA DE COINCIDENCIA (Placa vs Código de Conductor)
-        if not auto.placa.lower().endswith(conductor.codigo.lower()):
+        if not auto.nro_placa.lower().endswith(conductor.codigo.lower()):
             return jsonify({
-                "error": f"Inconsistencia crítica: El vehículo seleccionado ({auto.placa}) no corresponde a la unidad del conductor ({conductor.codigo})."
+                "error": f"Inconsistencia crítica: El vehículo seleccionado ({auto.nro_placa}) no corresponde a la unidad del conductor ({conductor.codigo})."
             }), 400
 
         # Validar que no tengan turno activo
