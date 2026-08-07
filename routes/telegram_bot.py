@@ -65,7 +65,7 @@ def webhook():
                 return jsonify({"status": "esperando_codigo"}), 200
 
             # --- VALIDACIÓN DE CÓDIGO ---
-            elif texto.upper().startswith('B') and len(texto) >= 2:
+            elif texto.upper().startswith('B') and len(texto) > 1 and texto.upper()[1:].isdigit():
                 codigo_buscado = texto.upper()
                 conductor_c = Conductor.query.filter_by(codigo=codigo_buscado).first()
                 if conductor_c:
