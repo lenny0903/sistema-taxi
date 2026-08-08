@@ -86,30 +86,38 @@ def job_verificar_gps_conductores():
         try:
             from models.conductores import Conductor
             from extensions import db
+            from utils.time import TZ_CARACAS
 
             ahora = hora_local()
             hace_5_minutos = ahora - timedelta(minutes=5)
 
-            # Buscar conductores que:
-            # 1. Tengan telegram_id registarado.
-            # 2. Tengan su turno o expiracion_gps activa (en el futuro).
-            # 3. No hayan actualizado su ubicación en los últimos 5 minutos.
-            # 🛡️ Consulta actualizada para abarcar expiración futura O turnos abiertos (None)
-            conductores_dormidos = Conductor.query.filter(
+            # 1. Consulta limpia y segura en la BD (evita el choque de tipos en el filtro SQL)
+            conductores_candidatos = Conductor.query.filter(
                 Conductor.telegram_id.isnot(None),
                 Conductor.estado == 'activo',
-                # 1. Permiso vigente O turno abierto indefinido (None)
-                (Conductor.expiracion_gps.is_(None) | (Conductor.expiracion_gps > ahora)),
-                # 2. Obligatorio que YA HAYA REPORTADO al menos una vez (evita molestar al que nunca abrió la app)
-                Conductor.ultima_actualizacion.isnot(None), 
-                # 3. Y que se le haya caído la señal hace más de 5 minutos
-                Conductor.ultima_actualizacion < hace_5_minutos
+                Conductor.ultima_actualizacion.isnot(None)
             ).all()
 
-            for c in conductores_dormidos:
-                # Opcional: Validar una bandera en tu modelo para no saturarlo con mensajes
-                if c.expiracion_gps is not None and c.expiracion_gps < ahora:
+            for c in conductores_candidatos:
+                # 🛡️ Normalización estricta de ultima_actualizacion (por si acaso viene naive de la BD)
+                ult_act = c.ultima_actualizacion
+                if ult_act and ult_act.tzinfo is None:
+                    ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
+
+                # 3. Validar si la señal se cayó hace más de 5 minutos
+                if ult_act >= hace_5_minutos:
+                    continue  
+
+                # 🛡️ Normalización estricta de expiracion_gps
+                exp_db = c.expiracion_gps
+                if exp_db and exp_db.tzinfo is None:
+                    exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
+
+                # 1. Si expiracion_gps existe y ya expiró, se omite
+                if exp_db is not None and exp_db < ahora:
                     continue
+
+                # 2. Validar bandera de alerta enviada para no saturar
                 if getattr(c, 'alerta_enviada', False): 
                     continue
 
@@ -129,7 +137,7 @@ def job_verificar_gps_conductores():
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(requests.post, url, json=payload, timeout=5)
-                    res = future.result() # Captura el resultado de la petición fuera del contexto verde
+                    res = future.result() # Captura el resultado fuera del contexto verde
                 
                 if res.status_code == 200:
                     print(f"⚠️ [GPS DESPERTADOR] Notificación sonora enviada a {c.codigo}")
