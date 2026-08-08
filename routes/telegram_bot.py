@@ -89,6 +89,12 @@ def webhook():
 
         if not conductor:
             print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD")
+            
+            # 🛡️ BLINDAJE ANTISPAM: Si un usuario no registrado manda ubicación, 
+            # la ignoramos silenciosamente para evitar que el bucle de Live Location sature el chat.
+            if "location" in msg:
+                return jsonify({"status": "ubicacion_ignorada_sin_registro"}), 200
+
             enviar_mensaje(chat_id, "🆔 Bienvenido. Por favor, presiona el botón de abajo o escribe tu código de control:")
             enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
