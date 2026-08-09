@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models.autos import Auto
 from models.turnos import Turno
-
+import re
 autos_bp = Blueprint("autos", __name__, url_prefix="/autos")
 
 @autos_bp.route("/", methods=["POST"])
@@ -11,7 +11,10 @@ def crear_auto():
         data = request.get_json()
         # Normalizamos la placa a mayúsculas para comparar
         placa = data.get("nro_placa", "").strip().upper()
-
+        # 🛡️ Validación: Debe terminar con B y dos números. 
+        # El patrón r'.*B\d{2}$' significa: cualquier cosa (.*) seguido de B + 2 dígitos al final ($)
+        if not re.search(r'B\d{2}$', placa):
+            return jsonify({"error": "Formato inválido. La placa debe terminar con la letra B seguida de dos números."}), 400
         # VALIDACIÓN MANUAL ANTES DE INSERTAR
         existente = Auto.query.filter_by(nro_placa=placa).first()
         if existente:
@@ -86,7 +89,9 @@ def modificar_auto(id):
         # 1. Validación de Placa (Si se envía una nueva placa)
         if "nro_placa" in data:
             nueva_placa = data["nro_placa"].strip().upper()
-            
+           # 🛡️ Validación: Debe terminar con B y dos números.
+            if not re.search(r'B\d{2}$', nueva_placa):
+                return jsonify({"error": "Formato inválido. La placa debe terminar con la letra B seguida de dos números."}), 400
             # Verificar que la placa no la tenga OTRO auto
             existente = Auto.query.filter(Auto.nro_placa == nueva_placa, Auto.id_auto != id).first()
             if existente:

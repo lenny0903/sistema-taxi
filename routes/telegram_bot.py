@@ -31,6 +31,8 @@ def webhook():
     from models.conductores import Conductor
     from models.turnos import Turno
     from extensions import db
+    print("--- LLEGÓ PETICIÓN DE TELEGRAM ---")
+    print("RAW DATA:", request.data)
     try:
         update = request.get_json()
         print(f"DEBUG UPDATE: {update}")
@@ -99,18 +101,44 @@ def webhook():
             enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
-        # 4. PROCESAMIENTO DE UBICACIÓN (Normal o Live Location)
+        # 4. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
+        
+        # 🛑 DETECCIÓN DE CIERRE MANUAL: 
+        # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)
+        es_cierre_manual = False
+        if "edited_message" in update:
+            if "location" not in msg:
+                es_cierre_manual = True
+            elif "location" in msg and "live_period" not in msg["location"]:
+                es_cierre_manual = True
+
+        if es_cierre_manual:
+            ahora = hora_local()
+            conductor.expiracion_gps = ahora
+            conductor.opcion_gps = "Finalizado"
+
+            if hasattr(conductor, "turno_activo") and conductor.turno_activo:
+                conductor.turno_activo.expiracion_gps = ahora
+                conductor.turno_activo.opcion_gps = "Finalizado"
+
+            db.session.commit()
+            
+            enviar_mensaje(chat_id, "🛑 Has dejado de compartir tu ubicación. Sesión de GPS finalizada correctamente.")
+            enviar_menu_botones(chat_id)
+            print(f"🛑 [GPS] El conductor {conductor.codigo} finalizó su GPS manualmente.")
+            return jsonify({"status": "loc_finalizada_manual"}), 200
+
+        # --- PROCESAMIENTO DE UBICACIÓN ACTIVA (Cuando sí trae coordenadas) ---
         if "location" in msg:
             ahora = hora_local()  # Fecha con zona horaria (aware)
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
-            # 🛡️ Reseteamos la alerta aquí mismo al recibir ubicación nueva
             conductor.alerta_enviada = False
-            segundos = msg["location"].get("live_period")
             
-            # 🛡️ NORMALIZACIÓN DE ZONA HORARIA PARA EVITAR EL CHOQUE
+            segundos = msg["location"].get("live_period")
+
             exp_db = conductor.expiracion_gps
             if exp_db and exp_db.tzinfo is None:
                 from utils.time import TZ_CARACAS
@@ -118,13 +146,10 @@ def webhook():
 
             expirado = not exp_db or exp_db < ahora
 
-            # 1. Si ya expiró -> Se asigna la nueva fecha
-            # 2. Si no ha expirado pero el conductor cambió voluntariamente la duración del Live Location -> Se actualiza
             if expirado:
                 duracion = segundos or 28800
                 opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
                 
-                # 🛡️ Blindaje: Si la duración no está en las estándar, forzamos 8 horas por seguridad
                 if duracion in opciones:
                     conductor.opcion_gps = opciones[duracion]
                 else:
@@ -133,7 +158,6 @@ def webhook():
 
                 conductor.expiracion_gps = ahora + timedelta(seconds=duracion)
 
-            # Sincronización con la tabla Turno
             if hasattr(conductor, "turno_activo") and conductor.turno_activo:
                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
                 conductor.turno_activo.opcion_gps = conductor.opcion_gps
@@ -141,8 +165,9 @@ def webhook():
             db.session.commit()
             return jsonify({"status": "loc_actualizada"}), 200
 
-        enviar_menu_botones(chat_id)
-        return jsonify({"status": "ok"}), 200
+        # 🛡️ CIERRE SEGURO Y SILENCIOSO: 
+        # Si llega cualquier otra actualización que no sea texto ni ubicación activa.
+        return jsonify({"status": "actualizacion_silenciada"}), 200
 
     except Exception as e:
        print(f"❌ ERROR CRÍTICO: {e}")

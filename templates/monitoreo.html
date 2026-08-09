@@ -165,6 +165,8 @@
                 });
 
                 data.forEach(c => {
+                    // 🔍 DEPURACIÓN: Mira en la consola del navegador (F12) qué trae 'c'
+                     console.log("Conductor:", c.codigo, "Opción GPS:", c.opcion_gps);
                     if (c.estado === 'disponible') {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
@@ -174,6 +176,24 @@
                     }
 
                     if (c.estado === 'activo' || c.estado === 'en curso') {
+                        // 🛑 DETECCIÓN INMEDIATA DE CIERRE MANUAL
+                        if (c.opcion_gps && c.opcion_gps.includes('Finalizado')) {
+                            listaActiva.insertAdjacentHTML('beforeend', `
+                                <tr>
+                                    <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                                    <td style="padding: 4px 8px; vertical-align: middle;">
+                                        <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
+                                        <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
+                                    </td>
+                                </tr>`);
+                            
+                            // Limpiar el marcador del mapa al instante
+                            if (marcadores[c.codigo]) {
+                                map.removeLayer(marcadores[c.codigo]);
+                                delete marcadores[c.codigo];
+                            }
+                            return;
+                        }
                         const tieneUbicacion = c.latitud !== null && c.longitud !== null;
                         
                         if (tieneUbicacion) {

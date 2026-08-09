@@ -1,8 +1,14 @@
+
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 import requests
 
 def configurar_webhook():
     # Tu token (puedes dejarlo fijo o pedirlo también)
-    
+    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     
     print("--- Configuración automática de Webhook ---")
     url_tunel = input("Ingresa la URL de tu túnel (ej. https://xxx.trycloudflare.com): ").strip()

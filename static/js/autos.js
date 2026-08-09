@@ -1,3 +1,5 @@
+let bloqueoGuardar = false;
+let buscandoPlaca = false; // 🛡️ Bandera para el Enter de búsqueda
 function seleccionarAuto(auto) {
     console.log("Auto seleccionado desde tabla:", auto);
     
@@ -81,16 +83,37 @@ async function validarAuto() {
 }
 // autos.js
 async function guardarAuto(e) {
+    
     if (e) e.preventDefault();
 
+    // 🛡️ BLOQUEO ESTRICTO ANTI-DOBLE DISPARO
+    if (bloqueoGuardar) return;
+    bloqueoGuardar = true;
+
     const boton = document.getElementById('btnGuardarAuto');
+    if (boton.disabled) {
+        bloqueoGuardar = false;
+        return;
+    }
     
     // BLOQUEO DE SEGURIDAD: Si el botón ya está desactivado, no hagas nada
     if (boton.disabled) return; 
 
     const autoId = document.getElementById('autoId').value;
+    const placaIngresada = document.getElementById('autoPlaca').value.trim().toUpperCase();
+
+   // 🛡️ VALIDACIÓN: Formato BXY (B y dos números) DEBE ESTAR AL FINAL.
+    // La expresión regular busca "B" + 2 dígitos justo antes del final de la cadena.
+    const regexPlacaFinal = /B\d{2}$/;
+   if (!regexPlacaFinal.test(placaIngresada)) {
+        validandoPlaca = true;
+        alert("Formato inválido. La placa debe terminar con la letra B seguida de dos números (Ej: ABC-B07).");
+        document.getElementById('autoPlaca').focus();
+        validandoPlaca = false; // Liberamos la bandera al cerrar
+        return;
+    }
     const datos = {
-        nro_placa: document.getElementById('autoPlaca').value.trim().toUpperCase(),
+        nro_placa: placaIngresada,
         tipo_auto: document.getElementById('autoTipo').value,
         marca: document.getElementById('autoMarca').value,
         modelo: document.getElementById('autoModelo').value
@@ -151,13 +174,24 @@ function resetearFormAuto(limpiarPlaca = true) {
     }
     console.log("Formulario de autos reseteado.");
 }
-// Escuchador de Tecla Enter para Autos (Igual al de conductores)
+// Escuchador de Tecla Enter para Autos
 document.addEventListener('keydown', function(e) {
     // Verificamos que sea el Enter Y que estemos en el campo autoPlaca
     if (e.key === 'Enter' && e.target.id === 'autoPlaca') {
         e.preventDefault();
+
+        // 🛡️ BLOQUEO: Si ya se está procesando una búsqueda, ignoramos este doble evento
+        if (buscandoPlaca) return;
+        buscandoPlaca = true;
+
         console.log("Enter detectado en autoPlaca");
-        validarAuto();
+        
+        validarAuto().finally(() => {
+            // Liberamos el bloqueo medio segundo después para permitir buscar de nuevo
+            setTimeout(() => {
+                buscandoPlaca = false;
+            }, 500);
+        });
     }
 });
 // Agrega esto a autos.js para que el clic en la tabla funcione

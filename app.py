@@ -41,33 +41,6 @@ if 'db' not in sys.argv:
 else:
     socketio = SocketIO(cors_allowed_origins="*")
 
-scheduler = APScheduler() # Instancia global
-
-def ejecutar_respaldo_automatico():
-    base_path = os.getcwd()
-    ruta_db = os.path.join(base_path, 'taxis.db')
-    carpeta_backups = os.path.join(base_path, 'backups_automaticos')
-    
-    if not os.path.exists(carpeta_backups):
-        os.makedirs(carpeta_backups)
-    
-    nombre_backup = f"taxis_{datetime.now().strftime('%Y%m%d_%H%M')}.db"
-    ruta_destino = os.path.join(carpeta_backups, nombre_backup)
-    
-    try:
-        if os.path.exists(ruta_db):
-            shutil.copy2(ruta_db, ruta_destino)
-            print(f"[OK] [BACKUP] Respaldo generado con éxito: {nombre_backup}")
-            gestionar_almacenamiento_backups(carpeta_backups)
-        else:
-            print(f"[ALERTA] [ERROR] No se encontró la DB en: {ruta_db}")
-    except Exception as e:
-        print(f"[ERROR] [ERROR BACKUP] Fallo técnico: {e}")
-
-def gestionar_almacenamiento_backups(carpeta):
-    backups = sorted([os.path.join(carpeta, f) for f in os.listdir(carpeta)], key=os.path.getmtime)
-    while len(backups) > 24:
-        os.remove(backups.pop(0))
 
 def create_app():
     app = Flask(__name__)
@@ -192,18 +165,7 @@ def create_app():
             print("[ERROR] [TELEGRAM] No se pudo configurar el webhook:", e)
             return f"Error al configurar: {e}", 500
 
-    if 'db' not in sys.argv:
-        scheduler.init_app(app)
-        scheduler.add_job(
-            id='Backup_Cada_12_Horas', 
-            func=ejecutar_respaldo_automatico, 
-            trigger='interval', 
-            hours=12, 
-            replace_existing=True
-        )
-        scheduler.start()
-        print("[SISTEMA] Servidor y Scheduler iniciados en modo Producción...")
-
+   
     return app
 
 if __name__ == "__main__":
