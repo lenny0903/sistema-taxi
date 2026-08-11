@@ -19,6 +19,7 @@ class Conductor(db.Model):
     # Nuevos campos para tiempo de expiración GPS
     opcion_gps = db.Column(db.String(20), nullable=True)        # Ej: '15 min', '1 hora', '8 horas'
     expiracion_gps = db.Column(db.DateTime, nullable=True)     # Hora exacta en la que vence
+    alerta_enviada = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return f"<Conductor {self.nombre} ({self.codigo})>"
@@ -47,5 +48,6 @@ class Conductor(db.Model):
             "longitud": self.longitud,
             "ultima_actualizacion": self.ultima_actualizacion.isoformat() if self.ultima_actualizacion else None,
             "opcion_gps": self.opcion_gps or "En vivo",
-            "tiempo_restante": tiempo_restante
+            "tiempo_restante": tiempo_restante,
+            "alerta_enviada": self.alerta_enviada
         }

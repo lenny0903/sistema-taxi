@@ -28,5 +28,6 @@ SECRET_KEY = os.getenv("SECRET_KEY", "clave-secreta-demo")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 FLASK_ENV = os.getenv("FLASK_ENV", "production") 
 
+
 print(f"[*] Base de datos activa en: {db_path}")
 print(f"[*] Modo Debug: {DEBUG} | Entorno: {FLASK_ENV}")

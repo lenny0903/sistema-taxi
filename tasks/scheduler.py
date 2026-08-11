@@ -130,7 +130,7 @@ def job_verificar_gps_conductores():
             from utils.time import TZ_CARACAS
 
             ahora = hora_local()
-            hace_5_minutos = ahora - timedelta(minutes=5)
+            hace_10_minutos = ahora - timedelta(minutes=10)
 
             # Escenario 4 cubierto aquí: Solo toma conductores con reporte inicial previo
             conductores_candidatos = Conductor.query.filter(
@@ -160,7 +160,7 @@ def job_verificar_gps_conductores():
                     ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
 
                 # Si se actualizó recientemente dentro de los últimos 5 minutos, todo marcha bien
-                if ult_act >= hace_5_minutos:
+                if ult_act >= hace_10_minutos:
                     continue  
 
                 # 🛡️ ESCENARIOS 2 y 3: Pérdida de señal legítima o interrupción dentro del rango válido
@@ -192,3 +192,4 @@ def job_verificar_gps_conductores():
             from extensions import db
             db.session.rollback()
             print(f"❌ [SCHEDULER ERROR - GPS] {e}")
+            
