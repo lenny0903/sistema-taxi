@@ -519,3 +519,25 @@ def habilitar_conductor(id_conductor):
 @conductores_bp.route("/conductor/<codigo>")
 def vista_conductor(codigo):
     return render_template("conductor.html", codigo=codigo)
+
+@conductores_bp.route('/notificar_gps/<int:id_conductor>', methods=['POST'])
+def notificar_gps_manual(id_conductor):
+    try:
+        from models.conductores import Conductor
+        from routes.telegram_bot import enviar_mensaje
+
+        conductor = Conductor.query.get(id_conductor)
+        if not conductor or not conductor.telegram_id:
+            return jsonify({'status': 'error', 'mensaje': 'Conductor no encontrado o sin Telegram vinculado'}), 400
+
+        mensaje = (
+            f"🚨 <b>ALERTA DE CENTRAL - UNIDAD {conductor.codigo}</b>\n\n"
+            "El operador reporta que tu ubicación en el mapa se encuentra desactualizada.\n\n"
+            "📱 <b>Por favor reabre Telegram</b> para verificar que la ubicación en vivo siga activa."
+        )
+
+        enviar_mensaje(conductor.telegram_id, mensaje, parse_mode='HTML')
+        return jsonify({'status': 'ok'}), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500

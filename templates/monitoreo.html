@@ -3,11 +3,15 @@
 <head>
     <title>Monitoreo de Flota</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- CARGAR LA LIBRERÍA DE SOCKET.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
     <style> 
         body { display: flex; height: 100vh; margin: 0; overflow: hidden; position: relative; }
         
         #panel { 
-            width: 300px; 
+            width: 320px; 
             padding: 15px; 
             border-right: 2px solid #ccc; 
             overflow-y: auto; 
@@ -31,25 +35,32 @@
         .toast-msg { background: #28a745; color: white; padding: 12px 20px; margin-top: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); animation: fadeIn 0.3s; }
         @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1;} }
 
-        th, td { font-size: 20px; padding: 15px; }
-        h2 { font-size: 24px; }
+        th, td { font-size: 16px; padding: 10px 5px; }
+        h2 { font-size: 20px; margin-top: 0; }
         
         button {
-            padding: 8px 16px;
-            font-size: 16px;
-            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
             cursor: pointer;
             background-color: #e0e0e0;
             border: 1px solid #999;
         }
         button:hover { background-color: #d1d1d1; }
 
-        /* Botón deslizante flotante */
+        .btn-notificar {
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            margin-top: 4px;
+        }
+        .btn-notificar:hover { background-color: #006699; }
+
         #btnToggle {
             position: fixed;
             top: 15px;
-            left: 315px;
-            z-index: 9999; /* Asegura que siempre esté por encima de todo */
+            left: 335px;
+            z-index: 9999;
             background-color: #333;
             color: white;
             border: none;
@@ -64,14 +75,7 @@
 </head>
 <body>
 
-    <!-- PANEL LATERAL -->
     <div id="panel">
-        <!-- <h2>En Espera (Jornada iniciada)</h2>
-        <table id="tabla-espera">
-            <thead><tr><th>Unidad</th><th>Estado</th></tr></thead>
-            <tbody></tbody>
-        </table> -->
-        
         <h2>Flota Activa</h2>
         <table id="tabla-activa">
             <thead>
@@ -84,16 +88,13 @@
         </table>
     </div>
 
-    <!-- BOTÓN DESLIZANTE -->
     <button onclick="togglePanel()" id="btnToggle">◀</button>
 
-    <!-- MAPA Y TOASTS -->
     <div id="toast-container"></div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-       // 1. Definir capas base
         const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
@@ -101,28 +102,24 @@
 
         const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
-            maxNativeZoom: 17, // Evita pedir fotos inexistentes a Esri
+            maxNativeZoom: 17,
             maxZoom: 19
         });
 
-        // 👈 REEMPLAZO AQUÍ: Usamos las etiquetas transparentes de CartoDB / OpenStreetMap
         const capaEtiquetasOSM = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
             attribution: '© OpenStreetMap, &copy; CARTO',
             maxZoom: 19,
             subdomains: 'abcd'
         });
 
-        // Unimos el satélite con las etiquetas locales de OpenStreetMap
         const capaHibrida = L.layerGroup([capaSatelital, capaEtiquetasOSM]);
 
-        // 2. Crear mapa con capa estándar por defecto
         const map = L.map('map', {
             center: [7.76, -72.22],
             zoom: 14,
             layers: [capaEstandar]
         });
 
-        // 3. Agregar control de capas en la esquina superior derecha
         const baseMaps = {
             "Estándar": capaEstandar,
             "Satélite": capaSatelital,
@@ -130,7 +127,6 @@
         };
         L.control.layers(baseMaps).addTo(map);
 
-        // 4. Tus íconos
         const iconVerde = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
             iconSize: [32, 32], 
@@ -142,6 +138,7 @@
             iconSize: [32, 32], 
             iconAnchor: [16, 16]
         });
+        
         let marcadores = {};
         const listaActiva = document.querySelector('#tabla-activa tbody');
 
@@ -149,201 +146,171 @@
             fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
-                // 1. OBTENER EL CONTENEDOR CON SCROLL Y GUARDAR LA POSICIÓN
-                // Si listaActiva es <tbody> o <table>, obtenemos su contenedor con scroll:
-                const contenedorScroll = listaActiva.closest('div') || listaActiva.parentElement;
-                const scrollPrevio = contenedorScroll ? contenedorScroll.scrollTop : 0;
+                procesarYRenderizarFlota(data);
+            })
+            .catch(error => console.error('Error al actualizar:', error));
+        }
 
-                listaActiva.innerHTML = '';
+        function procesarYRenderizarFlota(data) {
+            const contenedorScroll = listaActiva.closest('div') || listaActiva.parentElement;
+            const scrollPrevio = contenedorScroll ? contenedorScroll.scrollTop : 0;
 
-                const codigosServidor = data.map(c => c.codigo);
-                Object.keys(marcadores).forEach(codigo => {
-                    if (!codigosServidor.includes(codigo)) {
-                        map.removeLayer(marcadores[codigo]);
-                        delete marcadores[codigo];
+            listaActiva.innerHTML = '';
+
+            const codigosServidor = data.map(c => c.codigo);
+            Object.keys(marcadores).forEach(codigo => {
+                if (!codigosServidor.includes(codigo)) {
+                    map.removeLayer(marcadores[codigo]);
+                    delete marcadores[codigo];
+                }
+            });
+
+            data.forEach(c => {
+                if (c.estado === 'disponible') {
+                    if (marcadores[c.codigo]) {
+                        map.removeLayer(marcadores[c.codigo]);
+                        delete marcadores[c.codigo];
                     }
-                });
+                    return;
+                }
 
-                data.forEach(c => {
-                    // 🔍 DEPURACIÓN: Mira en la consola del navegador (F12) qué trae 'c'
-                     console.log("Conductor:", c.codigo, "Opción GPS:", c.opcion_gps);
-                    if (c.estado === 'disponible') {
+                if (c.estado === 'activo' || c.estado === 'en curso') {
+                    if (c.opcion_gps && c.opcion_gps.includes('Finalizado')) {
+                        listaActiva.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                                <td style="padding: 4px 8px; vertical-align: middle;">
+                                    <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
+                                    <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
+                                </td>
+                            </tr>`);
+                        
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
                             delete marcadores[c.codigo];
                         }
                         return;
                     }
+                    
+                    const tieneUbicacion = c.latitud !== null && c.longitud !== null;
+                    
+                    if (tieneUbicacion) {
+                        let estaDesactualizado = false;
+                        let minutosSinReportar = 0;
 
-                    if (c.estado === 'activo' || c.estado === 'en curso') {
-                        // 🛑 DETECCIÓN INMEDIATA DE CIERRE MANUAL
-                        if (c.opcion_gps && c.opcion_gps.includes('Finalizado')) {
-                            listaActiva.insertAdjacentHTML('beforeend', `
-                                <tr>
-                                    <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                                    <td style="padding: 4px 8px; vertical-align: middle;">
-                                        <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
-                                        <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
-                                    </td>
-                                </tr>`);
-                            
-                            // Limpiar el marcador del mapa al instante
-                            if (marcadores[c.codigo]) {
-                                map.removeLayer(marcadores[c.codigo]);
-                                delete marcadores[c.codigo];
-                            }
-                            return;
-                        }
-                        const tieneUbicacion = c.latitud !== null && c.longitud !== null;
-                        
-                        if (tieneUbicacion) {
-                            // 1. EVALUACIÓN DE SEÑAL ACTIVA / CONGELADA (BLINDADO)
-                            let estaDesactualizado = false;
-                            let minutosSinReportar = 0;
+                        // 🚀 Ajustado a 5 minutos por defecto en sincronía con el backend
+                        const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
 
-                            if (c.ultima_actualizacion) {
-                                const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
-                                const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
-                                const ahora = new Date();
+                        if (c.ultima_actualizacion) {
+                            const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
+                            const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
+                            const ahora = new Date();
 
-                                minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
-                                estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > 4;
-                            } else {
-                                estaDesactualizado = true;
-                            }
-
-                           // 2. CÁLCULO DINÁMICO DEL CRONÓMETRO CLIENTE
-                            let textoTiempoRestante = '⏱️ Activo';
-
-                            if (c.expiracion_gps) {
-                                // Asegurar formato ISO estándar para la Date de JS (removiendo espacios si los hubiere)
-                                const isoString = c.expiracion_gps.includes('T') ? c.expiracion_gps : c.expiracion_gps.replace(' ', 'T');
-                                const fechaExp = new Date(isoString).getTime();
-                                const ahora = new Date().getTime();
-                                const diferencia = fechaExp - ahora;
-
-                                if (!isNaN(fechaExp) && diferencia > 0) {
-                                    const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                    const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
-                                    const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-
-                                    if (horas > 0) {
-                                        textoTiempoRestante = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
-                                    } else {
-                                        textoTiempoRestante = `⏱️ ${minutos}m ${segundos}s`;
-                                    }
-                                } else {
-                                    textoTiempoRestante = '⏳ Expirado';
-                                }
-                            }
-
-                            // Blindaje visual: Si la opción es muy larga o sospechosa, la ignoramos o simplificamos
-                            let opcionLimpia = c.opcion_gps || '';
-                            if (opcionLimpia.length > 25 || (opcionLimpia.includes('h') && parseInt(opcionLimpia) > 24)) {
-                                opcionLimpia = "Tiempo límite";
-                            }
-
-                            const modoGps = opcionLimpia ? ` [${opcionLimpia}]` : '';
-
-                            // 3. ETIQUETA VISUAL DE ESTADO COMPACTA
-                            let etiquetaEstado = '';
-
-                            if (estaDesactualizado) {
-                                const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
-                                etiquetaEstado = `
-                                    <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
-                                    <small style="font-size: 11px; color: #777;">⏱️ Sin señal</small>
-                                `;
-                            } else {
-                                etiquetaEstado = `
-                                    <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
-                                    <small style="font-size: 11px; color: #555;">${textoTiempoRestante}${modoGps}</small>
-                                `;
-                            }
-
-                            // 4. INSERTAR EN LA TABLA
-                            listaActiva.insertAdjacentHTML('beforeend', `
-                                <tr>
-                                    <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                                    <td style="padding: 4px 8px; vertical-align: middle;">
-                                        ${etiquetaEstado}
-                                    </td>
-                                </tr>`);
-                            
-                            // 5. MARCADORES EN EL MAPA
-                            const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
-                            const precision = parseFloat(c.horizontal_accuracy) || 0;
-                            const iconoSeleccionado = (precision > 50) ? iconNaranja : iconVerde;
-
-                            if (!marcadores[c.codigo]) {
-                                marcadores[c.codigo] = L.marker(coords, { icon: iconoSeleccionado })
-                                    .addTo(map)
-                                    .bindTooltip(c.codigo, { permanent: true, direction: 'top' });
-                            } else {
-                                marcadores[c.codigo].setLatLng(coords);
-                                marcadores[c.codigo].setIcon(iconoSeleccionado);
-                                if (map.hasLayer(marcadores[c.codigo])) {
-                                    marcadores[c.codigo].update();
-                                }
-                            }
-
-                            // 6. OPACIDAD VISUAL SEGÚN EL ESTADO DE LA SEÑAL
-                            if (estaDesactualizado) {
-                                marcadores[c.codigo].setOpacity(0.35);
-                            } else {
-                                marcadores[c.codigo].setOpacity(1.0);
-                            }
-
+                            minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
+                            estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual;
                         } else {
-                            listaActiva.insertAdjacentHTML('beforeend', `
-                                <tr style="background-color: #fff3cd;">
-                                    <td>${c.codigo}</td>
-                                    <td>⚠️ Sin Ubicación 
-                                        <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
-                                    </td>
-                                </tr>`);
-                            
-                            if (marcadores[c.codigo]) {
-                                map.removeLayer(marcadores[c.codigo]);
-                                delete marcadores[c.codigo];
+                            estaDesactualizado = true;
+                        }
+
+                        let textoTiempoRestante = '⏱️ Activo';
+
+                        if (c.expiracion_gps) {
+                            const isoString = c.expiracion_gps.includes('T') ? c.expiracion_gps : c.expiracion_gps.replace(' ', 'T');
+                            const fechaExp = new Date(isoString).getTime();
+                            const ahora = new Date().getTime();
+                            const diferencia = fechaExp - ahora;
+
+                            if (!isNaN(fechaExp) && diferencia > 0) {
+                                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
+                                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
+
+                                if (horas > 0) {
+                                    textoTiempoRestante = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
+                                } else {
+                                    textoTiempoRestante = `⏱️ ${minutos}m ${segundos}s`;
+                                }
+                            } else {
+                                textoTiempoRestante = '⏳ Expirado';
                             }
+                        }
+
+                        let opcionLimpia = c.opcion_gps || '';
+                        if (opcionLimpia.length > 25 || (opcionLimpia.includes('h') && parseInt(opcionLimpia) > 24)) {
+                            opcionLimpia = "Tiempo límite";
+                        }
+
+                        const modoGps = opcionLimpia ? ` [${opcionLimpia}]` : '';
+                        let etiquetaEstado = '';
+
+                        if (estaDesactualizado) {
+                            const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
+                            // 🚀 Muestra la alerta de inactividad + Botón de Notificar Manual para el Operador
+                            etiquetaEstado = `
+                                <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
+                                <small style="font-size: 11px; color: #777;">Tol: ${toleranciaIndividual}m</small><br>
+                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')">📲 Notificar Telegram</button>
+                            `;
+                        } else {
+                            etiquetaEstado = `
+                                <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
+                                <small style="font-size: 11px; color: #555;" class="reloj-activo" data-exp="${c.expiracion_gps}">${textoTiempoRestante}${modoGps}</small>
+                            `;
+                        }
+
+                        listaActiva.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                                <td style="padding: 4px 8px; vertical-align: middle;">
+                                    ${etiquetaEstado}
+                                </td>
+                            </tr>`);
+                        
+                        const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
+                        const precision = parseFloat(c.horizontal_accuracy) || 0;
+                        const iconoSeleccionado = (precision > 50) ? iconNaranja : iconVerde;
+
+                        if (!marcadores[c.codigo]) {
+                            marcadores[c.codigo] = L.marker(coords, { icon: iconoSeleccionado })
+                                .addTo(map)
+                                .bindTooltip(c.codigo, { permanent: true, direction: 'top' });
+                        } else {
+                            marcadores[c.codigo].setLatLng(coords);
+                            marcadores[c.codigo].setIcon(iconoSeleccionado);
+                            if (map.hasLayer(marcadores[c.codigo])) {
+                                marcadores[c.codigo].update();
+                            }
+                        }
+
+                        // Atenúa el marcador en el mapa si superó el umbral
+                        if (estaDesactualizado) {
+                            marcadores[c.codigo].setOpacity(0.35);
+                        } else {
+                            marcadores[c.codigo].setOpacity(1.0);
+                        }
+
+                    } else {
+                        listaActiva.insertAdjacentHTML('beforeend', `
+                            <tr style="background-color: #fff3cd;">
+                                <td>${c.codigo}</td>
+                                <td>⚠️ Sin Ubicación 
+                                    <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
+                                </td>
+                            </tr>`);
+                        
+                        if (marcadores[c.codigo]) {
+                            map.removeLayer(marcadores[c.codigo]);
+                            delete marcadores[c.codigo];
                         }
                     }
-                });
+                }
+            });
 
-                // 2. RESTAURAR LA POSICIÓN DEL SCROLL AL FINALIZAR LA RECONSTRUCCIÓN
-                if (contenedorScroll) {
-                    contenedorScroll.scrollTop = scrollPrevio;
-                }
-            })
-            .catch(error => console.error('Error al actualizar:', error));
+            if (contenedorScroll) {
+                contenedorScroll.scrollTop = scrollPrevio;
+            }
         }
-        function actualizarContadorJS(expiracionIso, elementoHtml) {
-            if (!expiracionIso) return;
-            
-            const fechaFin = new Date(expiracionIso).getTime();
-            
-            const intervalo = setInterval(() => {
-                const ahora = new Date().getTime();
-                const diferencia = fechaFin - ahora;
-                
-                if (diferencia <= 0) {
-                    clearInterval(intervalo);
-                    elementoHtml.textContent = "Expirado";
-                    return;
-                }
-                
-                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
-                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-                
-                if (horas > 0) {
-                    elementoHtml.textContent = `${horas}h ${minutos}m ${segundos}s restantes [Tiempo límite]`;
-                } else {
-                    elementoHtml.textContent = `${minutos}m ${segundos}s restantes [Tiempo límite]`;
-                }
-            }, 1000);
-        }
+
         function mostrarToast(mensaje) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -353,6 +320,20 @@
             setTimeout(() => toast.remove(), 4000);
         }
 
+        // 🚀 Función para que el operador envíe manualmente la alerta al Telegram del chofer si lo desea
+        function notificarConductorManual(idConductor, codigo) {
+            fetch(`/conductores/notificar_gps/${idConductor}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarToast(`📲 Notificación enviada a Unidad ${codigo}`);
+                } else {
+                    alert('No se pudo enviar el mensaje: ' + (data.mensaje || 'Error desconocido'));
+                }
+            })
+            .catch(err => console.error('Error al notificar:', err));
+        }
+
         function darDeBaja(idConductor) {
             if (confirm("¿Estás seguro de finalizar la jornada?")) {
                 fetch(`/turnos/finalizar_desde_mapa/${idConductor}`, { method: 'POST' })
@@ -360,7 +341,6 @@
             }
         }
 
-        // Función para ocultar/mostrar el panel con el botón deslizante
         function togglePanel() {
             const panel = document.getElementById('panel');
             const btn = document.getElementById('btnToggle');
@@ -371,23 +351,63 @@
                 btn.style.left = '0px';
                 btn.innerHTML = '▶';
             } else {
-                btn.style.left = '315px';
+                btn.style.left = '335px';
                 btn.innerHTML = '◀';
             }
             
-            // Forzar a Leaflet a recalcular el tamaño para que el mapa ocupe todo
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
-        // Atajo de teclado 'G' o 'g' también operativo
         document.addEventListener('keydown', function(event) {
             if (event.key === 'g' || event.key === 'G') {
                 togglePanel();
             }
         });
 
-        setInterval(actualizarMapa, 1000);
+        // CONEXIÓN SOCKET.IO EN TIEMPO REAL
+        const socket = io(); 
+
+        socket.on('nueva_ubicacion', function(data) {
+            console.log("⚡ Ubicación en tiempo real recibida:", data);
+            actualizarMapa();
+        });
+
+        socket.on('conductor_inactivo', function(data) {
+            console.log("🛑 Conductor desactivó GPS:", data);
+            actualizarMapa();
+        });
+
+        // Intervalo de respaldo por seguridad (cada 60 segundos)
+        setInterval(actualizarMapa, 60000);
         actualizarMapa();
+
+        // Bucle de cronómetros locales cada 1 segundo
+        setInterval(() => {
+            document.querySelectorAll('.reloj-activo').forEach(el => {
+                const expiracionIso = el.getAttribute('data-exp');
+                if (!expiracionIso) return;
+
+                const isoString = expiracionIso.includes('T') ? expiracionIso : expiracionIso.replace(' ', 'T');
+                const fechaFin = new Date(isoString).getTime();
+                const ahora = new Date().getTime();
+                const diferencia = fechaFin - ahora;
+
+                if (diferencia <= 0) {
+                    el.textContent = "⏱️ Expirado";
+                    return;
+                }
+
+                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
+                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
+
+                if (horas > 0) {
+                    el.textContent = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
+                } else {
+                    el.textContent = `⏱️ ${minutos}m ${segundos}s`;
+                }
+            });
+        }, 1000);
     </script>
 </body>
 </html>

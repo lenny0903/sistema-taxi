@@ -163,6 +163,15 @@ def webhook():
                 conductor.turno_activo.opcion_gps = conductor.opcion_gps
 
             db.session.commit()
+            # 📡 EMITIR AL MAPA EN TIEMPO REAL VÍA WEBSOCKET
+            emitir_al_panel('nueva_ubicacion', {
+                'conductor_id': conductor.id_conductor,
+                'codigo': conductor.codigo,
+                'nombre': getattr(conductor, 'nombre', 'Conductor'),
+                'lat': conductor.latitud,
+                'lon': conductor.longitud,
+                'ultima_actualizacion': ahora.isoformat()
+            })
             return jsonify({"status": "loc_actualizada"}), 200
 
         # 🛡️ CIERRE SEGURO Y SILENCIOSO: 
