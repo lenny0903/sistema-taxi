@@ -2,7 +2,9 @@
 <html>
 <head>
     <title>Monitoreo de Flota</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- CSS de Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- CARGAR LA LIBRERÍA DE SOCKET.IO -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -29,15 +31,13 @@
         #map { flex-grow: 1; height: 100vh; }
         
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { font-size: 16px; padding: 10px 5px; text-align: left; border-bottom: 1px solid #ddd; }
+        h2 { font-size: 20px; margin-top: 0; }
         
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
         .toast-msg { background: #28a745; color: white; padding: 12px 20px; margin-top: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); animation: fadeIn 0.3s; }
         @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1;} }
 
-        th, td { font-size: 16px; padding: 10px 5px; }
-        h2 { font-size: 20px; margin-top: 0; }
-        
         button {
             padding: 4px 8px;
             font-size: 12px;
@@ -71,6 +71,12 @@
             box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
         }
         #btnToggle:hover { background-color: #555; }
+
+        /* 🚀 IMPORTANTE: Quita el recuadro blanco por defecto de los divIcon de Leaflet */
+        .etiqueta-vehiculo-custom {
+            background: transparent !important;
+            border: none !important;
+        }
     </style>
 </head>
 <body>
@@ -127,20 +133,46 @@
         };
         L.control.layers(baseMaps).addTo(map);
 
-        const iconVerde = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209926.png',
-            iconSize: [32, 32], 
-            iconAnchor: [16, 16]
-        });
-
-        const iconNaranja = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3209/3209939.png',
-            iconSize: [32, 32], 
-            iconAnchor: [16, 16]
-        });
-        
         let marcadores = {};
         const listaActiva = document.querySelector('#tabla-activa tbody');
+
+        // 🚀 Función constructora del ícono del vehículo con FontAwesome
+        function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision) {
+            let colorIcono = "#27ae60"; // Verde (GPS Normal)
+
+            if (estaDesactualizado) {
+                colorIcono = "#7f8c8d"; // Gris (Inactivo / Sin GPS)
+            } else if (precision > 50) {
+                colorIcono = "#e67e22"; // Naranja (Baja precisión)
+            }
+
+            return L.divIcon({
+                className: 'etiqueta-vehiculo-custom',
+                html: `
+                    <div style="text-align: center; white-space: nowrap;">
+                        <span style="
+                            background: #1e272e;
+                            color: #ffffff;
+                            padding: 2px 6px;
+                            border-radius: 4px;
+                            font-size: 11px;
+                            font-weight: bold;
+                            border: 1px solid ${colorIcono};
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.4);">
+                            ${codigoUnidad}
+                        </span>
+                        <br>
+                        <i class="fa-solid fa-taxi" style="
+                            color: ${colorIcono};
+                            font-size: 24px;
+                            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+                            margin-top: 2px;"></i>
+                    </div>
+                `,
+                iconSize: [50, 50],
+                iconAnchor: [25, 25]
+            });
+        }
 
         function actualizarMapa() {
             fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
@@ -198,7 +230,6 @@
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
 
-                        // 🚀 Ajustado a 5 minutos por defecto en sincronía con el backend
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
 
                         if (c.ultima_actualizacion) {
@@ -213,8 +244,16 @@
                         }
 
                         let textoTiempoRestante = '⏱️ Activo';
+                        let esModoIndefinido = false;
 
-                        if (c.expiracion_gps) {
+                        const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
+
+                        // 🚀 SI VIENE MODO CONTINUO / DESACTIVAR
+                        if (!c.expiracion_gps || opcionGpsTexto.includes('desactiv') || opcionGpsTexto.includes('vivo')) {
+                            textoTiempoRestante = '♾️ Hasta desactivar';
+                            esModoIndefinido = true;
+                        } else if (c.expiracion_gps) {
+                            // Para "15 min", "1 hora" y "8 horas", calcula la cuenta regresiva normalmente
                             const isoString = c.expiracion_gps.includes('T') ? c.expiracion_gps : c.expiracion_gps.replace(' ', 'T');
                             const fechaExp = new Date(isoString).getTime();
                             const ahora = new Date().getTime();
@@ -240,12 +279,11 @@
                             opcionLimpia = "Tiempo límite";
                         }
 
-                        const modoGps = opcionLimpia ? ` [${opcionLimpia}]` : '';
+                        const modoGps = (opcionLimpia && !esModoIndefinido) ? (opcionLimpia.startsWith('[') ? ` ${opcionLimpia}` : ` [${opcionLimpia}]`) : '';
                         let etiquetaEstado = '';
 
                         if (estaDesactualizado) {
                             const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
-                            // 🚀 Muestra la alerta de inactividad + Botón de Notificar Manual para el Operador
                             etiquetaEstado = `
                                 <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
                                 <small style="font-size: 11px; color: #777;">Tol: ${toleranciaIndividual}m</small><br>
@@ -254,7 +292,9 @@
                         } else {
                             etiquetaEstado = `
                                 <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
-                                <small style="font-size: 11px; color: #555;" class="reloj-activo" data-exp="${c.expiracion_gps}">${textoTiempoRestante}${modoGps}</small>
+                                <small style="font-size: 11px; color: #555;">
+                                    <span class="reloj-activo" data-exp="${c.expiracion_gps}" data-indefinido="${esModoIndefinido}">${textoTiempoRestante}</span>${modoGps}
+                                </small>
                             `;
                         }
 
@@ -268,21 +308,21 @@
                         
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
-                        const iconoSeleccionado = (precision > 50) ? iconNaranja : iconVerde;
+
+                        // 🚀 AQUÍ SE GENERA EL ÍCONO DEL VEHÍCULO
+                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado, precision);
 
                         if (!marcadores[c.codigo]) {
-                            marcadores[c.codigo] = L.marker(coords, { icon: iconoSeleccionado })
-                                .addTo(map)
-                                .bindTooltip(c.codigo, { permanent: true, direction: 'top' });
+                            marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
                         } else {
                             marcadores[c.codigo].setLatLng(coords);
-                            marcadores[c.codigo].setIcon(iconoSeleccionado);
+                            marcadores[c.codigo].setIcon(iconoVehiculo);
                             if (map.hasLayer(marcadores[c.codigo])) {
                                 marcadores[c.codigo].update();
                             }
                         }
 
-                        // Atenúa el marcador en el mapa si superó el umbral
+                        // Atenúa el vehículo si superó la tolerancia de inactividad
                         if (estaDesactualizado) {
                             marcadores[c.codigo].setOpacity(0.35);
                         } else {
@@ -320,7 +360,6 @@
             setTimeout(() => toast.remove(), 4000);
         }
 
-        // 🚀 Función para que el operador envíe manualmente la alerta al Telegram del chofer si lo desea
         function notificarConductorManual(idConductor, codigo) {
             fetch(`/conductores/notificar_gps/${idConductor}`, { method: 'POST' })
             .then(res => res.json())
@@ -384,6 +423,12 @@
         // Bucle de cronómetros locales cada 1 segundo
         setInterval(() => {
             document.querySelectorAll('.reloj-activo').forEach(el => {
+                // Ignorar si es la modalidad continua
+                if (el.getAttribute('data-indefinido') === 'true') {
+                    el.textContent = "♾️ Hasta desactivar";
+                    return;
+                }
+
                 const expiracionIso = el.getAttribute('data-exp');
                 if (!expiracionIso) return;
 
@@ -393,7 +438,7 @@
                 const diferencia = fechaFin - ahora;
 
                 if (diferencia <= 0) {
-                    el.textContent = "⏱️ Expirado";
+                    el.textContent = "⏳ Expirado";
                     return;
                 }
 

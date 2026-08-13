@@ -130,7 +130,7 @@ def webhook():
 
         # --- PROCESAMIENTO DE UBICACIÓN ACTIVA (Cuando sí trae coordenadas) ---
         if "location" in msg:
-            ahora = hora_local()  # Fecha con zona horaria (aware)
+            ahora = hora_local()
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
@@ -148,15 +148,22 @@ def webhook():
 
             if expirado:
                 duracion = segundos or 28800
-                opciones = {900: "15 min", 3600: "1 hora", 28800: "8 horas"}
                 
-                if duracion in opciones:
-                    conductor.opcion_gps = opciones[duracion]
-                else:
-                    duracion = 28800
+                # 🎯 DETECCIÓN EXACTA DE LAS 4 OPCIONES DE TELEGRAM
+                if duracion == 900:
+                    conductor.opcion_gps = "15 min"
+                    conductor.expiracion_gps = ahora + timedelta(seconds=900)
+                elif duracion == 3600:
+                    conductor.opcion_gps = "1 hora"
+                    conductor.expiracion_gps = ahora + timedelta(seconds=3600)
+                elif duracion == 28800:
                     conductor.opcion_gps = "8 horas"
-
-                conductor.expiracion_gps = ahora + timedelta(seconds=duracion)
+                    conductor.expiracion_gps = ahora + timedelta(seconds=28800)
+                else:
+                    # Si es mayor a 28800 (como 2147483647), es "hasta que la desactive"
+                    conductor.opcion_gps = "Hasta que se desactive"
+                    # Le asignamos un respaldo holgado de 24h para el campo date de BD
+                    conductor.expiracion_gps = ahora + timedelta(hours=24)
 
             if hasattr(conductor, "turno_activo") and conductor.turno_activo:
                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
