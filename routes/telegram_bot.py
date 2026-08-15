@@ -123,6 +123,12 @@ def webhook():
 
             db.session.commit()
             
+            # Emitir evento al panel en tiempo real
+            emitir_al_panel('conductor_inactivo', {
+                'conductor_id': conductor.id_conductor,
+                'codigo': conductor.codigo
+            })
+            
             enviar_mensaje(chat_id, "🛑 Has dejado de compartir tu ubicación. Sesión de GPS finalizada correctamente.")
             enviar_menu_botones(chat_id)
             print(f"🛑 [GPS] El conductor {conductor.codigo} finalizó su GPS manualmente.")
@@ -130,6 +136,21 @@ def webhook():
 
         # --- PROCESAMIENTO DE UBICACIÓN ACTIVA (Cuando sí trae coordenadas) ---
         if "location" in msg:
+            
+            # 🚨 🛑 FILTRO: Validar que NO envíe ubicación fija (estática). 
+            # Si el mensaje no viene de un mensaje editado y carece de 'live_period', es una ubicación estática compartida por error.
+            if "edited_message" not in update and "live_period" not in msg["location"]:
+                enviar_mensaje(
+                    chat_id, 
+                    "⚠️ *Error de Ubicación*\n\n"
+                    "Has enviado una ubicación fija. Para estar activo en el mapa de la central debes compartir tu **'Ubicación en tiempo real'**.\n\n"
+                    "Por favor vuelve a intentarlo seleccionando el tiempo deseado."
+                )
+                enviar_menu_botones(chat_id)
+                print(f"⚠️ [GPS] El conductor {conductor.codigo} intentó enviar ubicación estática (Rechazado).")
+                return jsonify({"status": "ubicacion_estatica_rechazada"}), 200
+
+            # 🟢 SI PASA LA VALIDACIÓN: ES UBICACIÓN EN TIEMPO REAL (LIVE LOCATION)
             ahora = hora_local()
 
             conductor.latitud = msg["location"]["latitude"]
@@ -146,10 +167,10 @@ def webhook():
 
             expirado = not exp_db or exp_db < ahora
 
-            if expirado:
-                duracion = segundos or 28800
+            if expirado or segundos:
+                duracion = segundos if segundos else 28800
                 
-                # 🎯 DETECCIÓN EXACTA DE LAS 4 OPCIONES DE TELEGRAM
+                # 🎯 DETECCIÓN EXACTA DE LAS OPCIONES DE TELEGRAM
                 if duracion == 900:
                     conductor.opcion_gps = "15 min"
                     conductor.expiracion_gps = ahora + timedelta(seconds=900)
@@ -160,16 +181,17 @@ def webhook():
                     conductor.opcion_gps = "8 horas"
                     conductor.expiracion_gps = ahora + timedelta(seconds=28800)
                 else:
-                    # Si es mayor a 28800 (como 2147483647), es "hasta que la desactive"
+                    # Si elige "Hasta que se desactive" (Telegram asigna un live_period extremadamente alto)
                     conductor.opcion_gps = "Hasta que se desactive"
-                    # Le asignamos un respaldo holgado de 24h para el campo date de BD
-                    conductor.expiracion_gps = ahora + timedelta(hours=24)
+                    # Asignamos una fecha lejana estática pero marcándola para el modo indefinido sin cronómetro
+                    conductor.expiracion_gps = ahora + timedelta(days=365)
 
             if hasattr(conductor, "turno_activo") and conductor.turno_activo:
                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
                 conductor.turno_activo.opcion_gps = conductor.opcion_gps
 
             db.session.commit()
+            
             # 📡 EMITIR AL MAPA EN TIEMPO REAL VÍA WEBSOCKET
             emitir_al_panel('nueva_ubicacion', {
                 'conductor_id': conductor.id_conductor,
@@ -187,8 +209,7 @@ def webhook():
 
     except Exception as e:
        print(f"❌ ERROR CRÍTICO: {e}")
-       return jsonify({"status": "error", "detalle": str(e)}), 500
-    
+       return jsonify({"status": "error", "detalle": str(e)}), 500    
         
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')

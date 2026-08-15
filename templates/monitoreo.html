@@ -184,16 +184,22 @@
         }
 
         function procesarYRenderizarFlota(data) {
-            const contenedorScroll = listaActiva.closest('div') || listaActiva.parentElement;
-            const scrollPrevio = contenedorScroll ? contenedorScroll.scrollTop : 0;
-
-            listaActiva.innerHTML = '';
-
             const codigosServidor = data.map(c => c.codigo);
+            
+            // 1. Eliminar marcadores y filas de unidades que ya no están activas
             Object.keys(marcadores).forEach(codigo => {
                 if (!codigosServidor.includes(codigo)) {
                     map.removeLayer(marcadores[codigo]);
                     delete marcadores[codigo];
+                }
+            });
+
+            // Mantener un registro de filas actuales en la tabla
+            const filasExistentes = {};
+            Array.from(listaActiva.querySelectorAll('tr')).forEach(tr => {
+                const codigoCell = tr.querySelector('td b') || tr.querySelector('td');
+                if (codigoCell) {
+                    filasExistentes[codigoCell.textContent.trim()] = tr;
                 }
             });
 
@@ -203,40 +209,41 @@
                         map.removeLayer(marcadores[c.codigo]);
                         delete marcadores[c.codigo];
                     }
+                    if (filasExistentes[c.codigo]) {
+                        filasExistentes[c.codigo].remove();
+                    }
                     return;
                 }
 
                 if (c.estado === 'activo' || c.estado === 'en curso') {
                     if (c.opcion_gps && c.opcion_gps.includes('Finalizado')) {
-                        listaActiva.insertAdjacentHTML('beforeend', `
-                            <tr>
-                                <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                                <td style="padding: 4px 8px; vertical-align: middle;">
-                                    <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
-                                    <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
-                                </td>
-                            </tr>`);
+                        const htmlFila = `
+                            <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">
+                                <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
+                                <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
+                            </td>`;
                         
+                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '', c.expiracion_gps);
+
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
                             delete marcadores[c.codigo];
                         }
                         return;
                     }
-                    
+
                     const tieneUbicacion = c.latitud !== null && c.longitud !== null;
-                    
+
                     if (tieneUbicacion) {
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
-
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
 
                         if (c.ultima_actualizacion) {
                             const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
                             const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
                             const ahora = new Date();
-
                             minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
                             estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual;
                         } else {
@@ -245,17 +252,14 @@
 
                         let textoTiempoRestante = '⏱️ Activo';
                         let esModoIndefinido = false;
-
                         const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
 
-                        // 🚀 SI VIENE MODO CONTINUO / DESACTIVAR
                         if (!c.expiracion_gps || opcionGpsTexto.includes('desactiv') || opcionGpsTexto.includes('vivo')) {
                             textoTiempoRestante = '♾️ Hasta desactivar';
                             esModoIndefinido = true;
                         } else if (c.expiracion_gps) {
-                            // Para "15 min", "1 hora" y "8 horas", calcula la cuenta regresiva normalmente
-                            const isoString = c.expiracion_gps.includes('T') ? c.expiracion_gps : c.expiracion_gps.replace(' ', 'T');
-                            const fechaExp = new Date(isoString).getTime();
+                            const fechaLimpiaExp = c.expiracion_gps.replace('T', ' ').split('.')[0];
+                            const fechaExp = new Date(fechaLimpiaExp.replace(/-/g, '/')).getTime();
                             const ahora = new Date().getTime();
                             const diferencia = fechaExp - ahora;
 
@@ -263,12 +267,7 @@
                                 const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                                 const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
                                 const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-
-                                if (horas > 0) {
-                                    textoTiempoRestante = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
-                                } else {
-                                    textoTiempoRestante = `⏱️ ${minutos}m ${segundos}s`;
-                                }
+                                textoTiempoRestante = horas > 0 ? `⏱️ ${horas}h ${minutos}m ${segundos}s` : `⏱️ ${minutos}m ${segundos}s`;
                             } else {
                                 textoTiempoRestante = '⏳ Expirado';
                             }
@@ -293,23 +292,20 @@
                             etiquetaEstado = `
                                 <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
                                 <small style="font-size: 11px; color: #555;">
-                                    <span class="reloj-activo" data-exp="${c.expiracion_gps}" data-indefinido="${esModoIndefinido}">${textoTiempoRestante}</span>${modoGps}
+                                    <span class="reloj-activo" data-exp="${c.expiracion_gps}" data-indefinido="${esModoIndefinido}">⏱️ Calculando...</span>${modoGps}
                                 </small>
                             `;
                         }
 
-                        listaActiva.insertAdjacentHTML('beforeend', `
-                            <tr>
-                                <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                                <td style="padding: 4px 8px; vertical-align: middle;">
-                                    ${etiquetaEstado}
-                                </td>
-                            </tr>`);
-                        
+                        const htmlFila = `
+                            <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">${etiquetaEstado}</td>`;
+
+                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '', c.expiracion_gps);
+
+                        // Manejo de marcadores del mapa
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
-
-                        // 🚀 AQUÍ SE GENERA EL ÍCONO DEL VEHÍCULO
                         const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado, precision);
 
                         if (!marcadores[c.codigo]) {
@@ -321,23 +317,16 @@
                                 marcadores[c.codigo].update();
                             }
                         }
-
-                        // Atenúa el vehículo si superó la tolerancia de inactividad
-                        if (estaDesactualizado) {
-                            marcadores[c.codigo].setOpacity(0.35);
-                        } else {
-                            marcadores[c.codigo].setOpacity(1.0);
-                        }
+                        marcadores[c.codigo].setOpacity(estaDesactualizado ? 0.35 : 1.0);
 
                     } else {
-                        listaActiva.insertAdjacentHTML('beforeend', `
-                            <tr style="background-color: #fff3cd;">
-                                <td>${c.codigo}</td>
-                                <td>⚠️ Sin Ubicación 
-                                    <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
-                                </td>
-                            </tr>`);
-                        
+                        const htmlFila = `
+                            <td>${c.codigo}</td>
+                            <td>⚠️ Sin Ubicación 
+                                <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
+                            </td>`;
+                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '#fff3cd', c.expiracion_gps);
+
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
                             delete marcadores[c.codigo];
@@ -345,9 +334,55 @@
                     }
                 }
             });
+            // 2. Eliminar de la tabla las filas que ya no vienen en el reporte activo
+            Object.values(filasExistentes).forEach(tr => tr.remove());
+        }
 
-            if (contenedorScroll) {
-                contenedorScroll.scrollTop = scrollPrevio;
+        function actualizarOInsertarFila(codigo, contenidoHtml, filasExistentes, bgColor = '', nuevaExpiracion = '') {
+            let tr = filasExistentes[codigo];
+            
+            if (tr) {
+                tr.style.backgroundColor = bgColor;
+                const relojActual = tr.querySelector('.reloj-activo');
+                
+                if (relojActual) {
+                    const expAnterior = relojActual.getAttribute('data-exp');
+                    
+                    // ¿El tiempo cambió en la Base de Datos?
+                    if (expAnterior !== nuevaExpiracion) {
+                        // Sí cambió: actualizamos todo el HTML y el nuevo data-exp de la BD
+                        const celdaEstado = tr.querySelectorAll('td')[1];
+                        if (celdaEstado) {
+                            celdaEstado.innerHTML = contenidoHtml; 
+                        }
+                        relojActual.setAttribute('data-exp', nuevaExpiracion);
+                    } else {
+                        // No cambió: mantenemos el texto actual segundo a segundo para que NO salte por el socket
+                        const textoActual = relojActual.textContent;
+                        const celdaEstado = tr.querySelectorAll('td')[1];
+                        if (celdaEstado) {
+                            celdaEstado.innerHTML = contenidoHtml;
+                            const nuevoReloj = celdaEstado.querySelector('.reloj-activo');
+                            if (nuevoReloj) {
+                                nuevoReloj.textContent = textoActual; 
+                                nuevoReloj.setAttribute('data-exp', nuevaExpiracion);
+                            }
+                        }
+                    }
+                } else {
+                    // 🚀 NUEVO: Si la fila ya existe pero no tiene reloj (ej. pasó a "Finalizado" o "Sin Ubicación"), actualizamos la celda directamente
+                    const celdaEstado = tr.querySelectorAll('td')[1];
+                    if (celdaEstado) {
+                        celdaEstado.innerHTML = contenidoHtml;
+                    }
+                }
+                
+                delete filasExistentes[codigo]; 
+            } else {
+                tr = document.createElement('tr');
+                if (bgColor) tr.style.backgroundColor = bgColor;
+                tr.innerHTML = contenidoHtml;
+                listaActiva.appendChild(tr);
             }
         }
 
@@ -423,21 +458,22 @@
         // Bucle de cronómetros locales cada 1 segundo
         setInterval(() => {
             document.querySelectorAll('.reloj-activo').forEach(el => {
-                // Ignorar si es la modalidad continua
                 if (el.getAttribute('data-indefinido') === 'true') {
                     el.textContent = "♾️ Hasta desactivar";
                     return;
                 }
 
                 const expiracionIso = el.getAttribute('data-exp');
-                if (!expiracionIso) return;
+                if (!expiracionIso || expiracionIso === 'null') return;
 
-                const isoString = expiracionIso.includes('T') ? expiracionIso : expiracionIso.replace(' ', 'T');
-                const fechaFin = new Date(isoString).getTime();
+                // 🛑 ESTO ES LO CLAVE PARA QUE NO SE REINICIE:
+                const fechaLimpia = expiracionIso.replace('T', ' ').split('.')[0];
+                const fechaFin = new Date(fechaLimpia.replace(/-/g, '/')).getTime();
+                
                 const ahora = new Date().getTime();
                 const diferencia = fechaFin - ahora;
 
-                if (diferencia <= 0) {
+                if (isNaN(fechaFin) || diferencia <= 0) {
                     el.textContent = "⏳ Expirado";
                     return;
                 }
