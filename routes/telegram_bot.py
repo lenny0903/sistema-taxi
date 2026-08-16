@@ -195,6 +195,14 @@ def webhook():
                     conductor.expiracion_gps = ahora + timedelta(days=365)  # modo indefinido
                 conductor.opcion_gps = nueva_opcion
                 print(f"🔄 [GPS] {conductor.codigo} renovó expiración: {conductor.expiracion_gps} (opción: {nueva_opcion})")
+                # 🟢 SALUDO EXCLUSIVO AL INICIAR O CAMBIAR OPCIÓN DE GPS
+                nombre_conductor = getattr(conductor, 'nombre', None) or conductor.codigo
+                saludo = (
+                    f"👋 ¡Hola, *{nombre_conductor}*!\n\n"
+                    "🚗 Ubicación recibida y conectada con éxito.\n"
+                    "⏱️ Tu turno está activo. ¡Que tengas un excelente recorrido y mucho éxito hoy!"
+                )
+                enviar_mensaje(chat_id, saludo)
             else:
                 # Misma opción y aún válida: solo actualizamos coordenadas y timestamp
                 print(f"📌 [GPS] {conductor.codigo} actualizó ubicación sin renovar expiración")
