@@ -369,19 +369,19 @@ def actualizar_ubicacion():
         #if 'opcion_gps' in data:
         #    conductor.opcion_gps = data['opcion_gps']
 
-        if data.get('expiracion_gps'):
-            try:
-                if isinstance(data['expiracion_gps'], str):
-                    fecha_limpia = (
-                        data['expiracion_gps'].replace('T', ' ').split('.')[0]
-                    )
-                    conductor.expiracion_gps = datetime.strptime(
-                        fecha_limpia, "%Y-%m-%d %H:%M:%S"
-                    )
-                else:
-                    conductor.expiracion_gps = data['expiracion_gps']
-            except Exception as e:
-                print(f"⚠️ Error parseando expiracion_gps: {e}")
+        #if data.get('expiracion_gps'):
+        #    try:
+        #        if isinstance(data['expiracion_gps'], str):
+        #            fecha_limpia = (
+        #                data['expiracion_gps'].replace('T', ' ').split('.')[0]
+        #            )
+        #            conductor.expiracion_gps = datetime.strptime(
+        #                fecha_limpia, "%Y-%m-%d %H:%M:%S"
+        #            )
+        #        else:
+        #            conductor.expiracion_gps = data['expiracion_gps']
+        #    except Exception as e:
+        #        print(f"⚠️ Error parseando expiracion_gps: {e}")
         # 👈 NOTA: Si no viene expiracion_gps en 'data', NO HACEMOS NADA y conservamos la que ya tenía guardada la base de datos.
 
         db.session.commit()
@@ -427,7 +427,6 @@ def obtener_ubicaciones():
     ).all()  
       
     resultado = []  
-    ahora = hora_local()
       
     for c in conductores:  
         turno_activo = Turno.query.filter_by(
@@ -435,9 +434,11 @@ def obtener_ubicaciones():
             estado='activo'
         ).first()
 
-        opcion_val = getattr(c, 'opcion_gps', None) or (turno_activo.opcion_gps if turno_activo and hasattr(turno_activo, 'opcion_gps') else None)
-        exp_gps = getattr(c, 'expiracion_gps', None) or (turno_activo.expiracion_gps if turno_activo and hasattr(turno_activo, 'expiracion_gps') else None)
+        # 🟢 Extracción unificada y segura
+        opcion_val = getattr(c, 'opcion_gps', None) or (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None)
+        exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
 
+        # Limpieza y conversión de fecha si viene como texto
         if isinstance(exp_gps, str):
             try:
                 exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
@@ -446,54 +447,18 @@ def obtener_ubicaciones():
 
         opcion_str = str(opcion_val or '').strip().lower()
 
-        # 🛡️ FILTRO DE SEGURIDAD ANTI-BASURA:
-        # Si la opción tiene una longitud exagerada (como un error de texto o número largo) o no es válida, la reseteamos
-        if len(opcion_str) > 25 or (any(char.isdigit() for char in opcion_str) and 'h' in opcion_str and len(opcion_str) > 6 and '15' not in opcion_str):
-            opcion_val = "8 horas"
-            opcion_str = "8 horas"
-        if isinstance(exp_gps, str):
-            try:
-                exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                exp_gps = None
+        # 🎯 DETECCIÓN DE MODO INDEFINIDO
+        # Si la opción contiene palabras clave o está vacía, se considera "Hasta que se desactive"
+        es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
 
-        opcion_str = str(opcion_val or '').strip().lower()
-
-        if not exp_gps and any(k in opcion_str for k in ["15", "1", "8"]):
-            inicio = None
-            if turno_activo and getattr(turno_activo, 'fecha_inicio', None):
-                inicio = turno_activo.fecha_inicio
-            elif getattr(c, 'ultima_actualizacion', None):
-                inicio = c.ultima_actualizacion
-
-            if isinstance(inicio, str):
-                try:
-                    inicio = datetime.strptime(inicio.split('.')[0], "%Y-%m-%d %H:%M:%S")
-                except ValueError:
-                    inicio = None
-
-            if not inicio:
-                inicio = ahora
-
-            if "15" in opcion_str:
-                exp_gps = inicio + timedelta(minutes=15)
-            elif "1" in opcion_str and "15" not in opcion_str:
-                exp_gps = inicio + timedelta(hours=1)
-            elif "8" in opcion_str:
-                exp_gps = inicio + timedelta(hours=8)
-
-        # Formatear la etiqueta y la fecha objetivo
-        if "hasta" in opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or not opcion_str:
-            opcion_gps_label = "En vivo"
+        if es_indefinido:
+            opcion_gps_label = "Hasta que se desactive"
+            exp_gps = None        # 👈 Anulamos la fecha para que no corra temporizador
+            exp_timestamp = 0     # 👈 Timestamp en 0 para el frontend
         else:
-            opcion_gps_label = f"[{opcion_val}]" if opcion_val else "[Tiempo límite]"
-
-        # String ISO estandarizado para JavaScript
-        exp_iso = exp_gps.strftime("%Y-%m-%dT%H:%M:%S") if exp_gps else None
+            opcion_gps_label = str(opcion_val)
+            exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
-        u_act = c.ultima_actualizacion
-        u_act_str = u_act.strftime("%Y-%m-%dT%H:%M:%S") if isinstance(u_act, datetime) else str(u_act or '')
-
         resultado.append({  
             "id_conductor": c.id_conductor,  
             "codigo": c.codigo,  
@@ -502,12 +467,14 @@ def obtener_ubicaciones():
             "longitud": c.longitud,  
             "estado": c.estado,  
             "modo": "gps" if c.latitud is not None else "manual",  
-            "ultima_actualizacion": u_act_str,
+            "expiracion_gps": exp_gps.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(exp_gps, datetime) else None,
+            "exp_timestamp": exp_timestamp,
             "opcion_gps": opcion_gps_label,
-            "expiracion_gps": exp_iso  # 👈 Nombre unificado que lee el JavaScript
+            "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
+            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15)
         })  
       
-    return jsonify(resultado)
+    return jsonify(resultado), 200
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)

@@ -72,7 +72,6 @@
         }
         #btnToggle:hover { background-color: #555; }
 
-        /* 🚀 IMPORTANTE: Quita el recuadro blanco por defecto de los divIcon de Leaflet */
         .etiqueta-vehiculo-custom {
             background: transparent !important;
             border: none !important;
@@ -101,394 +100,434 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        });
+        document.addEventListener('DOMContentLoaded', function() {
+            const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            });
 
-        const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri',
-            maxNativeZoom: 17,
-            maxZoom: 19
-        });
+            const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxNativeZoom: 17,
+                maxZoom: 19
+            });
 
-        const capaEtiquetasOSM = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap, &copy; CARTO',
-            maxZoom: 19,
-            subdomains: 'abcd'
-        });
+            const capaEtiquetasOSM = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap, CARTO',
+                maxZoom: 19,
+                subdomains: 'abcd'
+            });
 
-        const capaHibrida = L.layerGroup([capaSatelital, capaEtiquetasOSM]);
+            const capaHibrida = L.layerGroup([capaSatelital, capaEtiquetasOSM]);
 
-        const map = L.map('map', {
-            center: [7.76, -72.22],
-            zoom: 14,
-            layers: [capaEstandar]
-        });
+            const map = L.map('map', {
+                center: [7.76, -72.22],
+                zoom: 14,
+                layers: [capaEstandar]
+            });
 
-        const baseMaps = {
-            "Estándar": capaEstandar,
-            "Satélite": capaSatelital,
-            "Híbrido (Satélite + Calles)": capaHibrida
-        };
-        L.control.layers(baseMaps).addTo(map);
+            const baseMaps = {
+                "Estándar": capaEstandar,
+                "Satélite": capaSatelital,
+                "Híbrido (Satélite + Calles)": capaHibrida
+            };
+            L.control.layers(baseMaps).addTo(map);
 
-        let marcadores = {};
-        const listaActiva = document.querySelector('#tabla-activa tbody');
+            let marcadores = {};
+            let cronometrosActivos = {};
+            const tbody = document.querySelector('#tabla-activa tbody');
 
-        // 🚀 Función constructora del ícono del vehículo con FontAwesome
-        function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision) {
-            let colorIcono = "#27ae60"; // Verde (GPS Normal)
+            // Parseo seguro de fecha local con manejo de zona horaria explícita
+            // Parseo seguro de fecha local forzando el huso horario de Caracas (-04:00)
+            function obtenerTimestampLocal(fechaStr) {
+                if (!fechaStr) return 0;
+                if (typeof fechaStr === 'number') return fechaStr;
+                
+                // Limpiar y normalizar el formato cambiando el espacio por 'T'
+                let fechaNormalizada = fechaStr.trim().replace(' ', 'T');
+                
+                // Como SQLite descarta la zona horaria, si el string no trae indicador (- o Z),
+                // le inyectamos explícitamente el offset de Caracas (-04:00) para evitar desvíos en el navegador.
+                if (!fechaNormalizada.endsWith('Z') && 
+                    !fechaNormalizada.includes('+') && 
+                    !fechaNormalizada.substring(10).includes('-')) {
+                    fechaNormalizada += '-04:00';
+                }
 
-            if (estaDesactualizado) {
-                colorIcono = "#7f8c8d"; // Gris (Inactivo / Sin GPS)
-            } else if (precision > 50) {
-                colorIcono = "#e67e22"; // Naranja (Baja precisión)
+                const parsed = new Date(fechaNormalizada).getTime();
+                return isNaN(parsed) ? 0 : parsed;
+            }
+            function estaExpirado(expiracionStr) {
+                if (!expiracionStr) return true;
+                const tiempoExpiracion = obtenerTimestampLocal(expiracionStr);
+                return Date.now() >= tiempoExpiracion;
+            }
+            function obtenerTextoRestante(codigo) {
+                const info = cronometrosActivos[codigo];
+                if (!info) return '⏱️ Activo';
+                if (info.indefinido) return '♾️ Hasta desactivar';
+
+                const diff = info.expTime - Date.now();
+                if (diff <= 0) return '⏳ Expirado';
+
+                // 🟢 Redondeamos hacia arriba los minutos totales para que al arrancar 
+                // muestre "15m" (o la hora seleccionada) sin bajar de golpe por la latencia.
+                const totalMinutos = Math.ceil(diff / 60000);
+
+                const horas = Math.floor(totalMinutos / 60);
+                const minutos = totalMinutos % 60;
+
+                let texto = '';
+                if (horas > 0) texto += `${horas}h `;
+                texto += `${minutos}m`;
+                
+                return `⏱️ Restan ${texto}`;
+            }
+            function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision) {
+                let colorIcono = "#27ae60"; // Verde
+                if (estaDesactualizado) {
+                    colorIcono = "#7f8c8d"; // Gris
+                } else if (precision > 50) {
+                    colorIcono = "#e67e22"; // Naranja
+                }
+
+                return L.divIcon({
+                    className: 'etiqueta-vehiculo-custom',
+                    html: `
+                        <div style="text-align: center; white-space: nowrap;">
+                            <span style="
+                                background: #1e272e;
+                                color: #ffffff;
+                                padding: 2px 6px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                border: 1px solid ${colorIcono};
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.4);">
+                                ${codigoUnidad}
+                            </span>
+                            <br>
+                            <i class="fa-solid fa-taxi" style="
+                                color: ${colorIcono};
+                                font-size: 24px;
+                                text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+                                margin-top: 2px;"></i>
+                        </div>
+                    `,
+                    iconSize: [50, 50],
+                    iconAnchor: [25, 25]
+                });
             }
 
-            return L.divIcon({
-                className: 'etiqueta-vehiculo-custom',
-                html: `
-                    <div style="text-align: center; white-space: nowrap;">
-                        <span style="
-                            background: #1e272e;
-                            color: #ffffff;
-                            padding: 2px 6px;
-                            border-radius: 4px;
-                            font-size: 11px;
-                            font-weight: bold;
-                            border: 1px solid ${colorIcono};
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.4);">
-                            ${codigoUnidad}
-                        </span>
-                        <br>
-                        <i class="fa-solid fa-taxi" style="
-                            color: ${colorIcono};
-                            font-size: 24px;
-                            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-                            margin-top: 2px;"></i>
-                    </div>
-                `,
-                iconSize: [50, 50],
-                iconAnchor: [25, 25]
-            });
-        }
+            function actualizarMapa() {
+                fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
+                .then(response => response.json())
+                .then(data => procesarYRenderizarFlota(data))
+                .catch(error => console.error('Error al actualizar:', error));
+            }
 
-        function actualizarMapa() {
-            fetch('/conductores/ubicaciones_activas?t=' + new Date().getTime())
-            .then(response => response.json())
-            .then(data => {
-                procesarYRenderizarFlota(data);
-            })
-            .catch(error => console.error('Error al actualizar:', error));
-        }
+            function procesarYRenderizarFlota(data) {
+                const codigosServidor = data.map(c => c.codigo);
 
-        function procesarYRenderizarFlota(data) {
-            const codigosServidor = data.map(c => c.codigo);
-            
-            // 1. Eliminar marcadores y filas de unidades que ya no están activas
-            Object.keys(marcadores).forEach(codigo => {
-                if (!codigosServidor.includes(codigo)) {
-                    map.removeLayer(marcadores[codigo]);
-                    delete marcadores[codigo];
-                }
-            });
-
-            // Mantener un registro de filas actuales en la tabla
-            const filasExistentes = {};
-            Array.from(listaActiva.querySelectorAll('tr')).forEach(tr => {
-                const codigoCell = tr.querySelector('td b') || tr.querySelector('td');
-                if (codigoCell) {
-                    filasExistentes[codigoCell.textContent.trim()] = tr;
-                }
-            });
-
-            data.forEach(c => {
-                if (c.estado === 'disponible') {
-                    if (marcadores[c.codigo]) {
-                        map.removeLayer(marcadores[c.codigo]);
-                        delete marcadores[c.codigo];
+                Object.keys(marcadores).forEach(codigo => {
+                    if (!codigosServidor.includes(codigo)) {
+                        map.removeLayer(marcadores[codigo]);
+                        delete marcadores[codigo];
+                        delete cronometrosActivos[codigo];
                     }
-                    if (filasExistentes[c.codigo]) {
-                        filasExistentes[c.codigo].remove();
+                });
+
+                tbody.querySelectorAll('tr').forEach(tr => {
+                    const codigo = tr.getAttribute('data-codigo');
+                    if (codigo && !codigosServidor.includes(codigo)) {
+                        tr.remove();
                     }
-                    return;
-                }
+                });
 
-                if (c.estado === 'activo' || c.estado === 'en curso') {
-                    if (c.opcion_gps && c.opcion_gps.includes('Finalizado')) {
-                        const htmlFila = `
-                            <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">
-                                <span style="color: red; font-weight: bold; font-size: 13px;">🛑 GPS Finalizado</span><br>
-                                <small style="font-size: 11px; color: #777;">Cierre manual por usuario</small>
-                            </td>`;
-                        
-                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '', c.expiracion_gps);
+                data.forEach(c => {
+                    console.log(`🔍 ${c.codigo}: estado="${c.estado}", opcion_gps="${c.opcion_gps}", lat=${c.latitud}, lon=${c.longitud}`);
+                    let tr = tbody.querySelector(`tr[data-codigo="${c.codigo}"]`);
+                    
+                    const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
+                    // Eliminamos 'desactiv' de aquí para que "hasta que se desactive" no se confunda con cierre
+                    
+                    const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
+                    // Si está disponible pero NO por haber finalizado la compartición de GPS:
+                    if (c.estado === 'disponible' && !estaFinalizado) {
+                        if (marcadores[c.codigo]) { 
+                            map.removeLayer(marcadores[c.codigo]); 
+                            delete marcadores[c.codigo]; 
+                        }
+                        if (tr) tr.remove();
+                        delete cronometrosActivos[c.codigo];
+                        return;
+                    }
+
+                    // 🛑 Si el conductor dejó de compartir (Finalizado / Detenido):
+                    if (estaFinalizado) {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
                             delete marcadores[c.codigo];
                         }
+                        delete cronometrosActivos[c.codigo];
+
+                        if (!tr) {
+                            tr = document.createElement('tr');
+                            tr.setAttribute('data-codigo', c.codigo);
+                            tbody.appendChild(tr);
+                        }
+                        tr.style.backgroundColor = '#f8d7da'; // Color rojo claro de alerta
+                        tr.innerHTML = `
+                            <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                            <td style="padding: 6px; vertical-align: top; color: #721c24;">
+                                🛑 Finalizado por el conductor
+                                
+                            </td>
+                        `;
                         return;
                     }
 
-                    const tieneUbicacion = c.latitud !== null && c.longitud !== null;
+                    if (c.estado === 'activo' || c.estado === 'en curso') {
+                        if (c.latitud === null || c.longitud === null) {
+                            if (marcadores[c.codigo]) {
+                                map.removeLayer(marcadores[c.codigo]);
+                                delete marcadores[c.codigo];
+                            }
+                            delete cronometrosActivos[c.codigo];
 
-                    if (tieneUbicacion) {
+                            if (!tr) {
+                                tr = document.createElement('tr');
+                                tr.setAttribute('data-codigo', c.codigo);
+                                tbody.appendChild(tr);
+                            }
+                            tr.style.backgroundColor = '#fff3cd';
+                            tr.innerHTML = `
+                                <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                                <td style="padding: 6px; vertical-align: top;">
+                                    ⚠️ Sin Ubicación 
+                                    
+                                </td>
+                            `;
+                            return;
+                        }
+
+                        if (!tr) {
+                            tr = document.createElement('tr');
+                            tr.setAttribute('data-codigo', c.codigo);
+                            tbody.appendChild(tr);
+                        }
+                        tr.style.backgroundColor = '';
+
+                        // Calcular el texto del cronómetro (siempre se muestra)
+                        let textoTiempoRestante = '⏱️ Activo';
+                        let esModoIndefinido = false;
+                        const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
+
+                        // 🛡️ Usamos directamente la fecha normalizada con su zona horaria (-04:00) 
+                        // para evitar cualquier error de escala entre milisegundos y segundos.
+                        const fechaExp = obtenerTimestampLocal(c.expiracion_gps);
+
+                        if (!isNaN(fechaExp) && fechaExp > 0) {
+                            cronometrosActivos[c.codigo] = { 
+                                indefinido: false, 
+                                expTime: fechaExp 
+                            };
+                        } else {
+                            cronometrosActivos[c.codigo] = { 
+                                indefinido: true 
+                            };
+                        }
+
+                        // Obtener el texto del cronómetro usando la función que ya tienes
+                        const tiempoRestanteTexto = obtenerTextoRestante(c.codigo);
+                        const estaExpirado = tiempoRestanteTexto.includes('Expirado');
+
+                        // Determinar si hay señal (por si no se usa el cronómetro)
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
-
                         if (c.ultima_actualizacion) {
-                            const fechaLimpia = c.ultima_actualizacion.replace('T', ' ').split('.')[0];
-                            const fechaUltima = new Date(fechaLimpia.replace(/-/g, '/'));
-                            const ahora = new Date();
-                            minutosSinReportar = (ahora - fechaUltima) / (1000 * 60);
+                            const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
+                            minutosSinReportar = (Date.now() - fechaUltima) / (1000 * 60);
                             estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual;
                         } else {
                             estaDesactualizado = true;
                         }
 
-                        let textoTiempoRestante = '⏱️ Activo';
-                        let esModoIndefinido = false;
-                        const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
+                        // Construir el HTML del cronómetro (siempre visible)
+                        // Construir el HTML del cronómetro (siempre visible)
+                        const cronometroHtml = `<span class="reloj-minutos" data-codigo="${c.codigo}">${tiempoRestanteTexto}</span>`;
 
-                        if (!c.expiracion_gps || opcionGpsTexto.includes('desactiv') || opcionGpsTexto.includes('vivo')) {
-                            textoTiempoRestante = '♾️ Hasta desactivar';
-                            esModoIndefinido = true;
-                        } else if (c.expiracion_gps) {
-                            const fechaLimpiaExp = c.expiracion_gps.replace('T', ' ').split('.')[0];
-                            const fechaExp = new Date(fechaLimpiaExp.replace(/-/g, '/')).getTime();
-                            const ahora = new Date().getTime();
-                            const diferencia = fechaExp - ahora;
-
-                            if (!isNaN(fechaExp) && diferencia > 0) {
-                                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
-                                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-                                textoTiempoRestante = horas > 0 ? `⏱️ ${horas}h ${minutos}m ${segundos}s` : `⏱️ ${minutos}m ${segundos}s`;
-                            } else {
-                                textoTiempoRestante = '⏳ Expirado';
-                            }
-                        }
-
-                        let opcionLimpia = c.opcion_gps || '';
-                        if (opcionLimpia.length > 25 || (opcionLimpia.includes('h') && parseInt(opcionLimpia) > 24)) {
-                            opcionLimpia = "Tiempo límite";
-                        }
-
-                        const modoGps = (opcionLimpia && !esModoIndefinido) ? (opcionLimpia.startsWith('[') ? ` ${opcionLimpia}` : ` [${opcionLimpia}]`) : '';
+                        // Construir etiqueta de estado combinando señal y cronómetro
                         let etiquetaEstado = '';
-
-                        if (estaDesactualizado) {
+                        
+                        // 🟢 VERIFICACIÓN CLAVE: Si ya expiró el tiempo, se muestra estrictamente esto:
+                        if (estaExpirado) {
+                            etiquetaEstado = `
+                                <span style="color: red; font-weight: bold;">⏳ Tiempo Expirado</span><br>
+                                <small style="color: #555;">${cronometroHtml}</small>
+                            `;
+                            tr.style.backgroundColor = '#f8d7da'; // Opcional: fondo rojo claro de alerta
+                        } else if (estaDesactualizado) {
+                            tr.style.backgroundColor = '';
                             const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
                             etiquetaEstado = `
-                                <span style="color: red; font-weight: bold; font-size: 13px;">⚠️ GPS Inactivo (${minTexto}m)</span><br>
-                                <small style="font-size: 11px; color: #777;">Tol: ${toleranciaIndividual}m</small><br>
-                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')">📲 Notificar Telegram</button>
+                                <span style="color: orange; font-weight: bold;">⚠️ Sin señal (${minTexto}m)</span><br>
+                                <small style="color: #555;">${cronometroHtml}</small><br>
+                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')">📲 Notificar</button>
                             `;
                         } else {
+                            tr.style.backgroundColor = '';
+                            const opcionMostrada = c.opcion_gps ? `<br><small style="color: #555;">Modo: <b>${c.opcion_gps}</b></small>` : '';
                             etiquetaEstado = `
-                                <span style="color: green; font-weight: bold; font-size: 13px;">Activo (GPS)</span><br>
-                                <small style="font-size: 11px; color: #555;">
-                                    <span class="reloj-activo" data-exp="${c.expiracion_gps}" data-indefinido="${esModoIndefinido}">⏱️ Calculando...</span>${modoGps}
-                                </small>
+                                <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
+                                <small style="color: #555;">${cronometroHtml}</small>
+                                ${opcionMostrada}
                             `;
                         }
-
-                        const htmlFila = `
-                            <td style="padding: 4px 8px; vertical-align: middle;"><b>${c.codigo}</b></td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">${etiquetaEstado}</td>`;
-
-                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '', c.expiracion_gps);
-
-                        // Manejo de marcadores del mapa
+                        tr.innerHTML = `
+                            <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                            <td style="padding: 6px; vertical-align: top;">${etiquetaEstado}</td>
+                        `;
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
-                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado, precision);
+                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
 
                         if (!marcadores[c.codigo]) {
                             marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
                         } else {
                             marcadores[c.codigo].setLatLng(coords);
                             marcadores[c.codigo].setIcon(iconoVehiculo);
-                            if (map.hasLayer(marcadores[c.codigo])) {
-                                marcadores[c.codigo].update();
-                            }
                         }
-                        marcadores[c.codigo].setOpacity(estaDesactualizado ? 0.35 : 1.0);
-
-                    } else {
-                        const htmlFila = `
-                            <td>${c.codigo}</td>
-                            <td>⚠️ Sin Ubicación 
-                                <button onclick="darDeBaja('${c.id_conductor}')" style="cursor:pointer; color:red; font-size:10px;">X</button>
-                            </td>`;
-                        actualizarOInsertarFila(c.codigo, htmlFila, filasExistentes, '#fff3cd', c.expiracion_gps);
-
-                        if (marcadores[c.codigo]) {
-                            map.removeLayer(marcadores[c.codigo]);
-                            delete marcadores[c.codigo];
-                        }
+                        marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
                     }
-                }
-            });
-            // 2. Eliminar de la tabla las filas que ya no vienen en el reporte activo
-            Object.values(filasExistentes).forEach(tr => tr.remove());
-        }
+                });
+            }
 
-        function actualizarOInsertarFila(codigo, contenidoHtml, filasExistentes, bgColor = '', nuevaExpiracion = '') {
-            let tr = filasExistentes[codigo];
-            
-            if (tr) {
-                tr.style.backgroundColor = bgColor;
-                const relojActual = tr.querySelector('.reloj-activo');
-                
-                if (relojActual) {
-                    const expAnterior = relojActual.getAttribute('data-exp');
+            window.togglePanel = function() {
+                const panel = document.getElementById('panel');
+                const btn = document.getElementById('btnToggle');
+                panel.classList.toggle('oculto');
+
+                if (panel.classList.contains('oculto')) {
+                    btn.style.left = '0px';
+                    btn.innerHTML = '▶';
+                } else {
+                    btn.style.left = '335px';
+                    btn.innerHTML = '◀';
+                }
+                setTimeout(() => map.invalidateSize(), 300);
+            };
+
+            window.mostrarToast = function(mensaje) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = 'toast-msg';
+                toast.innerText = mensaje;
+                container.appendChild(toast);
+                setTimeout(() => toast.remove(), 4000);
+            };
+
+            window.notificarConductorManual = function(idConductor, codigo) {
+                fetch(`/conductores/notificar_gps/${idConductor}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        mostrarToast(`📲 Notificación enviada a Unidad ${codigo}`);
+                    } else {
+                        alert('No se pudo enviar el mensaje: ' + (data.mensaje || 'Error desconocido'));
+                    }
+                })
+                .catch(err => console.error('Error al notificar:', err));
+            };
+
+            window.darDeBaja = function(idConductor) {
+                if (confirm("¿Estás seguro de finalizar la jornada?")) {
+                    // Forzamos la ruta con barra inclinada y guiones bajos limpios, sin espacios jamás
+                    const urlDestino = `/turnos/finalizar_desde_mapa/${idConductor}?t=` + new Date().getTime();
                     
-                    // ¿El tiempo cambió en la Base de Datos?
-                    if (expAnterior !== nuevaExpiracion) {
-                        // Sí cambió: actualizamos todo el HTML y el nuevo data-exp de la BD
-                        const celdaEstado = tr.querySelectorAll('td')[1];
-                        if (celdaEstado) {
-                            celdaEstado.innerHTML = contenidoHtml; 
+                    fetch(urlDestino, { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
-                        relojActual.setAttribute('data-exp', nuevaExpiracion);
-                    } else {
-                        // No cambió: mantenemos el texto actual segundo a segundo para que NO salte por el socket
-                        const textoActual = relojActual.textContent;
-                        const celdaEstado = tr.querySelectorAll('td')[1];
-                        if (celdaEstado) {
-                            celdaEstado.innerHTML = contenidoHtml;
-                            const nuevoReloj = celdaEstado.querySelector('.reloj-activo');
-                            if (nuevoReloj) {
-                                nuevoReloj.textContent = textoActual; 
-                                nuevoReloj.setAttribute('data-exp', nuevaExpiracion);
-                            }
+                    })
+                    .then(res => { 
+                        if (res.ok) { 
+                            actualizarMapa(); 
+                        } else {
+                            alert("El servidor rechazó la solicitud (Código " + res.status + ")");
                         }
-                    }
-                } else {
-                    // 🚀 NUEVO: Si la fila ya existe pero no tiene reloj (ej. pasó a "Finalizado" o "Sin Ubicación"), actualizamos la celda directamente
-                    const celdaEstado = tr.querySelectorAll('td')[1];
-                    if (celdaEstado) {
-                        celdaEstado.innerHTML = contenidoHtml;
-                    }
+                    })
+                    .catch(err => console.error("Error en fetch darDeBaja:", err));
                 }
-                
-                delete filasExistentes[codigo]; 
-            } else {
-                tr = document.createElement('tr');
-                if (bgColor) tr.style.backgroundColor = bgColor;
-                tr.innerHTML = contenidoHtml;
-                listaActiva.appendChild(tr);
-            }
-        }
-
-        function mostrarToast(mensaje) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast-msg';
-            toast.innerText = mensaje;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        }
-
-        function notificarConductorManual(idConductor, codigo) {
-            fetch(`/conductores/notificar_gps/${idConductor}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    mostrarToast(`📲 Notificación enviada a Unidad ${codigo}`);
-                } else {
-                    alert('No se pudo enviar el mensaje: ' + (data.mensaje || 'Error desconocido'));
-                }
-            })
-            .catch(err => console.error('Error al notificar:', err));
-        }
-
-        function darDeBaja(idConductor) {
-            if (confirm("¿Estás seguro de finalizar la jornada?")) {
-                fetch(`/turnos/finalizar_desde_mapa/${idConductor}`, { method: 'POST' })
-                .then(res => { if (res.ok) { actualizarMapa(); } });
-            }
-        }
-
-        function togglePanel() {
-            const panel = document.getElementById('panel');
-            const btn = document.getElementById('btnToggle');
-            
-            panel.classList.toggle('oculto');
-
-            if (panel.classList.contains('oculto')) {
-                btn.style.left = '0px';
-                btn.innerHTML = '▶';
-            } else {
-                btn.style.left = '335px';
-                btn.innerHTML = '◀';
-            }
-            
-            setTimeout(() => { map.invalidateSize(); }, 300);
-        }
-
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'g' || event.key === 'G') {
-                togglePanel();
-            }
-        });
-
-        // CONEXIÓN SOCKET.IO EN TIEMPO REAL
-        const socket = io(); 
-
-        socket.on('nueva_ubicacion', function(data) {
-            console.log("⚡ Ubicación en tiempo real recibida:", data);
-            actualizarMapa();
-        });
-
-        socket.on('conductor_inactivo', function(data) {
-            console.log("🛑 Conductor desactivó GPS:", data);
-            actualizarMapa();
-        });
-
-        // Intervalo de respaldo por seguridad (cada 60 segundos)
-        setInterval(actualizarMapa, 60000);
-        actualizarMapa();
-
-        // Bucle de cronómetros locales cada 1 segundo
-        setInterval(() => {
-            document.querySelectorAll('.reloj-activo').forEach(el => {
-                if (el.getAttribute('data-indefinido') === 'true') {
-                    el.textContent = "♾️ Hasta desactivar";
-                    return;
-                }
-
-                const expiracionIso = el.getAttribute('data-exp');
-                if (!expiracionIso || expiracionIso === 'null') return;
-
-                // 🛑 ESTO ES LO CLAVE PARA QUE NO SE REINICIE:
-                const fechaLimpia = expiracionIso.replace('T', ' ').split('.')[0];
-                const fechaFin = new Date(fechaLimpia.replace(/-/g, '/')).getTime();
-                
-                const ahora = new Date().getTime();
-                const diferencia = fechaFin - ahora;
-
-                if (isNaN(fechaFin) || diferencia <= 0) {
-                    el.textContent = "⏳ Expirado";
-                    return;
-                }
-
-                const horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
-                const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
-
-                if (horas > 0) {
-                    el.textContent = `⏱️ ${horas}h ${minutos}m ${segundos}s`;
-                } else {
-                    el.textContent = `⏱️ ${minutos}m ${segundos}s`;
+            };
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'g' || event.key === 'G') {
+                    togglePanel();
                 }
             });
-        }, 1000);
+
+            // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN
+            const socket = io({
+                reconnection: true,
+                reconnectionAttempts: 5,          // Intentará reconectar 5 veces
+                reconnectionDelay: 1000,          // Espera 1 segundo entre intentos
+                reconnectionDelayMax: 5000,       // Máximo 5 segundos de espera
+                timeout: 20000                    // Tiempo máximo para establecer conexión
+            });
+
+            // Listeners para depuración de conexión
+            socket.on('connect', () => {
+                console.log('🔌 Socket.IO conectado');
+            });
+
+            socket.on('disconnect', () => {
+                console.log('🔌 Socket.IO desconectado, intentando reconectar...');
+                // Opcional: mostrar un mensaje en la interfaz (puedes usar mostrarToast)
+                // mostrarToast('⚠️ Conexión perdida, reconectando...');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.warn('⚠️ Error de conexión Socket.IO:', error);
+            });
+
+            // Eventos de negocio (ubicaciones, inactivos)
+            socket.on('nueva_ubicacion', () => actualizarMapa());
+            socket.on('conductor_inactivo', () => actualizarMapa());
+
+            setInterval(actualizarMapa, 60000);
+            actualizarMapa();
+
+            // Bucle autónomo optimizado para actualizar exclusivamente el texto de los minutos cada 10 segundos
+            setInterval(function() {
+                document.querySelectorAll('.reloj-minutos').forEach(el => {
+                    const codigo = el.getAttribute('data-codigo');
+                    if (codigo) {
+                        el.textContent = obtenerTextoRestante(codigo);
+                    }
+                });
+            }, 10000);
+            // 🟢 KEEP-ALIVE: Ping cada 30 segundos para mantener el túnel activo
+            setInterval(() => {
+                fetch('/conductores/ubicaciones_activas?keepalive=true')
+                    .then(response => response.text())
+                    .catch(err => console.warn('Keep-alive ping falló:', err));
+            }, 30000);
+            // Al final del script (dentro de DOMContentLoaded)
+           setInterval(() => {
+                fetch('/ping')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Servidor no responde');
+                        console.log('✅ Servidor saludable');
+                    })
+                    .catch(err => {
+                        console.error('❌ Servidor caído:', err);
+                        mostrarToast('⚠️ El servidor no responde. Contacta al administrador.');
+                    });
+            }, 60000); // Cada 1 minuto
+        });
     </script>
 </body>
 </html>

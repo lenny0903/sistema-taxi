@@ -1,11 +1,11 @@
 import sys
 import io
 
-# 0. Forzar UTF-8 absoluto antes de cualquier otra cosa (vital para Windows y NSSM)
+# 0. Forzar UTF-8 absoluto antes de cualquier otra cosa
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-# 1. Aplicar el parche de eventlet de forma limpia al inicio absoluto
+# 1. Aplicar el parche de eventlet al inicio absoluto
 if 'db' not in sys.argv:
     import eventlet
     eventlet.monkey_patch()
@@ -41,8 +41,25 @@ if 'db' not in sys.argv:
 else:
     socketio = SocketIO(cors_allowed_origins="*")
 
+# 🔥 CONFIGURACIÓN DE LOGGING
+import logging
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+# 🟢 Función global para el PRAGMA WAL de SQLite
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.close()
+
+# Bandera de control para evitar registro duplicado del listener
+_pragma_listener_registered = False
+
 
 def create_app():
+    global _pragma_listener_registered
     app = Flask(__name__)
     
     app.config.from_object('config')
@@ -71,11 +88,10 @@ def create_app():
         from models.cola_notificaciones import ColaNotificaciones
         db.create_all()
         
-        @event.listens_for(db.engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL;")
-            cursor.close()
+        # 🟢 Registro seguro del listener dentro del contexto de la aplicación
+        if not _pragma_listener_registered:
+            event.listen(db.engine, "connect", set_sqlite_pragma)
+            _pragma_listener_registered = True
 
         result = db.session.execute(text("PRAGMA journal_mode;")).scalar()
         print("Journal mode actual:", result)
@@ -123,7 +139,7 @@ def create_app():
     app.register_blueprint(cola_despachos_bp, url_prefix="/cola_despachos")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
     app.register_blueprint(incidencias_bp, url_prefix="/incidencias")
-
+    
     @app.route("/")
     def home():
         return render_template("index.html")

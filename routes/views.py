@@ -18,6 +18,10 @@ views_bp = Blueprint("views", __name__)
 def login_page_alt():
     return render_template("login.html", title="Login")
 
+@views_bp.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()}), 200
+
 @views_bp.route("/auth/login_html", methods=["POST"])
 def login_html():
     username = request.form["username"]
@@ -163,7 +167,8 @@ def obtener_ubicaciones_activas():
             "ultima_actualizacion": row.ultima_actualizacion.isoformat() if hasattr(row.ultima_actualizacion, 'isoformat') else str(row.ultima_actualizacion or ''),
             "id_conductor": row.id_conductor,
             "opcion_gps": opcion_label,
-            "expiracion_iso": expiracion.isoformat() if hasattr(expiracion, 'isoformat') else str(expiracion or ''),
+            "expiracion_gps": expiracion.isoformat() if expiracion else None,  # 🔥 Cambiado de expiracion_iso
+            "exp_timestamp": int(expiracion.timestamp() * 1000) if expiracion else None,  # 🔥 Nuevo campo
             "tiempo_restante": tiempo_restante
         })
         

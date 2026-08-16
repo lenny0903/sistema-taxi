@@ -251,32 +251,34 @@ def conductores_en_espera():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@turnos_bp.route("/finalizar_desde_mapa/<int:conductor_id>", methods=["POST"])
+@turnos_bp.route("/finalizar desde mapa/<int:conductor_id>", methods=["POST"])
 def finalizar_desde_mapa(conductor_id):
-    # Buscamos el turno del conductor
+    # 1. Buscamos al conductor primero
+    from models.conductores import Conductor
+    conductor = Conductor.query.get_or_404(conductor_id)
+    
     turno = Turno.query.filter_by(conductor_id=conductor_id, estado="activo").first()
     if not turno:
         return jsonify({"error": "Turno no encontrado"}), 404
     
-    # 1. Ejecutamos la función y guardamos el resultado
+    # 2. Ejecutamos el cierre del turno
     respuesta = finalizar_turno(turno.id_turno, es_bot=False)
     
-   # 2. Emitimos el aviso por SocketIO al panel de operadores
+    # 3. AQUÍ ESTÁ EL CAMBIO CLAVE:
+    # Fuerza el cambio en el conductor para que salga del monitoreo
+    conductor.estado = "disponible"  # O el valor que use tu lógica para "sacarlo"
+    conductor.opcion_gps = None     # Limpiamos la opción para que no diga [Finalizado]
+    # Si tienes estos campos, límpialos también para evitar datos residuales
+    conductor.latit = None
+    conductor.long = None
+    
+    db.session.commit() # Guardamos los cambios en el Conductor
+
+    # 4. Emitimos al socket
     try:
-        from models.conductores import Conductor
         from flask import current_app
-        
-        conductor = Conductor.query.get(conductor_id)
-        if conductor:
-            print("🚀 Emitiendo evento 'turno_finalizado' al navegador desde el mapa...")
-            # Si guardaste socketio en extensions o en la app, lo buscamos de forma segura:
-            # Opción A: Buscándolo en las extensiones de la app actual
-            # (O si tienes el socketio importado de forma global en otro archivo de configuración, dime cuál es)
-            
-            # Intentemos emitir usando el manejador global si lo tienes accesible, o a través de current_app:
-            current_app.extensions['socketio'].emit('turno_finalizado', {'conductor': conductor.nombre})
+        current_app.extensions['socketio'].emit('conductor_inactivo', {'id': conductor_id})
     except Exception as e:
-        print(f"⚠️ Error emitiendo socket desde mapa: {e}")
+        print(f"⚠️ Error emitiendo socket: {e}")
         
-    # 3. Retornamos la respuesta original
     return respuesta

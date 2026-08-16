@@ -136,7 +136,8 @@ def webhook():
 
         # --- PROCESAMIENTO DE UBICACIÓN ACTIVA (Cuando sí trae coordenadas) ---
         if "location" in msg:
-            
+            print(">>> LLEGÓ UNA UBICACIÓN DESDE TELEGRAM <<<")
+            print(">>> CONTENIDO COMPLETO DE LOCATION:", msg["location"])
             # 🚨 🛑 FILTRO: Validar que NO envíe ubicación fija (estática). 
             # Si el mensaje no viene de un mensaje editado y carece de 'live_period', es una ubicación estática compartida por error.
             if "edited_message" not in update and "live_period" not in msg["location"]:
@@ -151,41 +152,55 @@ def webhook():
                 return jsonify({"status": "ubicacion_estatica_rechazada"}), 200
 
             # 🟢 SI PASA LA VALIDACIÓN: ES UBICACIÓN EN TIEMPO REAL (LIVE LOCATION)
-            ahora = hora_local()
+            # 🟢 AL PROCESAR LA UBICACIÓN:
+            ahora = hora_local().replace(microsecond=0)  # 🔥 TRUNCAR MICROSEGUNDOS
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
             conductor.alerta_enviada = False
-            
+
             segundos = msg["location"].get("live_period")
 
-            exp_db = conductor.expiracion_gps
-            if exp_db and exp_db.tzinfo is None:
+            # Determinar la opción elegida según los segundos
+            if segundos == 900:
+                nueva_opcion = "15 min"
+                nueva_duracion_seg = 900
+            elif segundos == 3600:
+                nueva_opcion = "1 hora"
+                nueva_duracion_seg = 3600
+            elif segundos == 28800:
+                nueva_opcion = "8 horas"
+                nueva_duracion_seg = 28800
+            else:
+                nueva_opcion = "Hasta que se desactive"
+                nueva_duracion_seg = None  # sin expiración fija
+
+            # 🔑 LÓGICA INTELIGENTE: solo renovar si la opción cambió o la expiración ya pasó
+            opcion_actual = getattr(conductor, 'opcion_gps', None)
+            exp_actual = getattr(conductor, 'expiracion_gps', None)
+
+            # Normalizar exp_actual (si es naive, asumir misma zona horaria)
+            if exp_actual and exp_actual.tzinfo is None:
                 from utils.time import TZ_CARACAS
-                exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
+                exp_actual = exp_actual.replace(tzinfo=TZ_CARACAS)
 
-            expirado = not exp_db or exp_db < ahora
+            expirada = (exp_actual is None) or (exp_actual < ahora)
 
-            if expirado or segundos:
-                duracion = segundos if segundos else 28800
-                
-                # 🎯 DETECCIÓN EXACTA DE LAS OPCIONES DE TELEGRAM
-                if duracion == 900:
-                    conductor.opcion_gps = "15 min"
-                    conductor.expiracion_gps = ahora + timedelta(seconds=900)
-                elif duracion == 3600:
-                    conductor.opcion_gps = "1 hora"
-                    conductor.expiracion_gps = ahora + timedelta(seconds=3600)
-                elif duracion == 28800:
-                    conductor.opcion_gps = "8 horas"
-                    conductor.expiracion_gps = ahora + timedelta(seconds=28800)
+            if nueva_opcion != opcion_actual or expirada:
+                # Cambió la opción o expiró: renovamos
+                if nueva_duracion_seg:
+                    conductor.expiracion_gps = ahora + timedelta(seconds=nueva_duracion_seg)
                 else:
-                    # Si elige "Hasta que se desactive" (Telegram asigna un live_period extremadamente alto)
-                    conductor.opcion_gps = "Hasta que se desactive"
-                    # Asignamos una fecha lejana estática pero marcándola para el modo indefinido sin cronómetro
-                    conductor.expiracion_gps = ahora + timedelta(days=365)
+                    conductor.expiracion_gps = ahora + timedelta(days=365)  # modo indefinido
+                conductor.opcion_gps = nueva_opcion
+                print(f"🔄 [GPS] {conductor.codigo} renovó expiración: {conductor.expiracion_gps} (opción: {nueva_opcion})")
+            else:
+                # Misma opción y aún válida: solo actualizamos coordenadas y timestamp
+                print(f"📌 [GPS] {conductor.codigo} actualizó ubicación sin renovar expiración")
+                # No tocamos expiracion_gps ni opcion_gps
 
+            # Sincronizar con el turno activo (si existe)
             if hasattr(conductor, "turno_activo") and conductor.turno_activo:
                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
                 conductor.turno_activo.opcion_gps = conductor.opcion_gps
@@ -208,8 +223,11 @@ def webhook():
         return jsonify({"status": "actualizacion_silenciada"}), 200
 
     except Exception as e:
-       print(f"❌ ERROR CRÍTICO: {e}")
-       return jsonify({"status": "error", "detalle": str(e)}), 500    
+        print(f"❌ ERROR CRÍTICO EN WEBHOOK: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "detalle": str(e)}), 200
+    
         
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')

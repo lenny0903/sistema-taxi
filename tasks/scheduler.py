@@ -64,7 +64,13 @@ def iniciar_scheduler(app, socketio):
  #       id="job_gps_conductores",
  #       replace_existing=True
  #   )
-
+    scheduler.add_job(
+        job_expirar_tiempos_gps,
+        trigger="interval",
+        minutes=1, 
+        id="job_expiracion_gps",
+        replace_existing=True
+    )
     # 3. Tarea de Respaldos Automáticos (Cada 12 horas)
     scheduler.add_job(
         id='Backup_Cada_12_Horas',
@@ -113,6 +119,44 @@ def job_verificar_reservas():
             db.session.rollback()
             print(f"❌ [SCHEDULER ERROR - RESERVAS] {e}")
 
+def job_expirar_tiempos_gps():
+    """
+    Función ligera dedicada exclusivamente a marcar tiempos expirados.
+    Se ejecuta independientemente de las alertas de inactividad.
+    """
+    if _app is None:
+        return
+
+    with _app.app_context():
+        try:
+            from models.conductores import Conductor
+            from extensions import db
+            from utils.time import hora_local, TZ_CARACAS
+
+            ahora = hora_local()
+            
+            # Buscamos conductores que tengan expiración, que estén activos y que NO estén ya expirados
+            conductores_vencidos = Conductor.query.filter(
+                Conductor.expiracion_gps.isnot(None),
+                Conductor.opcion_gps != "Expirado",
+                Conductor.opcion_gps != "Finalizado"
+            ).all()
+
+            for c in conductores_vencidos:
+                exp_db = c.expiracion_gps
+                if exp_db and exp_db.tzinfo is None:
+                    exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
+
+                # Si el tiempo ya pasó, marcamos como Expirado
+                if exp_db and ahora >= exp_db:
+                    c.opcion_gps = "Expirado"
+                    db.session.commit()
+                    print(f"⏱️ [GPS EXPIRADO] Unidad {c.codigo} marcada automáticamente como expirada.")
+            
+        except Exception as e:
+            from extensions import db
+            db.session.rollback()
+            print(f"❌ [ERROR SCHEDULER - VENCIMIENTOS] {e}")
 """
 def job_verificar_gps_conductores():
     if _app is None:
