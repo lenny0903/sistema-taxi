@@ -44,7 +44,10 @@ def webhook():
         if not msg:
             return jsonify({"status": "sin_mensaje"}), 200
 
-        chat_id = str(msg['from']['id'])
+        user_from = msg.get('from')
+        if not user_from or 'id' not in user_from:
+            return jsonify({"status": "sin_remitente_valido"}), 200
+        chat_id = str(user_from['id'])
 
         # 2. PROCESAMIENTO DE TEXTO (Lo subimos para que los no registrados puedan enviar su código Bxx o /start)
         if 'text' in msg:
@@ -106,10 +109,8 @@ def webhook():
         # 🛑 DETECCIÓN DE CIERRE MANUAL: 
         # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)
         es_cierre_manual = False
-        if "edited_message" in update:
-            if "location" not in msg:
-                es_cierre_manual = True
-            elif "location" in msg and "live_period" not in msg["location"]:
+        if "edited_message" in update and "location" in msg:
+            if "live_period" not in msg["location"]:
                 es_cierre_manual = True
 
         if es_cierre_manual:
@@ -196,13 +197,13 @@ def webhook():
                 conductor.opcion_gps = nueva_opcion
                 print(f"🔄 [GPS] {conductor.codigo} renovó expiración: {conductor.expiracion_gps} (opción: {nueva_opcion})")
                 # 🟢 SALUDO EXCLUSIVO AL INICIAR O CAMBIAR OPCIÓN DE GPS
-                nombre_conductor = getattr(conductor, 'nombre', None) or conductor.codigo
-                saludo = (
-                    f"👋 ¡Hola, *{nombre_conductor}*!\n\n"
-                    "🚗 Ubicación recibida y conectada con éxito.\n"
-                    "⏱️ Tu turno está activo. ¡Que tengas un excelente recorrido y mucho éxito hoy!"
-                )
-                enviar_mensaje(chat_id, saludo)
+                #nombre_conductor = getattr(conductor, 'nombre', None) or conductor.codigo
+                #saludo = (
+                #    f"👋 ¡Hola, *{nombre_conductor}*!\n\n"
+                #    "🚗 Ubicación recibida y conectada con éxito.\n"
+                #    "⏱️ Tu turno está activo. ¡Que tengas un excelente recorrido y mucho éxito hoy!"
+                #)
+                #enviar_mensaje(chat_id, saludo)
             else:
                 # Misma opción y aún válida: solo actualizamos coordenadas y timestamp
                 print(f"📌 [GPS] {conductor.codigo} actualizó ubicación sin renovar expiración")
@@ -234,7 +235,10 @@ def webhook():
         print(f"❌ ERROR CRÍTICO EN WEBHOOK: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"status": "error", "detalle": str(e)}), 200
+        try:
+            return jsonify({"status": "error", "detalle": str(e)}), 200
+        except:
+            return "OK", 200  # Última red de seguridad: texto plano con código 200 si todo lo demás falla
     
         
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):

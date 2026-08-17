@@ -33,7 +33,8 @@ import routes
 import config
 from tasks.scheduler import iniciar_scheduler
 
-MONTO_CUOTA_SEMANAL = 40000
+# Usamos la constante desde config.py para evitar importaciones circulares
+MONTO_CUOTA_SEMANAL = getattr(config, 'MONTO_CUOTA_SEMANAL', 40000)
 
 # Inicializamos SocketIO de manera segura según el comando ejecutado
 if 'db' not in sys.argv:
@@ -48,6 +49,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
 # 🟢 Función global para el PRAGMA WAL de SQLite
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
@@ -96,9 +98,6 @@ def create_app():
         result = db.session.execute(text("PRAGMA journal_mode;")).scalar()
         print("Journal mode actual:", result)
 
-    if 'db' not in sys.argv:
-        iniciar_scheduler(app, socketio)
-
     # Registrar blueprints
     from routes.auth import auth_bp
     from routes.usuarios import usuarios_bp
@@ -140,6 +139,13 @@ def create_app():
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
     app.register_blueprint(incidencias_bp, url_prefix="/incidencias")
     
+    @app.route('/ping', methods=['GET'])
+    def health_check():
+        return jsonify({
+            "status": "ok", 
+            "timestamp": datetime.now().isoformat()
+        }), 200
+
     @app.route("/")
     def home():
         return render_template("index.html")
@@ -181,10 +187,15 @@ def create_app():
             print("[ERROR] [TELEGRAM] No se pudo configurar el webhook:", e)
             return f"Error al configurar: {e}", 500
 
-   
     return app
 
 if __name__ == "__main__":
     app = create_app()
+    
+    # Iniciar scheduler solo en el proceso hijo del reloader para evitar duplicidad
+    if 'db' not in sys.argv and os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        print("[SCHEDULER] Tareas programadas iniciadas correctamente.")
+        iniciar_scheduler(app, socketio)
+
     print("[SERVIDOR] Servidor iniciado con WebSockets (Eventlet)...")
     socketio.run(app, host="0.0.0.0", port=5000, debug=app.config['DEBUG'])
