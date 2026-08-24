@@ -61,6 +61,7 @@ def webhook():
                     if despacho:
                         despacho.calificacion = estrellas
                         despacho.fecha_calificacion = datetime.now()
+                        despacho.telegram_id_cliente = chat_id
                         db.session.commit()
                         print(f"⭐ Calificación guardada: Despacho #{id_despacho} con {estrellas} estrellas")
                     else:
@@ -130,6 +131,9 @@ def webhook():
                         despacho = Despacho.query.get(id_despacho)
                         
                         if despacho:
+                            despacho.telegram_id_cliente = chat_id
+                            db.session.commit()
+                            print(f"🔗 [TELEGRAM] Cliente {chat_id} vinculado al Despacho #{id_despacho}")
                             conductor_asig = db.session.get(Conductor, despacho.conductor_id) if hasattr(despacho, 'conductor_id') and despacho.conductor_id else None
                             nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
                             nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
@@ -165,9 +169,12 @@ def webhook():
             # 📍 Palabra clave "UBI"
             if texto.strip().upper() == "UBI":
                 print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
+                
                 despacho_reciente = Despacho.query.order_by(Despacho.id_despacho.desc()).first()
                 
                 if despacho_reciente:
+                    despacho_reciente.telegram_id_cliente = chat_id
+                    db.session.commit()
                     conductor_asig = db.session.get(Conductor, despacho_reciente.conductor_id) if hasattr(despacho_reciente, 'conductor_id') and despacho_reciente.conductor_id else None
                     nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
                     nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"

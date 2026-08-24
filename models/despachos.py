@@ -15,7 +15,7 @@ class Despacho(db.Model):
     origen_despacho = db.Column(db.String(200), nullable=False)
     destino_despacho = db.Column(db.String(200), nullable=True)
     fecha_hora_embarque = db.Column(db.DateTime, nullable=True)
-
+    telegram_id_cliente = db.Column(db.String(50), nullable=True)
     # Relaciones con otras entidades
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id_cliente"), nullable=False)
     conductor_id = db.Column(db.Integer, db.ForeignKey("conductores.id_conductor"), nullable=False)
@@ -55,6 +55,7 @@ class Despacho(db.Model):
             "destino_despacho": self.destino_despacho,
             "fecha_hora_inicio": self.fecha_hora_inicio.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_inicio else None,
             "fecha_hora_fin": self.fecha_hora_fin.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_fin else None,
+            "telegram_id_cliente": self.telegram_id_cliente,
             "calificacion": self.calificacion,
             "fecha_calificacion": self.fecha_calificacion.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_calificacion else None,
             "tarifa": float(self.tarifa) if self.tarifa is not None else None,

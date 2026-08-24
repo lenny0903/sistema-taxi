@@ -7,7 +7,7 @@ from models import Despacho, Conductor, Usuario, Auto
 from models.clientes import Cliente
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
-
+from utils.time import TZ_CARACAS
 # ReportLab imports
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -642,32 +642,43 @@ def exportar_pdf_consolidado():
         print(f"❌ [ERROR CRÍTICO PDF]: {str(e)}")
         return jsonify({"status": "error", "message": f"Error en ReportLab: {str(e)}"}), 500
 
-@reporte_bp.route("/reporte/encuestas", methods=["GET"])
+@reporte_bp.route("/encuestas", methods=["GET"])
 def reporte_encuestas():
     try:
-        fecha_inicio = request.args.get("inicio")
-        fecha_fin = request.args.get("fin")
-        
-        # Filtramos los despachos que tengan calificación
-        query = Despacho.query.filter(Despacho.calificacion != None)
-        
-        if fecha_inicio and fecha_fin:
-            query = query.filter(Despacho.fecha_calificacion.between(fecha_inicio, fecha_fin))
-            
+        fecha_inicio_str = request.args.get("inicio")
+        fecha_fin_str = request.args.get("fin")
+
+        query = Despacho.query.filter(Despacho.calificacion.isnot(None))
+
+        if fecha_inicio_str and fecha_fin_str:
+            dt_inicio = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0)
+            dt_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(Despacho.fecha_calificacion >= dt_inicio, Despacho.fecha_calificacion <= dt_fin)
+
         despachos = query.order_by(Despacho.fecha_calificacion.desc()).all()
-        
+
         resultado = []
         for d in despachos:
+            # Formatear la fecha directamente si el objeto no tiene zona asignada explícita
+            fecha_str = ""
+            if d.fecha_calificacion:
+                try:
+                    fecha_str = d.fecha_calificacion.strftime("%d/%m/%Y %I:%M %p")
+                except Exception:
+                    fecha_str = str(d.fecha_calificacion)
+
             resultado.append({
                 "id_despacho": d.id_despacho,
                 "unidad": d.conductor.codigo if d.conductor else "S/C",
                 "conductor_nombre": d.conductor.nombre if d.conductor else "Desconocido",
-                "cliente_nombre": d.cliente.nombre if d.cliente else "Cliente",
-                "cliente_telefono": d.cliente.telefono if d.cliente else "S/N",
+                "cliente_nombre": d.cliente.nombre if hasattr(d, 'cliente') and d.cliente else "Cliente",
+                "cliente_telefono": d.cliente.telefono if hasattr(d, 'cliente') and d.cliente else getattr(d, 'telegram_id_cliente', 'S/N'),
                 "calificacion": d.calificacion,
-                "fecha_calificacion": d.fecha_calificacion.astimezone(d.TZ_CARACAS).strftime("%Y-%m-%d %H:%M") if d.fecha_calificacion else ""
+                "fecha_calificacion": fecha_str
             })
-            
+
         return jsonify(resultado), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500    
+        print(f"❌ Error interno en /reporte/encuestas: {e}")
+        return jsonify({"error": str(e)}), 500

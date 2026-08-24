@@ -21,6 +21,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.cola_despachos import ColaDespacho
 from utils.notificaciones import enviar_encuesta_satisfaccion
+
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
 from models.lista_espera import ListaEspera
@@ -370,8 +371,21 @@ def finalizar_despacho(id):
         despacho.fecha_hora_fin = hora_local()
 
         db.session.commit()
-        #if despacho.telegram_id_cliente: 
-        #    enviar_encuesta_satisfaccion(despacho.telegram_id_cliente, despacho.id_despacho)
+       
+        # Se verifica que exista y que no esté vacío antes de intentar el envío
+       # 🟢 ENVÍO SEGURO DE ENCUESTA POR TELEGRAM
+        telegram_cliente = getattr(despacho, 'telegram_id_cliente', None)
+
+        if telegram_cliente and str(telegram_cliente).strip():
+            try:
+                enviar_encuesta_satisfaccion(
+                    telegram_cliente,      # Posición 1: chat_id_cliente
+                    despacho.id_despacho   # Posición 2: id_despacho
+                )
+            except Exception as e_tg:
+                print(f"⚠️ No se pudo enviar la encuesta vía Telegram al cliente {telegram_cliente}: {e_tg}")
+        else:
+            print(f"ℹ️ Despacho #{despacho.id_despacho} finalizado sin Telegram (Cliente presencial o vía telefónica).")
         return jsonify({
             "msg": "Despacho finalizado correctamente",
             "id_despacho": despacho.id_despacho,

@@ -363,44 +363,68 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------
     // Reportes de encuestas de satisfacción 
     // -------------------------------
-    document.getElementById("btnGenerarReporteEncuestas").addEventListener("click", async () => {
-        const inicio = document.getElementById("fechaInicioEncuesta").value;
-        const fin = document.getElementById("fechaFinEncuesta").value;
+    // Delegación de eventos global
+    document.addEventListener("click", async (e) => {
+        // Verificar si el clic viene del botón o de un elemento hijo (como el icono/texto)
+        const btn = e.target.closest("#btnGenerarReporteEncuestas");
+        if (!btn) return;
 
-        let url = "/despachos/reporte/encuestas?";
-        if (inicio && fin) url += `inicio=${inicio}&fin=${fin}`;
+        e.preventDefault();
+
+        const inicio = document.getElementById("fechaInicioEncuesta")?.value || "";
+        const fin = document.getElementById("fechaFinEncuesta")?.value || "";
+
+        let url = "/despachos/reporte/encuestas";
+        const params = new URLSearchParams();
+        if (inicio) params.append("inicio", inicio);
+        if (fin) params.append("fin", fin);
+        if (params.toString()) url += `?${params.toString()}`;
 
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const response = await fetch(`/reportes/encuestas?inicio=${inicio}&fin=${fin}`);
+            
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || `Error servidor HTTP ${response.status}`);
+            }
 
+            const data = await response.json();
             const tbody = document.getElementById("tbodyEncuestasReporte");
+            if (!tbody) return;
+
             tbody.innerHTML = "";
 
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay encuestas registradas en este período.</td></tr>`;
+            if (!Array.isArray(data) || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-4 text-center text-gray-500 font-medium">
+                            No hay encuestas registradas en este período.
+                        </td>
+                    </tr>`;
                 return;
             }
 
             data.forEach(item => {
-                // Generar estrellitas visuales según la nota
-                const estrellasVisual = "⭐".repeat(item.calificacion);
-                
+                const numEstrellas = parseInt(item.calificacion, 10) || 0;
+                const estrellasVisual = "⭐".repeat(numEstrellas);
+
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-                    <td class="border p-2 text-center font-bold">${item.unidad}</td>
-                    <td class="border p-2">${item.conductor_nombre}</td>
-                    <td class="border p-2">${item.cliente_nombre}</td>
-                    <td class="border p-2 text-center">${item.cliente_telefono}</td>
-                    <td class="border p-2 text-center text-base">${estrellasVisual} (${item.calificacion}/5)</td>
-                    <td class="border p-2 text-center text-gray-600 text-xs">${item.fecha_calificacion}</td>
+                    <td class="border p-2 text-center font-bold">${item.unidad || 'S/C'}</td>
+                    <td class="border p-2">${item.conductor_nombre || 'N/A'}</td>
+                    <td class="border p-2">${item.cliente_nombre || 'N/A'}</td>
+                    <td class="border p-2 text-center">${item.cliente_telefono || 'N/A'}</td>
+                    <td class="border p-2 text-center text-base">${estrellasVisual} (${numEstrellas}/5)</td>
+                    <td class="border p-2 text-center text-gray-600 text-xs">${item.fecha_calificacion || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
         } catch (err) {
-            console.error("Error al cargar reporte de encuestas:", err);
-            mostrarToast("❌ Error al generar reporte de encuestas", "error");
+            console.error("❌ Error al cargar reporte de encuestas:", err);
+            if (typeof mostrarToast === "function") {
+                mostrarToast(`❌ Error: ${err.message}`, "error");
+            }
         }
     });
   // -------------------------------final reportes----------------  
