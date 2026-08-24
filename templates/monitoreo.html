@@ -97,10 +97,41 @@
 
     <div id="toast-container"></div>
     <div id="map"></div>
-
+    <script>
+        // Si no se pasa desde Flask, será una cadena vacía o cero
+        const ID_DESPACHO_ACTIVO = "{{ id_despacho_activo if id_despacho_activo is not none else '' }}";
+    </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        
         document.addEventListener('DOMContentLoaded', function() {
+            // Verificamos si la página fue abierta por un cliente con un despacho activo
+            const idDespachoCliente = parseInt(ID_DESPACHO_ACTIVO) || 0;
+
+            // 🟢 SOLO si el ID es mayor a 0 (significa que abrió el enlace del bot) se oculta el panel
+            if (idDespachoCliente > 0) {
+                const panel = document.getElementById('panel');
+                if (panel) panel.style.display = 'none';
+
+                const btnToggle = document.getElementById('btnToggle');
+                if (btnToggle) btnToggle.style.display = 'none';
+
+                const mapaDiv = document.getElementById('map');
+                if (mapaDiv) {
+                    mapaDiv.style.position = 'fixed';
+                    mapaDiv.style.top = '0';
+                    mapaDiv.style.left = '0';
+                    mapaDiv.style.width = '100vw';
+                    mapaDiv.style.height = '100vh';
+                    mapaDiv.style.zIndex = '999';
+                }
+
+                setTimeout(() => {
+                    if (typeof map !== 'undefined') {
+                        map.invalidateSize();
+                    }
+                }, 250);
+            }
             const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
@@ -401,6 +432,9 @@
                             marcadores[c.codigo].setIcon(iconoVehiculo);
                         }
                         marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
+                        if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== null && c.id_despacho === ID_DESPACHO_ACTIVO) {
+                            map.setView(coords, 17); // Hace zoom y centra la vista en la unidad del cliente
+                        }
                     }
                 });
             }

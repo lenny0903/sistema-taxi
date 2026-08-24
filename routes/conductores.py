@@ -434,6 +434,19 @@ def obtener_ubicaciones():
             estado='activo'
         ).first()
 
+        id_despacho_actual = None
+        try:
+            despacho_activo = Despacho.query.filter_by(
+                conductor_id=c.id_conductor, 
+                estado_despacho='en curso'
+            ).first()
+            
+            if despacho_activo:
+                # Intentamos obtener el ID usando getattr para evitar errores si se llama 'id' o 'id_despacho'
+                id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
+        except Exception as e:
+            print(f"⚠️ Error consultando despacho para conductor {c.codigo}: {e}")
+            id_despacho_actual = None
         # 🟢 Extracción unificada y segura
         opcion_val = getattr(c, 'opcion_gps', None) or (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None)
         exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
@@ -448,13 +461,12 @@ def obtener_ubicaciones():
         opcion_str = str(opcion_val or '').strip().lower()
 
         # 🎯 DETECCIÓN DE MODO INDEFINIDO
-        # Si la opción contiene palabras clave o está vacía, se considera "Hasta que se desactive"
         es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
 
         if es_indefinido:
             opcion_gps_label = "Hasta que se desactive"
-            exp_gps = None        # 👈 Anulamos la fecha para que no corra temporizador
-            exp_timestamp = 0     # 👈 Timestamp en 0 para el frontend
+            exp_gps = None        
+            exp_timestamp = 0     
         else:
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
@@ -471,10 +483,12 @@ def obtener_ubicaciones():
             "exp_timestamp": exp_timestamp,
             "opcion_gps": opcion_gps_label,
             "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
-            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15)
+            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
+            "id_despacho": id_despacho_actual # 👈 ¡ESTE ES EL CAMPO QUE FALTABA EN EL JSON!
         })  
       
     return jsonify(resultado), 200
+
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)

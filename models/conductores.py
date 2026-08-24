@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime
-
+from models.despachos import Despacho
 class Conductor(db.Model):
     __tablename__ = 'conductores'
     id_conductor = db.Column(db.Integer, primary_key=True)

@@ -14,7 +14,7 @@ SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
 
 SQLALCHEMY_ENGINE_OPTIONS = {
     "connect_args": {
-        "timeout": 20
+        "timeout": 30
     }
 }
 

@@ -360,8 +360,50 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
-   
+    // -------------------------------
+    // Reportes de encuestas de satisfacción 
+    // -------------------------------
+    document.getElementById("btnGenerarReporteEncuestas").addEventListener("click", async () => {
+        const inicio = document.getElementById("fechaInicioEncuesta").value;
+        const fin = document.getElementById("fechaFinEncuesta").value;
 
+        let url = "/despachos/reporte/encuestas?";
+        if (inicio && fin) url += `inicio=${inicio}&fin=${fin}`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            const tbody = document.getElementById("tbodyEncuestasReporte");
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay encuestas registradas en este período.</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                // Generar estrellitas visuales según la nota
+                const estrellasVisual = "⭐".repeat(item.calificacion);
+                
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="border p-2 text-center font-bold">${item.unidad}</td>
+                    <td class="border p-2">${item.conductor_nombre}</td>
+                    <td class="border p-2">${item.cliente_nombre}</td>
+                    <td class="border p-2 text-center">${item.cliente_telefono}</td>
+                    <td class="border p-2 text-center text-base">${estrellasVisual} (${item.calificacion}/5)</td>
+                    <td class="border p-2 text-center text-gray-600 text-xs">${item.fecha_calificacion}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (err) {
+            console.error("Error al cargar reporte de encuestas:", err);
+            mostrarToast("❌ Error al generar reporte de encuestas", "error");
+        }
+    });
+  // -------------------------------final reportes----------------  
     // Llámela dentro de su DOMContentLoaded o cuando cambie de vista a 'reportes'
     //restringirAccesoPorRol();
   // -------------------------------

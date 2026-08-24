@@ -5,14 +5,18 @@ import json
 import os
 import pytz
 from flask_socketio import emit
+from flask import url_for
+#from rescatado.models import Despacho
 from routes.turnos import finalizar_turno
 from utils.time import hora_local
+from utils.notificaciones import enviar_mensaje, enviar_menu_botones, enviar_mensaje_con_teclado_inline
+from models.despachos import Despacho
 from dotenv import load_dotenv
 
 load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
 
-
+usuarios_reportando = {}
 def emitir_al_panel(evento, datos):
     try:
         emit(evento, datos, namespace='/', broadcast=True)
@@ -39,6 +43,50 @@ def webhook():
         if not update:
             return jsonify({"status": "ok"}), 200
 
+        # 0. 🔘 PROCESAMIENTO DE CLICS EN BOTONES (ENCUESTA DEL CLIENTE)
+        callback = update.get('callback_query')
+        if callback:
+            data = callback.get('data') # Ej: 'cal_123_5'
+            chat_id = str(callback['from']['id'])
+            callback_id = callback['id']
+            
+            if data and data.startswith('cal_'):
+                try:
+                    _, id_despacho_str, calificacion_str = data.split('_')
+                    id_despacho = int(id_despacho_str)
+                    estrellas = int(calificacion_str)
+
+                    # 🌟 GUARDAR EN LA BASE DE DATOS
+                    despacho = Despacho.query.get(id_despacho)
+                    if despacho:
+                        despacho.calificacion = estrellas
+                        despacho.fecha_calificacion = datetime.now()
+                        db.session.commit()
+                        print(f"⭐ Calificación guardada: Despacho #{id_despacho} con {estrellas} estrellas")
+                    else:
+                        print(f"⚠️ Despacho #{id_despacho} no encontrado para la calificación.")
+
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Error al guardar calificación en DB: {e}")
+
+                # Responder al clic para quitar el estado de carga del botón
+                confirmar_clic(callback_id)
+                
+                # 🚨 NUEVO: Si marca 1 estrella (Inconveniente), activamos el modo reporte
+                if estrellas == 1:
+                    usuarios_reportando[chat_id] = id_despacho
+                    enviar_mensaje(
+                        chat_id, 
+                        "⚠️ Lamentamos mucho el inconveniente. Por favor, **escribe en un breve mensaje qué sucedió** "
+                        "para reportarlo de inmediato con la administración."
+                    )
+                    return jsonify({"status": "esperando_comentario_inconveniente"}), 200
+                else:
+                    # Para las demás calificaciones, mensaje normal de agradecimiento
+                    enviar_mensaje(chat_id, "✅ ¡Muchas gracias por tu opinión! Nos ayuda a mejorar el servicio.")
+                    return jsonify({"status": "encuesta_recibida"}), 200
+
         # 1. Identificar el mensaje de forma segura
         msg = update.get('message') or update.get('edited_message')
         if not msg:
@@ -49,15 +97,96 @@ def webhook():
             return jsonify({"status": "sin_remitente_valido"}), 200
         chat_id = str(user_from['id'])
 
-        # 2. PROCESAMIENTO DE TEXTO (Lo subimos para que los no registrados puedan enviar su código Bxx o /start)
+        # 2. PROCESAMIENTO DE TEXTO
         if 'text' in msg:
             texto = msg['text']
             
+            # 📝 NUEVO: ¿El usuario está escribiendo un reporte de inconveniente pendiente?
+            if chat_id in usuarios_reportando:
+                id_despacho = usuarios_reportando.pop(chat_id) # Extrae y borra del diccionario para liberar el estado
+                try:
+                    despacho = Despacho.query.get(id_despacho)
+                    if despacho:
+                        despacho.comentario_calificacion = texto
+                        db.session.commit()
+                        print(f"📝 [REPORTE] Comentario guardado para Despacho #{id_despacho}: {texto}")
+                    else:
+                        print(f"⚠️ [REPORTE] Despacho #{id_despacho} no encontrado para guardar el comentario.")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Error al guardar comentario de inconveniente: {e}")
+
+                enviar_mensaje(chat_id, "✅ Reporte recibido. Muchas gracias por ayudarnos a mejorar. ¡Feliz día!")
+                return jsonify({"status": "comentario_inconveniente_guardado"}), 200
+
+            # --- COMANDO START ---
             # --- COMANDO START ---
             if texto.startswith('/start'):
-                enviar_menu_botones(chat_id)
-                return jsonify({"status": "menu_enviado"}), 200
-
+                partes = texto.split(' ')
+                if len(partes) > 1:
+                    servicio_id = partes[1].replace('srv-', '')
+                    try:
+                        id_despacho = int(servicio_id)
+                        despacho = Despacho.query.get(id_despacho)
+                        
+                        if despacho:
+                            conductor_asig = db.session.get(Conductor, despacho.conductor_id) if hasattr(despacho, 'conductor_id') and despacho.conductor_id else None
+                            nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
+                            nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
+                            
+                            # ✅ AQUÍ USAMOS LA URL DINÁMICA DE CLOUDFLARE IGUAL QUE EN "UBI"
+                            base_url = request.host_url.rstrip('/')
+                            url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=id_despacho, _external=True)
+                            
+                            teclado_cliente = {
+                                "inline_keyboard": [
+                                    [{"text": "🗺️ Ver Mapa en Tiempo Real", "url": url_mapa}]
+                                ]
+                            }
+                            
+                            mensaje_cliente = (
+                                f"📍 *¡Hola! Aquí tienes el rastreo de tu servicio #{id_despacho}*\n\n"
+                                f"🚗 Unidad: #{nro_ctrl}\n"
+                                f"👤 Conductor: {nombre_cond}\n\n"
+                                "Haz clic en el botón de abajo para seguir el recorrido en vivo:"
+                            )
+                            
+                            enviar_mensaje_con_teclado_inline(chat_id, mensaje_cliente, teclado_cliente)
+                        else:
+                            enviar_mensaje(chat_id, "⚠️ No encontramos los datos de este servicio.")
+                    except Exception as e:
+                        print(f"❌ Error al procesar start de cliente: {e}")
+                        enviar_mensaje(chat_id, "❌ Ocurrió un error al procesar tu solicitud de rastreo.")
+                    
+                    return jsonify({"status": "menu_client_enviado"}), 200
+                else:
+                    enviar_menu_botones(chat_id)
+                    return jsonify({"status": "menu_enviado"}), 200
+            # 📍 Palabra clave "UBI"
+            if texto.strip().upper() == "UBI":
+                print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
+                despacho_reciente = Despacho.query.order_by(Despacho.id_despacho.desc()).first()
+                
+                if despacho_reciente:
+                    conductor_asig = db.session.get(Conductor, despacho_reciente.conductor_id) if hasattr(despacho_reciente, 'conductor_id') and despacho_reciente.conductor_id else None
+                    nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
+                    nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"
+                    
+                    # Extrae la URL base automáticamente (sea Cloudflare o local)
+                    base_url = request.host_url.rstrip('/')
+                    enlace_mapa = f"{base_url}/monitoreo/{despacho_reciente.id_despacho}"
+                    
+                    mensaje_ubi = (
+                        f"📍 Rastreo activo (Despacho #{despacho_reciente.id_despacho})\n\n"
+                        f"🚗 Unidad: #{nro_ctrl}\n"
+                        f"👤 Conductor: {nombre_cond}\n\n"
+                        f"🗺️ Ver mapa en tiempo real:\n{enlace_mapa}"
+                    )
+                    enviar_mensaje(chat_id, mensaje_ubi, parse_mode=None)
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No tienes ningún servicio activo registrado en este momento.", parse_mode=None)
+                return jsonify({"status": "ubi_procesado"}), 200
+            # --- BOTÓN ACTIVAR (Conductores) ---
             # --- BOTÓN ACTIVAR ---
             if texto == "🔗 Activar":
                 conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
@@ -285,3 +414,15 @@ def limpiar_teclado_conductor(chat_id):
         'reply_markup': json.dumps({"remove_keyboard": True})
     }
     requests.post(url, data=payload)
+
+def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='HTML'):
+    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {
+        'chat_id': chat_id,
+        'text': texto,
+        'parse_mode': parse_mode,
+        'reply_markup': json.dumps(teclado_json)
+    }
+    requests.post(url, data=payload)    
+

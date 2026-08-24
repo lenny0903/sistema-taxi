@@ -641,3 +641,33 @@ def exportar_pdf_consolidado():
         # Si algo falla, este print saldrá directo en tu terminal activa para verlo
         print(f"❌ [ERROR CRÍTICO PDF]: {str(e)}")
         return jsonify({"status": "error", "message": f"Error en ReportLab: {str(e)}"}), 500
+
+@reporte_bp.route("/reporte/encuestas", methods=["GET"])
+def reporte_encuestas():
+    try:
+        fecha_inicio = request.args.get("inicio")
+        fecha_fin = request.args.get("fin")
+        
+        # Filtramos los despachos que tengan calificación
+        query = Despacho.query.filter(Despacho.calificacion != None)
+        
+        if fecha_inicio and fecha_fin:
+            query = query.filter(Despacho.fecha_calificacion.between(fecha_inicio, fecha_fin))
+            
+        despachos = query.order_by(Despacho.fecha_calificacion.desc()).all()
+        
+        resultado = []
+        for d in despachos:
+            resultado.append({
+                "id_despacho": d.id_despacho,
+                "unidad": d.conductor.codigo if d.conductor else "S/C",
+                "conductor_nombre": d.conductor.nombre if d.conductor else "Desconocido",
+                "cliente_nombre": d.cliente.nombre if d.cliente else "Cliente",
+                "cliente_telefono": d.cliente.telefono if d.cliente else "S/N",
+                "calificacion": d.calificacion,
+                "fecha_calificacion": d.fecha_calificacion.astimezone(d.TZ_CARACAS).strftime("%Y-%m-%d %H:%M") if d.fecha_calificacion else ""
+            })
+            
+        return jsonify(resultado), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    

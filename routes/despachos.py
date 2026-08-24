@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.cola_despachos import ColaDespacho
-
+from utils.notificaciones import enviar_encuesta_satisfaccion
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
 from models.lista_espera import ListaEspera
@@ -147,36 +147,38 @@ def crear_despacho():
         db.session.commit()
         
         # 🚨 NUEVO: Leer si el operador quiere enviar el WhatsApp automático
-        debe_notificar = data.get("notificar_whatsapp", True) # Por defecto True si no viene
+        #debe_notificar = data.get("notificar_whatsapp", True) # Por defecto True si no viene
         
-        if debe_notificar:
-            # Envío asíncrono hacia n8n con timeout (Modo Automático)
-            try:
-                import requests
-                requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
-                print("🤖 MODO AUTOMÁTICO: Despacho enviado a n8n para WhatsApp.")
-            except Exception as e:
-                print(f"⚠️ Error enviando a n8n: {e}")
-        else:
-            # Modo Manual: Se guarda en base de datos pero NO gasta saldo de Whapi
-            print("👤 MODO MANUAL: Despacho creado solo en sistema. No se envió WhatsApp.")
-        notificar_whatsapp = data.get("notificar_whatsapp", True) # Viene del front
+        #if debe_notificar:
+        #    # Envío asíncrono hacia n8n con timeout (Modo Automático)
+        #    try:
+        #        import requests
+        #        requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
+        #        print("🤖 MODO AUTOMÁTICO: Despacho enviado a n8n para WhatsApp.")
+        #    except Exception as e:
+        #        print(f"⚠️ Error enviando a n8n: {e}")
+        #else:
+        #    # Modo Manual: Se guarda en base de datos pero NO gasta saldo de Whapi
+        #    print("👤 MODO MANUAL: Despacho creado solo en sistema. No se envió WhatsApp.")
+        #notificar_whatsapp = data.get("notificar_whatsapp", True) # Viene del front
     
-        if notificar_whatsapp:
-            try:
-                import requests
-                # Esta es la llamada que gasta créditos de Whapi a través de n8n
-                requests.post("http://localhost:5678/webhook-test/notificar-despacho", 
-                            json=payload, timeout=2)
-                print("🤖 Envío Automático: ACTIVADO")
-            except Exception as e:
-                print(f"⚠️ Error enviando a n8n: {e}")
-        else:
-            # Si el usuario puso el switch en MANUAL desde el menú lateral:
-            print("👤 Envío Automático: DESACTIVADO. Operación en modo manual.")
+        # 🚨 LEER SI EL OPERADOR QUIERE ENVIAR EL WHATSAPP AUTOMÁTICO
+        debe_notificar = data.get("notificar_whatsapp", True) 
+        
+        #if debe_notificar:
+        #    try:
+        #        import requests
+        #        requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
+        #        print("🤖 Envío Automático a n8n: ACTIVADO")
+        #    except Exception as e:
+        #        print(f"⚠️ Error enviando a n8n: {e}")
+        #else:
+        #    print("👤 Envío Automático: DESACTIVADO. Operación en modo manual.")
+
         return jsonify({
             "msg": "Despacho creado exitosamente",
-            "id_despacho": nuevo_despacho.id_despacho
+            "id_despacho": nuevo_despacho.id_despacho,
+            "cliente_telefono": c_tel
         }), 201
 
     except Exception as e:
@@ -368,7 +370,8 @@ def finalizar_despacho(id):
         despacho.fecha_hora_fin = hora_local()
 
         db.session.commit()
-
+        #if despacho.telegram_id_cliente: 
+        #    enviar_encuesta_satisfaccion(despacho.telegram_id_cliente, despacho.id_despacho)
         return jsonify({
             "msg": "Despacho finalizado correctamente",
             "id_despacho": despacho.id_despacho,

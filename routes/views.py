@@ -216,3 +216,8 @@ def recibir_gps():
 @views_bp.route("/conductor/<codigo>")
 def vista_conductor(codigo):
     return render_template("conductor.html", codigo=codigo)
+
+@views_bp.route("/monitoreo/<int:id_despacho>")
+def pagina_mapa_despacho(id_despacho):
+    # Puedes inyectar el ID al HTML para que JavaScript sepa qué unidad centrar
+    return render_template("monitoreo.html", id_despacho_activo=id_despacho)

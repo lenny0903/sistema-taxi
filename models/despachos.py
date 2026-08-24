@@ -24,7 +24,9 @@ class Despacho(db.Model):
     # Campos de negocio
     tarifa = db.Column(db.Float, nullable=False)
     estado_despacho = db.Column(db.String(50), default="pendiente", nullable=False)
-
+    calificacion = db.Column(db.Integer, nullable=True)          # Guardará la cantidad de estrellas (ej. 1, 3, 5)
+    fecha_calificacion = db.Column(db.DateTime, nullable=True)
+    comentario_calificacion = db.Column(db.Text, nullable=True)
     # Trazabilidad temporal
     fecha_hora_inicio = db.Column(db.DateTime, nullable=False, default=datetime.now)
     fecha_hora_fin = db.Column(db.DateTime, nullable=True)
@@ -53,9 +55,12 @@ class Despacho(db.Model):
             "destino_despacho": self.destino_despacho,
             "fecha_hora_inicio": self.fecha_hora_inicio.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_inicio else None,
             "fecha_hora_fin": self.fecha_hora_fin.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_hora_fin else None,
+            "calificacion": self.calificacion,
+            "fecha_calificacion": self.fecha_calificacion.astimezone(self.TZ_CARACAS).isoformat() if self.fecha_calificacion else None,
             "tarifa": float(self.tarifa) if self.tarifa is not None else None,
             "estado_despacho": self.estado_despacho,
             "cliente": self.cliente.to_dict() if self.cliente else None,
             "conductor": self.conductor.to_dict() if self.conductor else None,
-            "auto": self.auto.to_dict() if self.auto else None
+            "auto": self.auto.to_dict() if self.auto else None,
+            "comentario_calificacion": self.comentario_calificacion
         }

@@ -766,6 +766,42 @@
                 </table>
             </div>
           </div>
+          <!-- Reporte de Calidad y Encuestas de Satisfacción -->
+        <div class="mt-8 border-t pt-6">
+            <h3 class="text-xl font-bold mb-3 text-amber-600">⭐ Reporte de Calidad y Encuestas</h3>
+            
+            <div class="flex gap-2 mb-4 items-center">
+                <div>
+                    <label for="fechaInicioEncuesta">Desde:</label>
+                    <input type="date" id="fechaInicioEncuesta" class="border p-2 rounded text-sm">
+                </div>
+                <div>
+                    <label for="fechaFinEncuesta">Hasta:</label>
+                    <input type="date" id="fechaFinEncuesta" class="border p-2 rounded text-sm">
+                </div>
+                <button id="btnGenerarReporteEncuestas" class="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 shadow-md self-end">
+                    📊 Consultar Encuestas
+                </button>
+            </div>
+
+            <div class="overflow-x-auto max-h-[400px] overflow-y-auto border rounded bg-white shadow-sm">
+                <table class="w-full border-collapse border mt-0" id="tablaEncuestasReporte">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="border p-2 text-center">Nro Unidad</th>
+                            <th class="border p-2">Conductor</th>
+                            <th class="border p-2">Cliente</th>
+                            <th class="border p-2 text-center">Teléfono</th>
+                            <th class="border p-2 text-center">Calificación</th>
+                            <th class="border p-2 text-center">Fecha Respuesta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyEncuestasReporte" class="text-sm">
+                        <!-- Las filas dinámicas se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
       </section>
       <!-- Sección: Respaldo -->
       <section id="respaldo" class="seccion hidden">
@@ -2605,6 +2641,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       </div>
+      <!-- 🔗 Enlace oculto para reutilizar la pestaña de WhatsApp Web -->
+      <a id="linkWhatsappGlobal" href="#" target="whatsapp_panel" style="display: none;">WhatsApp Global</a>
   <!-- Modal de Carga Inicial (Nivelación de Saldo) -->
     <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
