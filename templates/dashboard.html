@@ -129,6 +129,13 @@
               </label>
           </div>
       </div>
+      <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
+      <li class="mt-2 pt-2 border-t border-gray-200">
+          <button onclick="abrirWhatsAppWeb()" 
+                  class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-green-600 font-bold flex items-center gap-2">
+              <span>📱</span> WhatsApp Web (Win/Super + →)
+          </button>
+      </li>
     </nav>
 
     
@@ -2273,6 +2280,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 100); // Un pequeño delay de 100ms para asegurar que el DOM esté listo
     }
   });
+  // Función para abrir WhatsApp Web en ventana optimizada
+    function abrirWhatsAppWeb() {
+        // Calcular posición: a la derecha de la pantalla
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        const windowWidth = 650;
+        const windowHeight = 800;
+        const leftPos = screenWidth - windowWidth - 10;
+        
+        // Abrir ventana de WhatsApp Web
+        const whatsappWindow = window.open(
+            'https://web.whatsapp.com',
+            'WhatsAppWeb',
+            `width=${windowWidth},height=${windowHeight},left=${leftPos},top=50,menubar=no,toolbar=no,location=no,status=no`
+        );
+        
+        // Mostrar instrucción
+        mostrarToast("💡 Tip: Presiona Win+→ para acomodar WhatsApp a la derecha", "info");
+        
+        // Guardar referencia para reutilizar
+        window.whatsappPanel = whatsappWindow;
+    }
    
 </script>
     <!-- Modal Editar Cliente -->
@@ -2642,7 +2671,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
       <!-- 🔗 Enlace oculto para reutilizar la pestaña de WhatsApp Web -->
-      <a id="linkWhatsappGlobal" href="#" target="whatsapp_panel" style="display: none;">WhatsApp Global</a>
+      <!--<a id="linkWhatsappGlobal" href="#" target="whatsapp_panel" style="display: none;">WhatsApp Global</a>-->
   <!-- Modal de Carga Inicial (Nivelación de Saldo) -->
     <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -2895,6 +2924,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Usamos Jinja2 para pintar el valor que viene directo de app.py
    window.TARIFA_SEMANAL_SISTEMA = Number('{{ monto_cuota_oficial | default(40000) }}');
 </script>
-
+    
 </body>
 </html>

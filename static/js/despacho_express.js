@@ -116,22 +116,24 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         });
 
-                        if (resInc.ok) {
+                       if (resInc.ok) {
                             const check = await resInc.json();
                             console.log("🛑 Datos recibidos (Dinámicos):", check);
 
+                            // 1️⃣ Si el cliente tiene veto general, SÍ avisa de inmediato al buscar
                             if (check.tiene_veto_general === true) {
                                 const msgVeto = check.mensaje_veto || "Veto administrativo";
                                 crearToastEmergencia(`🚫 ${msgVeto}`);
                             } 
-                            else if (check.tiene_exclusiones === true) {
-                                // 🧠 Ahora sí es 100% DINÁMICO:
-                                const catReal = check.categoria || "INCIDENCIA"; // Traído del nuevo campo en Flask
+                            // 2️⃣ Si es una incidencia del cliente (origen CLIENTE), también avisa
+                            else if (check.tiene_exclusiones === true && check.origen_reporte === "CLIENTE") {
+                                const catReal = check.categoria || "INCIDENCIA"; 
                                 const descReal = check.descripcion || "Sin descripción";
-
-                                // Mostrará "EXCESO_CARGA: más de cinco" o "GROSERIAS: habló con groserías"
-                                crearToastEmergencia(`⚠️ ${catReal}: ${descReal}`);
+                                crearToastEmergencia(`⚠️ Alerta Cliente - ${catReal}: ${descReal}`);
                             }
+                            // Nota: Si la incidencia fue del conductor contra el cliente, 
+                            // AQUí NO HACE NADA (calla), permitiendo que fluya la búsqueda 
+                            // y guardando la advertencia exclusivamente para el momento de asignar el conductor.
                         }
                     } catch (err) {
                         console.error("❌ Error en incidencias:", err);

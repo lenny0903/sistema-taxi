@@ -10,6 +10,8 @@ from models.autos import Auto
 from models.puntos_espera import PuntoEspera
 from sqlalchemy import func
 from models.cuota_semanal import CuotaSemanal
+from utils.flota_helpers import evaluar_estado_flota_backend
+import os
 from utils.time import hora_local
 # routes/conductores.py
 conductores_bp = Blueprint("conductores", __name__)  # sin url_prefix
@@ -422,6 +424,10 @@ def confirmar_turno(id_conductor):
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
+    # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
+    # (Asegúrate de importar evaluar_estado_flota_backend arriba en tu archivo)
+    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") # O cárgalo de tu archivo de configuración
+    evaluar_estado_flota_backend(db.session, TOKEN_BOT) # Pasamos la sesión de Flask-SQLAlchemy
     conductores = Conductor.query.filter(  
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
     ).all()  

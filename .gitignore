@@ -25,3 +25,5 @@ node_modules/
 #Archivos.py
 test_bot.py
 
+app.log
+__pycache__/

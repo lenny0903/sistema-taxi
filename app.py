@@ -170,17 +170,22 @@ def create_app():
         ]
         return render_template("dashboard.html", destinos=destinos_lista)
 
-    @app.route('/configurar_webhook')
+    @app.route('/configurar_webhook', methods=['POST'])
     def configurar_webhook():
-        url_tunel = request.args.get('url')
+        # 1. Leemos el JSON que envía el script .bat
+        data = request.get_json()
+        url_tunel = data.get('url') if data else None
+        
         if not url_tunel:
-            return "Falta la URL del túnel", 400
+            return "Falta la URL del túnel en el cuerpo de la petición", 400
             
         import requests
         TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-        url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
+        
+        # 2. Tu lógica original (intacta)
+        url_api = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
         try:
-            respuesta = requests.get(url)
+            respuesta = requests.get(url_api)
             print("[BOT] [TELEGRAM] Webhook configurado:", respuesta.json())
             return f"Webhook configurado con éxito a: {url_tunel}/telegram/webhook", 200
         except Exception as e:

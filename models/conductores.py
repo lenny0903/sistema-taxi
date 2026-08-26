@@ -16,7 +16,7 @@ class Conductor(db.Model):
     longitud = db.Column(db.Float, nullable=True)
     ultima_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     tolerancia_dinamica_minutos = db.Column(db.Integer, default=5)  # Ajustado a 5 min por defecto
-    
+    aviso_enviado = db.Column(db.Integer, default=0)  # Para rastrear si se envió un aviso de tolerancia
     # Tiempo de expiración GPS
     opcion_gps = db.Column(db.String(20), nullable=True)        # Ej: '15 min', '1 hora', '8 horas'
     expiracion_gps = db.Column(db.DateTime, nullable=True)     # Hora exacta en la que vence
@@ -46,6 +46,7 @@ class Conductor(db.Model):
             "latitud": self.latitud,
             "longitud": self.longitud,
             "ultima_actualizacion": self.ultima_actualizacion.isoformat() if self.ultima_actualizacion else None,
+            "aviso_enviado": self.aviso_enviado,
             "opcion_gps": self.opcion_gps or "En vivo",
             "expiracion_gps": self.expiracion_gps.isoformat() if self.expiracion_gps else None,
             "tiempo_restante": tiempo_restante,
