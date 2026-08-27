@@ -47,11 +47,11 @@ def iniciar_scheduler(app, socketio):
     
     scheduler.remove_all_jobs()
     
-    # 1. Tarea de Reservas (Cada 5 segundos)
+    # 1. Tarea de Reservas (Cada 60 segundos)
     scheduler.add_job(
         job_verificar_reservas,
         trigger="interval",
-        seconds=5, 
+        seconds=60, 
         id="job_reservas",
         replace_existing=True
     )
@@ -67,7 +67,7 @@ def iniciar_scheduler(app, socketio):
     scheduler.add_job(
         job_expirar_tiempos_gps,
         trigger="interval",
-        minutes=1, 
+        minutes=2, 
         id="job_expiracion_gps",
         replace_existing=True
     )
