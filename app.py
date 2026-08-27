@@ -23,7 +23,7 @@ from flask_apscheduler import APScheduler
 from flask_socketio import SocketIO
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
-from extensions import db
+from extensions import db, socketio
 from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
@@ -39,10 +39,7 @@ from tasks.scheduler import iniciar_scheduler
 MONTO_CUOTA_SEMANAL = getattr(config, 'MONTO_CUOTA_SEMANAL', 40000)
 
 # Inicializamos SocketIO de manera segura según el comando ejecutado
-if 'db' not in sys.argv:
-    socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
-else:
-    socketio = SocketIO(cors_allowed_origins="*")
+
 
 # 🔥 CONFIGURACIÓN DE LOGGING
 import logging

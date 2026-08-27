@@ -191,8 +191,8 @@ def job_verificar_gps_conductores():
                 tolerancia_minutos = getattr(c, 'tolerancia_dinamica_minutos', 5) or 5
                 limite_inactividad = ahora - timedelta(minutes=tolerancia_minutos)
 
-                # 🟢 RECUPERACIÓN AUTOMÁTICA: Si el conductor reportó recientemente, reseteamos el candado y la red
-                if ult_act >= limite_inactividad:
+                # 🟢 RECUPERACIÓN AUTOMÁTICA ESTRICTA: Solo si reportó y TIENE UBICACIÓN REAL
+                if ult_act >= limite_inactividad and c.latitud is not None and c.longitud is not None:
                     cambios_necesarios = False
                     if getattr(c, 'aviso_enviado', 0) == 1:
                         c.aviso_enviado = 0
@@ -218,21 +218,22 @@ def job_verificar_gps_conductores():
                     try:
                         res = requests.post(url, json=payload, timeout=4)
                         if res.status_code == 200:
-                            # Candado en 1 y red conectada (Telegram confirmó entrega)
+                            # Candado en 1. No tocamos 'estado_red' aquí para que refleje la inactividad real.
                             c.aviso_enviado = 1
-                            c.estado_red = 'conectado'
                             db.session.commit()
                             print(f"📡 [PULSO GPS] Latido silencioso enviado a Unidad {c.codigo}")
                         else:
-                            # Telegram respondió con un código distinto a 200
-                            c.estado_red = 'sin_respuesta'
+                            # 🔴 AQUÍ: Telegram respondió con error -> Marcar como DESCONECTADO
+                            c.estado_red = 'desconectado'  # <-- CAMBIO AQUÍ
+                            c.aviso_enviado = 1          # Evita bucles de reintento constante
                             db.session.commit()
-                            print(f"⚠️ [PULSO GPS] Telegram rechazó pulso para Unidad {c.codigo} (Status {res.status_code})")
+                            print(f"⚠️ [PULSO GPS] Telegram rechazó pulso para Unidad {c.codigo} (Status {res.status_code}). Estado: desconectado.")
                     except Exception as ex:
-                        # Error de red, timeout o fallo al conectar con la API
-                        c.estado_red = 'sin_respuesta'
+                        # 🔴 AQUÍ: Error de red o timeout -> Marcar como DESCONECTADO
+                        c.estado_red = 'desconectado'  # <-- CAMBIO AQUÍ
+                        c.aviso_enviado = 1
                         db.session.commit()
-                        print(f"⚠️ [ERROR PULSO TELEGRAM] Unidad {c.codigo}: {ex}")
+                        print(f"⚠️ [ERROR PULSO TELEGRAM] Unidad {c.codigo}: {ex}. Estado: desconectado.")
 
             
 

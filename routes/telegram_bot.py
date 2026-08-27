@@ -12,15 +12,16 @@ from utils.time import hora_local
 from utils.notificaciones import enviar_mensaje, enviar_menu_botones, enviar_mensaje_con_teclado_inline
 from models.despachos import Despacho
 from dotenv import load_dotenv
-
+from extensions import socketio
 load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
 
 usuarios_reportando = {}
-def emitir_al_panel(evento, datos):
+def emitir_al_panel(evento, datos=None):
     try:
-        emit(evento, datos, namespace='/', broadcast=True)
-        print("✅ Evento emitido con éxito usando flask_socketio.emit")
+        # 🟢 Usar la instancia de socketio importada de extensions
+        socketio.emit(evento, datos, namespace='/')
+        print(f"✅ Evento '{evento}' emitido con éxito usando socketio.emit")
     except Exception as e:
         print(f"❌ Error al emitir evento: {e}")
 
@@ -170,6 +171,30 @@ def webhook():
                     
                     return jsonify({"status": "menu_client_enviado"}), 200
                 else:
+                    # 🟢 BUSCAR AL CONDUCTOR POR SU TELEGRAM_ID Y PONER LA RED EN VERDE
+                    try:
+                        from models.conductores import Conductor
+                        from extensions import socketio # 👈 1. Importa socketio aquí
+                        
+                        conductor_activo = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
+                        if conductor_activo:
+                            conductor_activo.estado_red = 'conectado'
+                            if hasattr(conductor_activo, 'ultima_actualizacion_red'):
+                                conductor_activo.ultima_actualizacion_red = hora_local() 
+                            db.session.commit()
+                            
+                            # 🟢 2. Emite la señal para que el mapa actualice en milisegundos
+                            try:
+                                # 🟢 Importa socketio directamente de app para evitar el objeto None
+                                from app import socketio
+                                socketio.emit('estado_red_cambiado', namespace='/')
+                            except Exception as e:
+                                print(f"⚠️ No se pudo emitir por socket: {e}")
+                            
+                            print(f"🟢 [TELEGRAM] Conductor {conductor_activo.codigo} envió /start. Red marcada como conectada.")
+                    except Exception as err:
+                        print(f"⚠️ Error actualizando estado de red en /start: {err}")
+
                     enviar_menu_botones(chat_id)
                     return jsonify({"status": "menu_enviado"}), 200
 

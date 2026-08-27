@@ -18,7 +18,7 @@ class Conductor(db.Model):
     tolerancia_dinamica_minutos = db.Column(db.Integer, default=5)  # Ajustado a 5 min por defecto
     aviso_enviado = db.Column(db.Integer, default=0)  # Para rastrear si se envió un aviso de tolerancia
     nivel_bateria = db.Column(db.Integer, nullable=True)        # Porcentaje (0 - 100)
-    estado_red = db.Column(db.String(20), default='conectado')
+    estado_red = db.Column(db.String(20), default='desconectado')  # Ej: 'conectado', 'desconectado', 'intermitente'
     # Tiempo de expiración GPS
     opcion_gps = db.Column(db.String(20), nullable=True)        # Ej: '15 min', '1 hora', '8 horas'
     expiracion_gps = db.Column(db.DateTime, nullable=True)     # Hora exacta en la que vence

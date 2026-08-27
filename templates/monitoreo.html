@@ -329,16 +329,16 @@
                             }
                             tr.style.backgroundColor = '#fff3cd';
 
-                            // 🟢 Diagnóstico de Batería y Red también para cuando no hay ubicación
                             let iconoBateria = '🔋 ?';
                             if (c.bateria !== null && c.bateria !== undefined) {
                                 let colorBat = c.bateria < 20 ? '#d63031' : (c.bateria < 50 ? '#e67e22' : '#27ae60');
                                 iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.bateria}%</span>`;
                             }
 
-                            let badgeRed = (c.estado_red === 'sin_respuesta')
-                                ? '<span style="color: #d63031; font-weight: bold;">🔴 Red Inaccesible</span>' 
-                                : '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>';
+                            // Validación estricta unificada para cuando no hay ubicación
+                            let badgeRed = (c.estado_red === 'conectado' && c.ultima_actualizacion !== null)
+                                ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
+                                : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
 
                             let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
 
@@ -390,19 +390,18 @@
 
                         const cronometroHtml = `<span class="reloj-minutos" data-codigo="${c.codigo}">${tiempoRestanteTexto}</span>`;
 
-                        // 🟢 NUEVO: Diagnóstico de Batería y Red integrado
                         let iconoBateria = '🔋 ?';
-                        if (c.bateria !== null && c.bateria !== undefined) {
-                            let colorBat = c.bateria < 20 ? '#d63031' : (c.bateria < 50 ? '#e67e22' : '#27ae60');
-                            iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.bateria}%</span>`;
+                        if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
+                            let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
+                            iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
                         }
 
-                        let badgeRed = (c.estado_red === 'sin_respuesta')
-                            ? '<span style="color: #d63031; font-weight: bold;">🔴 Red Inaccesible</span>' 
-                            : '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>';
+                        // 🟢 AQUÍ ESTABA EL DETALLE PRINCIPAL: Actualizado con la misma lógica estricta y segura
+                        let badgeRed = (c.estado_red === 'conectado' && c.ultima_actualizacion !== null)
+                            ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
+                            : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
 
                         let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
-                        // Fin de la integración de diagnóstico
 
                         let etiquetaEstado = '';
                         
@@ -545,15 +544,14 @@
                 }
             });
 
-            // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN
+            // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN Y TRANSPORTE FORZADO
             const socket = io({
+                transports: ['websocket'], // 🟢 Forzar EXCLUSIVAMENTE WebSocket (sin polling lento)
                 reconnection: true,
-                reconnectionAttempts: 5,          // Intentará reconectar 5 veces
-                reconnectionDelay: 1000,          // Espera 1 segundo entre intentos
-                reconnectionDelayMax: 5000,       // Máximo 5 segundos de espera
-                timeout: 20000                    // Tiempo máximo para establecer conexión
+                reconnectionAttempts: 5,          
+                reconnectionDelay: 1000,          
+                timeout: 10000                    
             });
-
             // Listeners para depuración de conexión
             socket.on('connect', () => {
                 console.log('🔌 Socket.IO conectado');
@@ -572,8 +570,8 @@
             // Eventos de negocio (ubicaciones, inactivos)
             socket.on('nueva_ubicacion', () => actualizarMapa());
             socket.on('conductor_inactivo', () => actualizarMapa());
-
-            setInterval(actualizarMapa, 60000);
+            socket.on('estado_red_cambiado', () => actualizarMapa());
+            setInterval(actualizarMapa, 30000);
             actualizarMapa();
 
             // Bucle autónomo optimizado para actualizar exclusivamente el texto de los minutos cada 10 segundos
