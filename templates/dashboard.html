@@ -549,27 +549,50 @@
 
 
       <section id="turnosActivos" class="seccion hidden">
-        <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
+          <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
 
-        <div class="mt-4 flex gap-4">
-          <label class="block">Conductor:</label>
-          <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+          <!-- Controles para iniciar turno -->
+          <div class="mt-4 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg border">
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Conductor:</label>
+                  <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Auto:</label>
+                  <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Punto de espera:</label>
+                  <select id="nuevoPunto" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div class="self-end">
+                  <button id="btnIniciarTurno" type="button"
+                          class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
+                    Iniciar turno
+                  </button>
+              </div>
+          </div>
 
-          <label class="block">Auto:</label>
-          <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+          <!-- Lista de turnos activos -->
+          <div id="turnosActivosLista" class="mt-6"></div>
 
-          <label class="block">Punto de espera:</label>
-          <select id="nuevoPunto" class="border px-2 py-1 rounded"></select>
-
-          <button id="btnIniciarTurno" type="button"
-                  class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
-            Iniciar turno
-          </button>
-        </div>
-
-        <div id="turnosActivosLista" class="mt-6"></div>
+          <!-- 🔍 NUEVO: Widget rápido de Diagnóstico GPS (ubicado al final de la sección) -->
+          <div class="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-lg shadow-sm">
+              <h3 class="text-lg font-semibold text-blue-800 mb-2">🔎 Diagnóstico Rápido de GPS</h3>
+              <div class="flex gap-2 items-center">
+                  <input type="text" id="inputCodigoDiagnostico" placeholder="Código (ej: B64)" 
+                        class="border px-3 py-1.5 rounded uppercase bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  
+                  <button type="button" onclick="consultarDiagnosticoWeb(document.getElementById('inputCodigoDiagnostico').value)"
+                          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow text-sm font-medium">
+                    Consultar Estado
+                  </button>
+              </div>
+              
+              <!-- Área donde aparecerá el reporte -->
+              <pre id="resultadoDiagnostico" class="mt-3 bg-white p-3 border border-gray-200 rounded text-xs text-gray-800 whitespace-pre-wrap hidden"></pre>
+          </div>
       </section>
-
       <!-- Sección: Despachos Activos -->
       <section id="despachosActivos" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Despachos Activos</h2>

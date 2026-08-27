@@ -160,9 +160,8 @@ def job_expirar_tiempos_gps():
 
 def job_verificar_gps_conductores():
     """
-    Monitorea de forma proactiva el GPS de los conductores activos.
-    Fase 1: Envía un pulso silencioso (sendChatAction) si supera el umbral de silencio.
-    Fase 2: Resetea el aviso automáticamente en cuanto el GPS vuelve a reportar.
+    Monitorea el GPS y valida la conectividad real del servidor con Telegram.
+    Si la red está caída (túnel apagado), no da por buenos los timestamps viejos.
     """
     if _app is None:
         return
@@ -172,9 +171,31 @@ def job_verificar_gps_conductores():
             from models.conductores import Conductor
             from extensions import db
             from utils.time import hora_local, TZ_CARACAS
+            import requests
 
             ahora = hora_local()
 
+            # 🌐 1. TEST RÁPIDO DE CONECTIVIDAD: Verificar si el servidor tiene salida a Telegram
+            red_disponible = True
+            try:
+                # Un getMe rápido con timeout corto para no congelar el hilo
+                test_res = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=3)
+                if test_res.status_code != 200:
+                    red_disponible = False
+            except Exception:
+                red_disponible = False  # No hay internet o el túnel está abajo
+
+            # 🚨 SI LA RED ESTÁ CAÍDA (Túnel apagado)
+            if not red_disponible:
+                print("⚠️ [ALERTA RED] Servidor sin conexión a Telegram (¿Túnel apagado?). Forzando estado desconectado a la flota.")
+                conductores_activos = Conductor.query.filter_by(estado='activo').all()
+                for c in conductores_activos:
+                    if getattr(c, 'estado_red', 'conectado') == 'conectado':
+                        c.estado_red = 'desconectado'
+                        db.session.commit()
+                return  # Salimos del job para evitar falsos positivos matemáticos
+
+            # --- SI LA RED SÍ ESTÁ ACTIVA, PROCEDEMOS CON EL FLUJO NORMAL ---
             conductores_candidatos = Conductor.query.filter(
                 Conductor.telegram_id.isnot(None),
                 Conductor.estado == 'activo',
@@ -182,60 +203,55 @@ def job_verificar_gps_conductores():
             ).all()
 
             for c in conductores_candidatos:
-                # Normalización estricta de ultima_actualizacion
                 ult_act = c.ultima_actualizacion
                 if ult_act and ult_act.tzinfo is None:
                     ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
 
-                # Tolerancia dinámica individual (por defecto 5 o 15 minutos según configures)
                 tolerancia_minutos = getattr(c, 'tolerancia_dinamica_minutos', 5) or 5
                 limite_inactividad = ahora - timedelta(minutes=tolerancia_minutos)
 
-                # 🟢 RECUPERACIÓN AUTOMÁTICA ESTRICTA: Solo si reportó y TIENE UBICACIÓN REAL
-                if ult_act >= limite_inactividad and c.latitud is not None and c.longitud is not None:
+                # 🛑 CANDADO: Solo puede estar conectado si reportó a tiempo, tiene coordenadas, 
+                # Y ADEMÁS su opción de GPS NO está expirada ni finalizada
+                opcion_actual = str(getattr(c, 'opcion_gps', '') or '').strip()
+                es_valido_por_estado = opcion_actual not in ["Expirado", "Finalizado", ""]
+
+                if ult_act >= limite_inactividad and c.latitud is not None and c.longitud is not None and es_valido_por_estado:
                     cambios_necesarios = False
                     if getattr(c, 'aviso_enviado', 0) == 1:
                         c.aviso_enviado = 0
                         cambios_necesarios = True
-                    if getattr(c, 'estado_red', 'conectado') != 'conectado':
+                    if getattr(c, 'estado_red', 'desconectado') != 'conectado':
                         c.estado_red = 'conectado'
                         cambios_necesarios = True
                         
                     if cambios_necesarios:
                         db.session.commit()
-                    continue  # Todo bien, pasamos al siguiente
+                    continue
+                else:
+                    # Si ya expiró o no cumple, nos aseguramos de que la red se quede abajo
+                    if getattr(c, 'estado_red', 'conectado') == 'conectado':
+                        c.estado_red = 'desconectado'
+                        db.session.commit()
 
-                # 🟡 SILENCIO SOSPECHOSO: Superó el umbral y NO se le ha dado el pulso todavía (aviso_enviado == 0)
+                # Si superó el umbral de silencio
                 if ult_act < limite_inactividad and getattr(c, 'aviso_enviado', 0) == 0:
-                    
-                    # 🚀 PULSO SILENCIOSO DE DESPIERTE (Acción 'typing' en Telegram, 0 spam visual)
                     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendChatAction"
-                    payload = {
-                        "chat_id": c.telegram_id,
-                        "action": "typing"
-                    }
+                    payload = {"chat_id": c.telegram_id, "action": "typing"}
                     
                     try:
                         res = requests.post(url, json=payload, timeout=4)
                         if res.status_code == 200:
-                            # Candado en 1. No tocamos 'estado_red' aquí para que refleje la inactividad real.
                             c.aviso_enviado = 1
                             db.session.commit()
                             print(f"📡 [PULSO GPS] Latido silencioso enviado a Unidad {c.codigo}")
                         else:
-                            # 🔴 AQUÍ: Telegram respondió con error -> Marcar como DESCONECTADO
-                            c.estado_red = 'desconectado'  # <-- CAMBIO AQUÍ
-                            c.aviso_enviado = 1          # Evita bucles de reintento constante
+                            c.estado_red = 'desconectado'
+                            c.aviso_enviado = 1
                             db.session.commit()
-                            print(f"⚠️ [PULSO GPS] Telegram rechazó pulso para Unidad {c.codigo} (Status {res.status_code}). Estado: desconectado.")
-                    except Exception as ex:
-                        # 🔴 AQUÍ: Error de red o timeout -> Marcar como DESCONECTADO
-                        c.estado_red = 'desconectado'  # <-- CAMBIO AQUÍ
+                    except Exception:
+                        c.estado_red = 'desconectado'
                         c.aviso_enviado = 1
                         db.session.commit()
-                        print(f"⚠️ [ERROR PULSO TELEGRAM] Unidad {c.codigo}: {ex}. Estado: desconectado.")
-
-            
 
         except Exception as e:
             from extensions import db

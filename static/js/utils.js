@@ -149,3 +149,31 @@ window.apiFetch = async (url, options = {}) => {
     throw err;
   }
 };
+
+function consultarDiagnosticoWeb(codigoConductor) {
+    if (!codigoConductor) {
+        alert("Por favor ingresa un código de conductor válido.");
+        return;
+    }
+
+    let url = '/conductores/diagnostico-texto/' + encodeURIComponent(codigoConductor.trim());
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Conductor no encontrado en el sistema.");
+            }
+            return response.text();
+        })
+        .then(textoReporte => {
+            let contenedor = document.getElementById('resultadoDiagnostico');
+            if (contenedor) {
+                contenedor.innerText = textoReporte;
+                contenedor.classList.remove('hidden'); // ¡Muestra el cuadro con el resultado!
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("❌ " + error.message);
+        });
+}

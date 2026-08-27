@@ -96,45 +96,45 @@ def crear_turno():
         elif "8" in opcion_clean:
             expiracion_gps = ahora + timedelta(hours=8)
 
-        # Asignar al conductor
+     # Asignar al conductor al iniciar turno
         conductor.opcion_gps = opcion_gps
         conductor.expiracion_gps = expiracion_gps
         conductor.estado = "activo"
-        conductor.ultima_actualizacion = hora_local()
+        
+        # 🛑 REINICIO TOTAL PARA EL NUEVO TURNO:
+        conductor.latitud = None           # Borramos coordenadas viejas
+        conductor.longitud = None          # Borramos coordenadas viejas
+        conductor.ultima_actualizacion = None # Borramos la fecha vieja
+        conductor.estado_red = "desconectado" # Forzamos rojo
         conductor.alerta_enviada = False
-        # Opcional: si tu modelo Turno tiene estas columnas, guardas también la copia histórica
+
         if hasattr(turno, 'opcion_gps'):
             turno.opcion_gps = opcion_gps
         if hasattr(turno, 'expiracion_gps'):
             turno.expiracion_gps = expiracion_gps
-        # Cambiar estados
+            
         conductor.estado = "activo"
         auto.estado = "activo"
 
         db.session.add(turno)
+        print("--------------------------------------------------")
+        print(f"🛑 [DEBUG CREAR_TURNO] Conductor ID: {conductor.id_conductor}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Estado asignado: {conductor.estado}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Estado Red antes de commit: {conductor.estado_red}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Ultima Actualización: {conductor.ultima_actualizacion}")
+        print("--------------------------------------------------")
         db.session.commit()
 
-        # 🚀 INTEGRACIÓN DE PING AL CREAR TURNO
+        # 🚀 NOTIFICACIÓN DE CORTESÍA A TELEGRAM (Sin alterar el estado de red)
         try:
             if conductor.telegram_id:
-                # Importa tu token de bot o función según lo manejes en tu proyecto
                 from flask import current_app
-                token_bot = current_app.config.get("TELEGRAM_BOT_TOKEN") # O como cargues tu token
-                
+                token_bot = current_app.config.get("TELEGRAM_BOT_TOKEN")
                 from utils.telegram_helpers import enviar_ping_telegram
-                exito = enviar_ping_telegram(conductor.telegram_id, token_bot)
-                
-                if exito:
-                    conductor.estado_red = "conectado"
-                    print(f"✅ [TURNO] Ping enviado exitosamente al conductor {conductor.codigo}. Estado: conectado.")
-                else:
-                    conductor.estado_red = "desconectado"
-                    print(f"⚠️ [TURNO] El conductor {conductor.codigo} no respondió al ping o falló Telegram. Estado: desconectado.")
-                
-                db.session.commit()
+                enviar_ping_telegram(conductor.telegram_id, token_bot)
+                print(f"📢 [TURNO] Ping de cortesía enviado a Telegram para {conductor.codigo}.")
         except Exception as e_ping:
-            print(f"⚠️ [TURNO] No se pudo enviar el ping automático al crear el turno: {str(e_ping)}")
-
+            print(f"⚠️ [TURNO] No se pudo enviar el ping de cortesía: {str(e_ping)}")
         return jsonify({
             "msg": "Turno iniciado",
             "id_turno": turno.id_turno,
@@ -174,18 +174,15 @@ def finalizar_turno(turno_id, es_bot=False):
                 "error": "No se puede finalizar el turno: el conductor tiene un despacho en curso"
             }), 400
 
-        # 3. Restaurar Auto y Conductor (Usando db.session.get para robustez)
+        # 3. Restaurar Auto y Conductor
         conductor = db.session.get(Conductor, turno.conductor_id)
         if conductor:
-            conductor.estado = "disponible"
-            # 💡 AQUÍ ESTÁ LA CLAVE: Limpiamos la ubicación
-            conductor.latitud = None    
-            conductor.longitud = None   
-            # Esto hará que el filtro en 'views.py' (latitud != None) 
-            # excluya a este conductor inmediatamente al recargar.
-            # 💡 LIMPIEZA DE GPS: Reseteamos los campos para el próximo turno
-            conductor.opcion_gps = None
-            conductor.expiracion_gps = None
+            conductor.latitud = None
+            conductor.longitud = None
+            conductor.ultima_actualizacion = None
+            conductor.estado_red = "desconectado"
+            conductor.alerta_enviada = False
+            conductor.estado = "disponible" # o el estado que corresponda al terminar
        # --- AQUÍ LA CORRECCIÓN ---
         # 1. Buscamos el auto relacionado (asumiendo que tu modelo Turno tiene auto_id)
         auto = db.session.get(Auto, turno.auto_id) if turno.auto_id else None

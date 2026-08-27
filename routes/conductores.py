@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, app, request, jsonify, render_template
 from app import MONTO_CUOTA_SEMANAL
 from extensions import db
 from models.conductores import Conductor
@@ -429,13 +429,16 @@ def confirmar_turno(id_conductor):
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
-    # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
+   # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
     TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
     evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
     
+    # 🔄 ¡OBLIGAR A SQLALCHEMY A DESCARTAR EL CACHÉ Y LEER DE NUEVO LA BD!
+    db.session.expire_all()
+    
     conductores = Conductor.query.filter(  
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
-    ).all()  
+    ).all()
       
     resultado = []  
       
@@ -482,6 +485,27 @@ def obtener_ubicaciones():
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
+        # 🧠 CÁLCULO INTELIGENTE DEL ESTADO DE RED REAL
+        estado_red_calculado = getattr(c, 'estado_red', 'desconectado')
+        
+        if c.ultima_actualizacion:
+            # Normalizar para comparar bien los tiempos
+            ult_act = c.ultima_actualizacion
+            if ult_act.tzinfo is None:
+                from utils.time import TZ_CARACAS
+                ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
+            
+            ahora_local_val = hora_local()
+            tolerancia_mins = getattr(c, 'tolerancia_dinamica_minutos', 15) or 15
+            
+            # Si superó el límite de inactividad, la red DEBE verse desconectada
+            if (ahora_local_val - ult_act).total_seconds() > (tolerancia_mins * 60):
+                estado_red_calculado = 'desconectado'
+        else:
+            estado_red_calculado = 'desconectado'
+        if "expirado" in opcion_str or "finalizado" in opcion_str:
+            estado_red_calculado = 'desconectado'    
+
         resultado.append({  
             "id_conductor": c.id_conductor,  
             "codigo": c.codigo,  
@@ -496,8 +520,8 @@ def obtener_ubicaciones():
             "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
             "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
             "id_despacho": id_despacho_actual,
-            "bateria": getattr(c, 'nivel_bateria', None),              # 👈 Agregado para el indicador de batería
-            "estado_red": getattr(c, 'estado_red', 'conectado')        # 👈 Agregado para el estado de la red en el mapa
+            "bateria": getattr(c, 'nivel_bateria', None),
+            "estado_red": estado_red_calculado  # 👈 Usamos el estado calculado, adiós al mentiroso 'conectado' fijo
         })  
       
     return jsonify(resultado), 200
@@ -535,3 +559,48 @@ def notificar_gps_manual(id_conductor):
 
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+
+@conductores_bp.route('/diagnostico-texto/<string:codigo>', methods=['GET'])
+def diagnostico_texto(codigo):
+    codigo = codigo.strip().upper()
+    conductor = Conductor.query.filter_by(codigo=codigo).first()
+    
+    if not conductor:
+        return f"❌ Conductor {codigo} no encontrado", 404
+        
+    ahora = hora_local()
+    ahora_naive = ahora.replace(tzinfo=None) if ahora.tzinfo else ahora
+    
+    reporte = []
+    reporte.append(f"🔎 DIAGNÓSTICO DE GPS - {conductor.codigo} ({conductor.nombre})")
+    reporte.append(f"Hora del servidor: {ahora}")
+    reporte.append(f"Latitud: {conductor.latitud} | Longitud: {conductor.longitud}")
+    
+    if conductor.latitud is None or conductor.longitud is None:
+        reporte.append("⚠️ SIN COORDENADAS (nunca ha compartido ubicación)")
+    else:
+        reporte.append("✅ Coordenadas válidas registradas")
+        
+    reporte.append(f"Timestamp en BD: {conductor.ultima_actualizacion}")
+    
+    if conductor.ultima_actualizacion:
+        diff = ahora_naive - conductor.ultima_actualizacion
+        minutos_sin_senal = int(diff.total_seconds() / 60)
+        reporte.append(f"Minutos transcurridos sin señal: {minutos_sin_senal}")
+        
+        tolerancia = conductor.tolerancia_dinamica_minutos or 5
+        if minutos_sin_senal > tolerancia:
+            reporte.append(f"⚠️ ESTADO: SIN SEÑAL (superó la tolerancia de {tolerancia} min)")
+        else:
+            reporte.append(f"✅ ESTADO: ACTIVO (dentro del rango)")
+    else:
+        reporte.append("⚠️ NUNCA HA ACTUALIZADO")
+        
+    reporte.append(f"Opción GPS: {conductor.opcion_gps} | Tolerancia: {conductor.tolerancia_dinamica_minutos} min")
+    
+    if conductor.latitud and conductor.longitud:
+        link_maps = f"https://www.google.com/maps?q={conductor.latitud},{conductor.longitud}"
+        reporte.append(f"Google Maps: {link_maps}")
+        
+    return "\n".join(reporte), 200, {'Content-Type': 'text/plain; charset=utf-8'}
