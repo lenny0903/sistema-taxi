@@ -385,7 +385,12 @@ def actualizar_ubicacion():
         #    except Exception as e:
         #        print(f"⚠️ Error parseando expiracion_gps: {e}")
         # 👈 NOTA: Si no viene expiracion_gps en 'data', NO HACEMOS NADA y conservamos la que ya tenía guardada la base de datos.
-
+        bateria = data.get('bateria')
+        if bateria is not None:
+            conductor.nivel_bateria = int(bateria)
+            
+        
+        conductor.estado_red = 'conectado' # Si reportó, la red está viva
         db.session.commit()
         return (
             jsonify(
@@ -425,9 +430,9 @@ def confirmar_turno(id_conductor):
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
     # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
-    # (Asegúrate de importar evaluar_estado_flota_backend arriba en tu archivo)
-    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") # O cárgalo de tu archivo de configuración
-    evaluar_estado_flota_backend(db.session, TOKEN_BOT) # Pasamos la sesión de Flask-SQLAlchemy
+    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
+    evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
+    
     conductores = Conductor.query.filter(  
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
     ).all()  
@@ -448,11 +453,11 @@ def obtener_ubicaciones():
             ).first()
             
             if despacho_activo:
-                # Intentamos obtener el ID usando getattr para evitar errores si se llama 'id' o 'id_despacho'
                 id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
         except Exception as e:
             print(f"⚠️ Error consultando despacho para conductor {c.codigo}: {e}")
             id_despacho_actual = None
+
         # 🟢 Extracción unificada y segura
         opcion_val = getattr(c, 'opcion_gps', None) or (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None)
         exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
@@ -490,7 +495,9 @@ def obtener_ubicaciones():
             "opcion_gps": opcion_gps_label,
             "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
             "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
-            "id_despacho": id_despacho_actual # 👈 ¡ESTE ES EL CAMPO QUE FALTABA EN EL JSON!
+            "id_despacho": id_despacho_actual,
+            "bateria": getattr(c, 'nivel_bateria', None),              # 👈 Agregado para el indicador de batería
+            "estado_red": getattr(c, 'estado_red', 'conectado')        # 👈 Agregado para el estado de la red en el mapa
         })  
       
     return jsonify(resultado), 200

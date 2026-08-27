@@ -99,9 +99,17 @@ def webhook():
         chat_id = str(user_from['id'])
 
         # 2. PROCESAMIENTO DE TEXTO
+        # 2. PROCESAMIENTO DE TEXTO
         if 'text' in msg:
             texto = msg['text']
             
+            # 🟢 ACTUALIZAR ESTADO DE RED: Si el mensaje viene de un conductor, actualizamos su actividad de red
+            conductor_activo_check = Conductor.query.filter_by(telegram_id=chat_id).first()
+            if conductor_activo_check:
+                # Actualizamos su marca de vida para que el planificador (scheduler) sepa que hay red activa
+                conductor_activo_check.ultima_actualizacion_red = hora_local().replace(microsecond=0) # O el campo que uses para la red
+                db.session.commit()
+
             # 📝 NUEVO: ¿El usuario está escribiendo un reporte de inconveniente pendiente?
             if chat_id in usuarios_reportando:
                 id_despacho = usuarios_reportando.pop(chat_id) # Extrae y borra del diccionario para liberar el estado
@@ -121,7 +129,6 @@ def webhook():
                 return jsonify({"status": "comentario_inconveniente_guardado"}), 200
 
             # --- COMANDO START ---
-            # --- COMANDO START ---
             if texto.startswith('/start'):
                 partes = texto.split(' ')
                 if len(partes) > 1:
@@ -138,7 +145,6 @@ def webhook():
                             nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
                             nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
                             
-                            # ✅ AQUÍ USAMOS LA URL DINÁMICA DE CLOUDFLARE IGUAL QUE EN "UBI"
                             base_url = request.host_url.rstrip('/')
                             url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=id_despacho, _external=True)
                             
@@ -166,6 +172,7 @@ def webhook():
                 else:
                     enviar_menu_botones(chat_id)
                     return jsonify({"status": "menu_enviado"}), 200
+
             # 📍 Palabra clave "UBI"
             if texto.strip().upper() == "UBI":
                 print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
@@ -179,7 +186,6 @@ def webhook():
                     nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
                     nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"
                     
-                    # Extrae la URL base automáticamente (sea Cloudflare o local)
                     base_url = request.host_url.rstrip('/')
                     enlace_mapa = f"{base_url}/monitoreo/{despacho_reciente.id_despacho}"
                     
@@ -193,8 +199,8 @@ def webhook():
                 else:
                     enviar_mensaje(chat_id, "⚠️ No tienes ningún servicio activo registrado en este momento.", parse_mode=None)
                 return jsonify({"status": "ubi_procesado"}), 200
+
             # --- BOTÓN ACTIVAR (Conductores) ---
-            # --- BOTÓN ACTIVAR ---
             if texto == "🔗 Activar":
                 conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
                 if conductor_temp:
@@ -275,8 +281,8 @@ def webhook():
         if "location" in msg:
             print(">>> LLEGÓ UNA UBICACIÓN DESDE TELEGRAM <<<")
             print(">>> CONTENIDO COMPLETO DE LOCATION:", msg["location"])
+            
             # 🚨 🛑 FILTRO: Validar que NO envíe ubicación fija (estática). 
-            # Si el mensaje no viene de un mensaje editado y carece de 'live_period', es una ubicación estática compartida por error.
             if "edited_message" not in update and "live_period" not in msg["location"]:
                 enviar_mensaje(
                     chat_id, 
@@ -289,12 +295,18 @@ def webhook():
                 return jsonify({"status": "ubicacion_estatica_rechazada"}), 200
 
             # 🟢 SI PASA LA VALIDACIÓN: ES UBICACIÓN EN TIEMPO REAL (LIVE LOCATION)
-            # 🟢 AL PROCESAR LA UBICACIÓN:
             ahora = hora_local().replace(microsecond=0)  # 🔥 TRUNCAR MICROSEGUNDOS
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
+            
+            # 🟢 ACTUALIZAR RED TAMBIÉN AQUÍ: Cada ping de GPS confirma que hay conexión de red activa
+            if hasattr(conductor, 'estado_red'):
+                conductor.estado_red = 'conectado' # O el valor que manejes para red activa
+            if hasattr(conductor, 'ultima_actualizacion_red'):
+                conductor.ultima_actualizacion_red = ahora
+
             conductor.alerta_enviada = False
 
             segundos = msg["location"].get("live_period")

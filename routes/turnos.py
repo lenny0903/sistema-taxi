@@ -114,12 +114,34 @@ def crear_turno():
         db.session.add(turno)
         db.session.commit()
 
+        # 🚀 INTEGRACIÓN DE PING AL CREAR TURNO
+        try:
+            if conductor.telegram_id:
+                # Importa tu token de bot o función según lo manejes en tu proyecto
+                from flask import current_app
+                token_bot = current_app.config.get("TELEGRAM_BOT_TOKEN") # O como cargues tu token
+                
+                from utils.telegram_helpers import enviar_ping_telegram
+                exito = enviar_ping_telegram(conductor.telegram_id, token_bot)
+                
+                if exito:
+                    conductor.estado_red = "conectado"
+                    print(f"✅ [TURNO] Ping enviado exitosamente al conductor {conductor.codigo}. Estado: conectado.")
+                else:
+                    conductor.estado_red = "desconectado"
+                    print(f"⚠️ [TURNO] El conductor {conductor.codigo} no respondió al ping o falló Telegram. Estado: desconectado.")
+                
+                db.session.commit()
+        except Exception as e_ping:
+            print(f"⚠️ [TURNO] No se pudo enviar el ping automático al crear el turno: {str(e_ping)}")
+
         return jsonify({
             "msg": "Turno iniciado",
             "id_turno": turno.id_turno,
             "estado_turno": turno.estado,
             "conductor_estado": conductor.estado,
-            "auto_estado": auto.estado
+            "auto_estado": auto.estado,
+            "estado_red": conductor.estado_red
         }), 201
 
     except Exception as e:

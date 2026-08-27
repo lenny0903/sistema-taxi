@@ -280,11 +280,8 @@
                     let tr = tbody.querySelector(`tr[data-codigo="${c.codigo}"]`);
                     
                     const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
-                    // Eliminamos 'desactiv' de aquí para que "hasta que se desactive" no se confunda con cierre
-                    
                     const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
-                    // Si está disponible pero NO por haber finalizado la compartición de GPS:
                     if (c.estado === 'disponible' && !estaFinalizado) {
                         if (marcadores[c.codigo]) { 
                             map.removeLayer(marcadores[c.codigo]); 
@@ -295,7 +292,6 @@
                         return;
                     }
 
-                    // 🛑 Si el conductor dejó de compartir (Finalizado / Detenido):
                     if (estaFinalizado) {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
@@ -308,12 +304,11 @@
                             tr.setAttribute('data-codigo', c.codigo);
                             tbody.appendChild(tr);
                         }
-                        tr.style.backgroundColor = '#f8d7da'; // Color rojo claro de alerta
+                        tr.style.backgroundColor = '#f8d7da';
                         tr.innerHTML = `
                             <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
                             <td style="padding: 6px; vertical-align: top; color: #721c24;">
                                 🛑 Finalizado por el conductor
-                                
                             </td>
                         `;
                         return;
@@ -333,11 +328,26 @@
                                 tbody.appendChild(tr);
                             }
                             tr.style.backgroundColor = '#fff3cd';
+
+                            // 🟢 Diagnóstico de Batería y Red también para cuando no hay ubicación
+                            let iconoBateria = '🔋 ?';
+                            if (c.bateria !== null && c.bateria !== undefined) {
+                                let colorBat = c.bateria < 20 ? '#d63031' : (c.bateria < 50 ? '#e67e22' : '#27ae60');
+                                iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.bateria}%</span>`;
+                            }
+
+                            let badgeRed = (c.estado_red === 'sin_respuesta')
+                                ? '<span style="color: #d63031; font-weight: bold;">🔴 Red Inaccesible</span>' 
+                                : '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>';
+
+                            let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
+
                             tr.innerHTML = `
                                 <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
                                 <td style="padding: 6px; vertical-align: top;">
-                                    ⚠️ Sin Ubicación 
-                                    
+                                    ⚠️ Sin Ubicación<br>
+                                    <small style="color: #555;">Esperando coordenadas...</small>
+                                    ${indicadorDiagnostico}
                                 </td>
                             `;
                             return;
@@ -350,13 +360,7 @@
                         }
                         tr.style.backgroundColor = '';
 
-                        // Calcular el texto del cronómetro (siempre se muestra)
                         let textoTiempoRestante = '⏱️ Activo';
-                        let esModoIndefinido = false;
-                        const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
-
-                        // 🛡️ Usamos directamente la fecha normalizada con su zona horaria (-04:00) 
-                        // para evitar cualquier error de escala entre milisegundos y segundos.
                         const fechaExp = obtenerTimestampLocal(c.expiracion_gps);
 
                         if (!isNaN(fechaExp) && fechaExp > 0) {
@@ -370,11 +374,9 @@
                             };
                         }
 
-                        // Obtener el texto del cronómetro usando la función que ya tienes
                         const tiempoRestanteTexto = obtenerTextoRestante(c.codigo);
                         const estaExpirado = tiempoRestanteTexto.includes('Expirado');
 
-                        // Determinar si hay señal (por si no se usa el cronómetro)
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
@@ -386,27 +388,39 @@
                             estaDesactualizado = true;
                         }
 
-                        // Construir el HTML del cronómetro (siempre visible)
-                        // Construir el HTML del cronómetro (siempre visible)
                         const cronometroHtml = `<span class="reloj-minutos" data-codigo="${c.codigo}">${tiempoRestanteTexto}</span>`;
 
-                        // Construir etiqueta de estado combinando señal y cronómetro
+                        // 🟢 NUEVO: Diagnóstico de Batería y Red integrado
+                        let iconoBateria = '🔋 ?';
+                        if (c.bateria !== null && c.bateria !== undefined) {
+                            let colorBat = c.bateria < 20 ? '#d63031' : (c.bateria < 50 ? '#e67e22' : '#27ae60');
+                            iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.bateria}%</span>`;
+                        }
+
+                        let badgeRed = (c.estado_red === 'sin_respuesta')
+                            ? '<span style="color: #d63031; font-weight: bold;">🔴 Red Inaccesible</span>' 
+                            : '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>';
+
+                        let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
+                        // Fin de la integración de diagnóstico
+
                         let etiquetaEstado = '';
                         
-                        // 🟢 VERIFICACIÓN CLAVE: Si ya expiró el tiempo, se muestra estrictamente esto:
                         if (estaExpirado) {
                             etiquetaEstado = `
                                 <span style="color: red; font-weight: bold;">⏳ Tiempo Expirado</span><br>
                                 <small style="color: #555;">${cronometroHtml}</small>
+                                ${indicadorDiagnostico}
                             `;
-                            tr.style.backgroundColor = '#f8d7da'; // Opcional: fondo rojo claro de alerta
+                            tr.style.backgroundColor = '#f8d7da';
                         } else if (estaDesactualizado) {
                             tr.style.backgroundColor = '';
                             const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
                             etiquetaEstado = `
                                 <span style="color: orange; font-weight: bold;">⚠️ Sin señal (${minTexto}m)</span><br>
                                 <small style="color: #555;">${cronometroHtml}</small><br>
-                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')">📲 Notificar</button>
+                                ${indicadorDiagnostico}
+                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')" style="margin-top: 4px;">📲 Notificar</button>
                             `;
                         } else {
                             tr.style.backgroundColor = '';
@@ -415,12 +429,15 @@
                                 <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
                                 <small style="color: #555;">${cronometroHtml}</small>
                                 ${opcionMostrada}
+                                ${indicadorDiagnostico}
                             `;
                         }
+                        
                         tr.innerHTML = `
                             <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
                             <td style="padding: 6px; vertical-align: top;">${etiquetaEstado}</td>
                         `;
+                        
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
                         const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
@@ -433,12 +450,37 @@
                         }
                         marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
                         if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== null && c.id_despacho === ID_DESPACHO_ACTIVO) {
-                            map.setView(coords, 17); // Hace zoom y centra la vista en la unidad del cliente
+                            map.setView(coords, 17);
                         }
                     }
                 });
             }
 
+            async function enviarUbicacionGPS(lat, lon) {
+                let nivelBateria = null;
+                
+                // Consultar batería si el navegador del móvil lo soporta
+                if (navigator.getBattery) {
+                    try {
+                        const battery = await navigator.getBattery();
+                        nivelBateria = Math.round(battery.level * 100);
+                    } catch (e) {
+                        console.log("No se pudo leer la batería");
+                    }
+                }
+
+                // Enviar datos al backend de Flask
+                fetch('/api/actualizar_ubicacion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        codigo: codigoUnidad,
+                        latitud: lat,
+                        longitud: lon,
+                        bateria: nivelBateria
+                    })
+                });
+            }
             window.togglePanel = function() {
                 const panel = document.getElementById('panel');
                 const btn = document.getElementById('btnToggle');

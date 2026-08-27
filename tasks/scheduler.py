@@ -57,13 +57,13 @@ def iniciar_scheduler(app, socketio):
     )
 
    # 2. Tarea de Monitoreo de GPS de Conductores (Cada 3 minutos)
- #   scheduler.add_job(
- #       job_verificar_gps_conductores,
- #       trigger="interval",
- #       minutes=3, 
- #       id="job_gps_conductores",
- #       replace_existing=True
- #   )
+    scheduler.add_job(
+        job_verificar_gps_conductores,
+        trigger="interval",
+        minutes=3, 
+        id="job_gps_conductores",
+        replace_existing=True
+    )
     scheduler.add_job(
         job_expirar_tiempos_gps,
         trigger="interval",
@@ -157,8 +157,13 @@ def job_expirar_tiempos_gps():
             from extensions import db
             db.session.rollback()
             print(f"❌ [ERROR SCHEDULER - VENCIMIENTOS] {e}")
-"""
+
 def job_verificar_gps_conductores():
+    """
+    Monitorea de forma proactiva el GPS de los conductores activos.
+    Fase 1: Envía un pulso silencioso (sendChatAction) si supera el umbral de silencio.
+    Fase 2: Resetea el aviso automáticamente en cuanto el GPS vuelve a reportar.
+    """
     if _app is None:
         return
 
@@ -166,7 +171,7 @@ def job_verificar_gps_conductores():
         try:
             from models.conductores import Conductor
             from extensions import db
-            from utils.time import TZ_CARACAS
+            from utils.time import hora_local, TZ_CARACAS
 
             ahora = hora_local()
 
@@ -177,60 +182,61 @@ def job_verificar_gps_conductores():
             ).all()
 
             for c in conductores_candidatos:
-                # 🛡️ Control Anti-Spam
-                if getattr(c, 'alerta_enviada', False): 
-                    continue
-
-                # Normalización estricta de expiracion_gps
-                exp_db = c.expiracion_gps
-                if exp_db and exp_db.tzinfo is None:
-                    exp_db = exp_db.replace(tzinfo=TZ_CARACAS)
-
-                # 🛡️ ESCENARIO 1: Expiración natural del cronómetro
-                if exp_db is None or ahora >= exp_db:
-                    continue
-
                 # Normalización estricta de ultima_actualizacion
                 ult_act = c.ultima_actualizacion
                 if ult_act and ult_act.tzinfo is None:
                     ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
 
-                # 🚀 TOLERANCIA DINÁMICA INDIVIDUAL
-                # Se lee la tolerancia de cada conductor (15 min por defecto si está en None)
-                tolerancia_minutos = getattr(c, 'tolerancia_dinamica_minutos', 15) or 15
+                # Tolerancia dinámica individual (por defecto 5 o 15 minutos según configures)
+                tolerancia_minutos = getattr(c, 'tolerancia_dinamica_minutos', 5) or 5
                 limite_inactividad = ahora - timedelta(minutes=tolerancia_minutos)
 
-                # Si reportó dentro de su margen personalizado, no se dispara alerta
+                # 🟢 RECUPERACIÓN AUTOMÁTICA: Si el conductor reportó recientemente, reseteamos el candado y la red
                 if ult_act >= limite_inactividad:
-                    continue  
+                    cambios_necesarios = False
+                    if getattr(c, 'aviso_enviado', 0) == 1:
+                        c.aviso_enviado = 0
+                        cambios_necesarios = True
+                    if getattr(c, 'estado_red', 'conectado') != 'conectado':
+                        c.estado_red = 'conectado'
+                        cambios_necesarios = True
+                        
+                    if cambios_necesarios:
+                        db.session.commit()
+                    continue  # Todo bien, pasamos al siguiente
 
-                # 🛡️ ESCENARIOS 2 y 3: Superó su umbral adaptativo
-                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-                payload = {
-                    "chat_id": c.telegram_id,
-                    "text": (
-                        f"🚨 *ALERTA UNIDAD {c.codigo}*\n\n"
-                        f"Se ha perdido la señal de tu GPS hace más de {tolerancia_minutos} minutos.\n\n"
-                        "📱 *Por favor abre Telegram* un segundo para reactivar tu ubicación en el mapa."
-                    ),
-                    "parse_mode": "Markdown",
-                    "disable_notification": False
-                }
-                
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(requests.post, url, json=payload, timeout=5)
-                    res = future.result()
-                
-                if res.status_code == 200:
-                    print(f"⚠️ [GPS DESPERTADOR] Notificación enviada a {c.codigo} (Umbral personalizado: {tolerancia_minutos}m)")
-                    c.alerta_enviada = True
-                    db.session.commit()  
-                
-            db.session.commit()
+                # 🟡 SILENCIO SOSPECHOSO: Superó el umbral y NO se le ha dado el pulso todavía (aviso_enviado == 0)
+                if ult_act < limite_inactividad and getattr(c, 'aviso_enviado', 0) == 0:
+                    
+                    # 🚀 PULSO SILENCIOSO DE DESPIERTE (Acción 'typing' en Telegram, 0 spam visual)
+                    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendChatAction"
+                    payload = {
+                        "chat_id": c.telegram_id,
+                        "action": "typing"
+                    }
+                    
+                    try:
+                        res = requests.post(url, json=payload, timeout=4)
+                        if res.status_code == 200:
+                            # Candado en 1 y red conectada (Telegram confirmó entrega)
+                            c.aviso_enviado = 1
+                            c.estado_red = 'conectado'
+                            db.session.commit()
+                            print(f"📡 [PULSO GPS] Latido silencioso enviado a Unidad {c.codigo}")
+                        else:
+                            # Telegram respondió con un código distinto a 200
+                            c.estado_red = 'sin_respuesta'
+                            db.session.commit()
+                            print(f"⚠️ [PULSO GPS] Telegram rechazó pulso para Unidad {c.codigo} (Status {res.status_code})")
+                    except Exception as ex:
+                        # Error de red, timeout o fallo al conectar con la API
+                        c.estado_red = 'sin_respuesta'
+                        db.session.commit()
+                        print(f"⚠️ [ERROR PULSO TELEGRAM] Unidad {c.codigo}: {ex}")
+
+            
 
         except Exception as e:
             from extensions import db
             db.session.rollback()
-            print(f"❌ [SCHEDULER ERROR - GPS] {e}")
-"""            
+            print(f"❌ [SCHEDULER ERROR - GPS PROACTIVO] {e}")

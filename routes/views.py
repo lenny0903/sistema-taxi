@@ -170,6 +170,7 @@ def obtener_ubicaciones_activas():
             "expiracion_gps": expiracion.isoformat() if expiracion else None,  # 🔥 Cambiado de expiracion_iso
             "exp_timestamp": int(expiracion.timestamp() * 1000) if expiracion else None,  # 🔥 Nuevo campo
             "tiempo_restante": tiempo_restante
+            
         })
         
     return jsonify(lista_conductores)
@@ -212,6 +213,7 @@ def recibir_gps():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @views_bp.route("/conductor/<codigo>")
 def vista_conductor(codigo):

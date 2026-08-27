@@ -23,12 +23,14 @@ from flask_apscheduler import APScheduler
 from flask_socketio import SocketIO
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
-
 from extensions import db
 from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
+from models.conductores import Conductor  
+from models.clientes import Cliente
+import models
 import routes
 import config
 from tasks.scheduler import iniciar_scheduler
