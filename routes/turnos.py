@@ -102,9 +102,9 @@ def crear_turno():
         conductor.estado = "activo"
         
         # 🛑 REINICIO TOTAL PARA EL NUEVO TURNO:
-        conductor.latitud = None           # Borramos coordenadas viejas
-        conductor.longitud = None          # Borramos coordenadas viejas
-        conductor.ultima_actualizacion = None # Borramos la fecha vieja
+        conductor.latitud = None              # Borramos coordenadas viejas
+        conductor.longitud = None             # Borramos coordenadas viejas
+        conductor.ultima_actualizacion = None # Borramos la fecha vieja (¡vital!)
         conductor.estado_red = "desconectado" # Forzamos rojo
         conductor.alerta_enviada = False
 
@@ -113,7 +113,7 @@ def crear_turno():
         if hasattr(turno, 'expiracion_gps'):
             turno.expiracion_gps = expiracion_gps
             
-        conductor.estado = "activo"
+        
         auto.estado = "activo"
 
         db.session.add(turno)
@@ -126,15 +126,7 @@ def crear_turno():
         db.session.commit()
 
         # 🚀 NOTIFICACIÓN DE CORTESÍA A TELEGRAM (Sin alterar el estado de red)
-        try:
-            if conductor.telegram_id:
-                from flask import current_app
-                token_bot = current_app.config.get("TELEGRAM_BOT_TOKEN")
-                from utils.telegram_helpers import enviar_ping_telegram
-                enviar_ping_telegram(conductor.telegram_id, token_bot)
-                print(f"📢 [TURNO] Ping de cortesía enviado a Telegram para {conductor.codigo}.")
-        except Exception as e_ping:
-            print(f"⚠️ [TURNO] No se pudo enviar el ping de cortesía: {str(e_ping)}")
+       
         return jsonify({
             "msg": "Turno iniciado",
             "id_turno": turno.id_turno,
@@ -183,6 +175,8 @@ def finalizar_turno(turno_id, es_bot=False):
             conductor.estado_red = "desconectado"
             conductor.alerta_enviada = False
             conductor.estado = "disponible" # o el estado que corresponda al terminar
+            conductor.opcion_gps = None
+            conductor.expiracion_gps = None
        # --- AQUÍ LA CORRECCIÓN ---
         # 1. Buscamos el auto relacionado (asumiendo que tu modelo Turno tiene auto_id)
         auto = db.session.get(Auto, turno.auto_id) if turno.auto_id else None

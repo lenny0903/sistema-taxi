@@ -429,7 +429,7 @@ def confirmar_turno(id_conductor):
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
-   # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
+    # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
     TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
     evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
     
@@ -485,26 +485,8 @@ def obtener_ubicaciones():
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
-        # 🧠 CÁLCULO INTELIGENTE DEL ESTADO DE RED REAL
+        # 🧠 USAR DIRECTAMENTE EL ESTADO DE RED CALCULADO EN LA BD (SIN RE-EVALUACIONES CONFLICTIVAS)
         estado_red_calculado = getattr(c, 'estado_red', 'desconectado')
-        
-        if c.ultima_actualizacion:
-            # Normalizar para comparar bien los tiempos
-            ult_act = c.ultima_actualizacion
-            if ult_act.tzinfo is None:
-                from utils.time import TZ_CARACAS
-                ult_act = ult_act.replace(tzinfo=TZ_CARACAS)
-            
-            ahora_local_val = hora_local()
-            tolerancia_mins = getattr(c, 'tolerancia_dinamica_minutos', 15) or 15
-            
-            # Si superó el límite de inactividad, la red DEBE verse desconectada
-            if (ahora_local_val - ult_act).total_seconds() > (tolerancia_mins * 60):
-                estado_red_calculado = 'desconectado'
-        else:
-            estado_red_calculado = 'desconectado'
-        if "expirado" in opcion_str or "finalizado" in opcion_str:
-            estado_red_calculado = 'desconectado'    
 
         resultado.append({  
             "id_conductor": c.id_conductor,  
@@ -521,7 +503,7 @@ def obtener_ubicaciones():
             "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
             "id_despacho": id_despacho_actual,
             "bateria": getattr(c, 'nivel_bateria', None),
-            "estado_red": estado_red_calculado  # 👈 Usamos el estado calculado, adiós al mentiroso 'conectado' fijo
+            "estado_red": estado_red_calculado  # 👈 Respetamos fielmente lo que decidió la base de datos y el helper
         })  
       
     return jsonify(resultado), 200

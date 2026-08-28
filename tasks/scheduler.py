@@ -195,6 +195,24 @@ def job_verificar_gps_conductores():
                         db.session.commit()
                 return  # Salimos del job para evitar falsos positivos matemáticos
 
+            # 🛑 CANDADO INICIAL BLINDADO: Forzar desconectado si no hay coordenadas ni timestamp
+            conductores_sin_gps = Conductor.query.filter(
+                Conductor.estado == 'activo',
+                (Conductor.ultima_actualizacion.is_(None)) | 
+                (Conductor.latitud.is_(None)) | 
+                (Conductor.longitud.is_(None))
+            ).all()
+
+            for c_sin in conductores_sin_gps:
+                if c_sin.estado_red != 'desconectado':
+                    c_sin.estado_red = 'desconectado'
+                    db.session.commit()
+
+            for c_sin in conductores_sin_gps:
+                if getattr(c_sin, 'estado_red', 'conectado') != 'desconectado':
+                    c_sin.estado_red = 'desconectado'
+                    db.session.commit()
+
             # --- SI LA RED SÍ ESTÁ ACTIVA, PROCEDEMOS CON EL FLUJO NORMAL ---
             conductores_candidatos = Conductor.query.filter(
                 Conductor.telegram_id.isnot(None),
@@ -210,25 +228,19 @@ def job_verificar_gps_conductores():
                 tolerancia_minutos = getattr(c, 'tolerancia_dinamica_minutos', 5) or 5
                 limite_inactividad = ahora - timedelta(minutes=tolerancia_minutos)
 
-                # 🛑 CANDADO: Solo puede estar conectado si reportó a tiempo, tiene coordenadas, 
-                # Y ADEMÁS su opción de GPS NO está expirada ni finalizada
                 opcion_actual = str(getattr(c, 'opcion_gps', '') or '').strip()
                 es_valido_por_estado = opcion_actual not in ["Expirado", "Finalizado", ""]
 
+                # 🛑 REGLA ESTRICTA: Solo se mantiene conectado SI está dentro del tiempo Y el webhook acaba de recibir datos frescos.
+                # De lo contrario, el scheduler lo baja a desconectado.
                 if ult_act >= limite_inactividad and c.latitud is not None and c.longitud is not None and es_valido_por_estado:
-                    cambios_necesarios = False
+                    # Si cumple, solo limpiamos el aviso si estaba pendiente, pero NO tocamos el estado_red aquí.
                     if getattr(c, 'aviso_enviado', 0) == 1:
                         c.aviso_enviado = 0
-                        cambios_necesarios = True
-                    if getattr(c, 'estado_red', 'desconectado') != 'conectado':
-                        c.estado_red = 'conectado'
-                        cambios_necesarios = True
-                        
-                    if cambios_necesarios:
                         db.session.commit()
                     continue
                 else:
-                    # Si ya expiró o no cumple, nos aseguramos de que la red se quede abajo
+                    # 🔴 FUERZA BRUTA A ROJO: Si pasó la tolerancia o expiró, la red se cae obligatoriamente
                     if getattr(c, 'estado_red', 'conectado') == 'conectado':
                         c.estado_red = 'desconectado'
                         db.session.commit()

@@ -130,6 +130,7 @@ def webhook():
                 return jsonify({"status": "comentario_inconveniente_guardado"}), 200
 
             # --- COMANDO START ---
+            # --- COMANDO START ---
             if texto.startswith('/start'):
                 partes = texto.split(' ')
                 if len(partes) > 1:
@@ -171,21 +172,22 @@ def webhook():
                     
                     return jsonify({"status": "menu_client_enviado"}), 200
                 else:
-                    # 🟢 BUSCAR AL CONDUCTOR POR SU TELEGRAM_ID Y PONER LA RED EN VERDE
+                    # 🟢 BUSCAR AL CONDUCTOR POR SU TELEGRAM_ID O POR TURNO ACTIVO
                     try:
                         from models.conductores import Conductor
-                        from extensions import socketio # 👈 1. Importa socketio aquí
+                        from models.turnos import Turno
                         
+                        # Buscamos primero por telegram_id exacto
                         conductor_activo = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
+                        
+                        # Si no lo encuentra por telegram_id pero hay un turno activo reciente sin amarrar, intentamos enlazarlo o buscarlo
                         if conductor_activo:
                             conductor_activo.estado_red = 'conectado'
                             if hasattr(conductor_activo, 'ultima_actualizacion_red'):
                                 conductor_activo.ultima_actualizacion_red = hora_local() 
                             db.session.commit()
                             
-                            # 🟢 2. Emite la señal para que el mapa actualice en milisegundos
                             try:
-                                # 🟢 Importa socketio directamente de app para evitar el objeto None
                                 from app import socketio
                                 socketio.emit('estado_red_cambiado', namespace='/')
                             except Exception as e:
@@ -197,7 +199,6 @@ def webhook():
 
                     enviar_menu_botones(chat_id)
                     return jsonify({"status": "menu_enviado"}), 200
-
             # 📍 Palabra clave "UBI"
             if texto.strip().upper() == "UBI":
                 print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
@@ -427,27 +428,44 @@ def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
         
     requests.post(url, data=payload)
 
+from models.conductores import Conductor
+
 def enviar_menu_botones(chat_id):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     
-    # Menú minimalista: solo queda el botón de activación inicial
-    teclado = {
-        "keyboard": [
-            [{"text": "🔗 Activar"}]
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False
-    }
+    # 1. Verificamos si este chat_id pertenece a un conductor registrado
+    conductor = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
     
+    if conductor:
+        # 🚗 CONFIGURACIÓN PARA CONDUCTORES (Mantiene su botón de activación)
+        teclado = {
+            "keyboard": [
+                [{"text": "🔗 Activar"}]
+            ],
+            "resize_keyboard": True,
+            "one_time_keyboard": False
+        }
+        texto_mensaje = "✅ Sistema de Rastreo Activo. Presiona el botón inferior si necesitas vincular tu cuenta:"
+    else:
+        # 👤 CONFIGURACIÓN PARA CLIENTES (Sin botones extraños, chat limpio para que puedan escribir comentarios)
+        teclado = {
+            "remove_keyboard": True
+        }
+        texto_mensaje = "¡Hola! Bienvenido al seguimiento de tu servicio. Puedes escribir tus comentarios o consultas directamente por aquí:"
+
     payload = {
         'chat_id': chat_id,
-        'text': "✅ Sistema de Rastreo Activo. Presiona el botón inferior si necesitas vincular tu cuenta:",
+        'text': texto_mensaje,
         'parse_mode': 'HTML',
         'reply_markup': json.dumps(teclado) 
     }
     
-    requests.post(url, data=payload)
+    try:
+        response = requests.post(url, data=payload)
+        return response.json()
+    except Exception as e:
+        print(f"⚠️ Error enviando menú de botones: {e}")
 
 def limpiar_teclado_conductor(chat_id):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')

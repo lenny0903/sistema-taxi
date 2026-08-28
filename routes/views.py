@@ -86,94 +86,6 @@ from datetime import datetime
 from sqlalchemy import text
 from flask import jsonify
 
-@views_bp.route("/conductores/ubicaciones_activas")
-def obtener_ubicaciones_activas():
-    sql = text("""
-        SELECT c.codigo, c.estado, c.latitud, c.longitud, c.id_conductor, 
-               c.ultima_actualizacion, c.horizontal_accuracy,
-               c.opcion_gps, c.expiracion_gps, t.fecha_inicio
-        FROM conductores c
-        LEFT JOIN turnos t ON c.id_conductor = t.conductor_id AND t.estado = 'activo'
-        WHERE c.estado IN ('esperando', 'disponible', 'activo', 'solicitando_cierre')
-    """)
-    resultados = db.session.execute(sql).fetchall()
-    
-    ahora = hora_local() 
-    lista_conductores = []
-    
-    for row in resultados:
-        expiracion = row.expiracion_gps
-        opcion_raw = str(row.opcion_gps or '').strip().lower()
-        if len(opcion_raw) > 20 or "h" in opcion_raw and len(opcion_raw) > 5:
-            opcion_raw = "8 horas" # Valor seguro por defecto si detectamos basura
-        # 1. Normalizar expiracion_gps a objeto datetime
-        if isinstance(expiracion, str):
-            try:
-                exp_clean = expiracion.replace('T', ' ').replace('Z', '').split('.')[0]
-                expiracion = datetime.strptime(exp_clean, "%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                expiracion = None
-
-       # 2. Si no hay expiracion_gps registrada, calcularla usando fecha_inicio del TURNO
-        if not expiracion:
-            inicio = row.fecha_inicio
-            if isinstance(inicio, str):
-                try:
-                    ini_clean = inicio.replace('T', ' ').replace('Z', '').split('.')[0]
-                    inicio = datetime.strptime(ini_clean, "%Y-%m-%d %H:%M:%S")
-                except ValueError:
-                    inicio = None
-            
-            # Si tenemos inicio del turno, asignamos la expiración según la opción guardada
-            if isinstance(inicio, datetime):
-                if "15" in opcion_raw:
-                    expiracion = inicio + timedelta(minutes=15)
-                elif "1" in opcion_raw and "15" not in opcion_raw and "limite" not in opcion_raw and "límite" not in opcion_raw:
-                    expiracion = inicio + timedelta(hours=1)
-                else:
-                    # Si eligieron "Tiempo límite" (que equivale a jornada completa de 8h por defecto)
-                    expiracion = inicio + timedelta(hours=8)
-        # 3. Determinar el label y tiempo restante
-        es_en_vivo = ("hasta" in opcion_raw) or ("desactive" in opcion_raw) or (opcion_raw == "en vivo")
-
-        if es_en_vivo:
-            opcion_label = "En vivo"
-            tiempo_restante = "Jornada Activa"
-        elif expiracion and isinstance(expiracion, datetime):
-            opcion_label = "Tiempo límite"
-            if expiracion > ahora:
-                total_seg = int((expiracion - ahora).total_seconds())
-                horas = total_seg // 3600
-                minutos = (total_seg % 3600) // 60
-                segundos = total_seg % 60
-
-                if horas > 0:
-                    tiempo_restante = f"{horas}h {minutos}m restantes"
-                else:
-                    tiempo_restante = f"{minutos}m {segundos}s restantes"
-            else:
-                tiempo_restante = "Expirado"
-        else:
-            opcion_label = "En vivo"
-            tiempo_restante = "Jornada Activa"
-
-        lista_conductores.append({
-            "codigo": row.codigo,
-            "estado": row.estado,
-            "latitud": row.latitud,
-            "longitud": row.longitud,
-            "modo": "gps",
-            "horizontal_accuracy": row.horizontal_accuracy,
-            "ultima_actualizacion": row.ultima_actualizacion.isoformat() if hasattr(row.ultima_actualizacion, 'isoformat') else str(row.ultima_actualizacion or ''),
-            "id_conductor": row.id_conductor,
-            "opcion_gps": opcion_label,
-            "expiracion_gps": expiracion.isoformat() if expiracion else None,  # 🔥 Cambiado de expiracion_iso
-            "exp_timestamp": int(expiracion.timestamp() * 1000) if expiracion else None,  # 🔥 Nuevo campo
-            "tiempo_restante": tiempo_restante
-            
-        })
-        
-    return jsonify(lista_conductores)
 
 @views_bp.route("/recibir_gps", methods=["POST"])
 def recibir_gps():
@@ -223,3 +135,4 @@ def vista_conductor(codigo):
 def pagina_mapa_despacho(id_despacho):
     # Puedes inyectar el ID al HTML para que JavaScript sepa qué unidad centrar
     return render_template("monitoreo.html", id_despacho_activo=id_despacho)
+

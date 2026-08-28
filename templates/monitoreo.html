@@ -282,7 +282,7 @@
                     const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
                     const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
-                    if (c.estado === 'disponible' && !estaFinalizado) {
+                    if (c.estado === 'disponible') {
                         if (marcadores[c.codigo]) { 
                             map.removeLayer(marcadores[c.codigo]); 
                             delete marcadores[c.codigo]; 
@@ -330,9 +330,9 @@
                             tr.style.backgroundColor = '#fff3cd';
 
                             let iconoBateria = '🔋 ?';
-                            if (c.bateria !== null && c.bateria !== undefined) {
-                                let colorBat = c.bateria < 20 ? '#d63031' : (c.bateria < 50 ? '#e67e22' : '#27ae60');
-                                iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.bateria}%</span>`;
+                            if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
+                                let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
+                                iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
                             }
 
                             // Validación estricta unificada para cuando no hay ubicación
@@ -424,9 +424,17 @@
                         } else {
                             tr.style.backgroundColor = '';
                             const opcionMostrada = c.opcion_gps ? `<br><small style="color: #555;">Modo: <b>${c.opcion_gps}</b></small>` : '';
+                            
+                            // 🟢 MEJORA: Calcular tiempo exacto desde la última actualización
+                            const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
+                            const haceMinutos = Math.round((Date.now() - fechaUltima) / 60000);
+                            const textoUltimaVez = haceMinutos < 1 ? "📡 Hace segundos" : `📡 Hace ${haceMinutos}m`;
+                            const colorUltimaVez = haceMinutos > 2 ? "#e67e22" : "#27ae60"; // Naranja si > 2min, Verde si es reciente
+
                             etiquetaEstado = `
                                 <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
-                                <small style="color: #555;">${cronometroHtml}</small>
+                                <small style="color: #555;">${cronometroHtml}</small><br>
+                                <small style="color: ${colorUltimaVez}; font-weight: bold;">${textoUltimaVez}</small>
                                 ${opcionMostrada}
                                 ${indicadorDiagnostico}
                             `;
@@ -448,7 +456,7 @@
                             marcadores[c.codigo].setIcon(iconoVehiculo);
                         }
                         marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
-                        if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== null && c.id_despacho === ID_DESPACHO_ACTIVO) {
+                        if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '' && parseInt(c.id_despacho) === parseInt(ID_DESPACHO_ACTIVO)) {
                             map.setView(coords, 17);
                         }
                     }
@@ -546,7 +554,7 @@
 
             // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN Y TRANSPORTE FORZADO
             const socket = io({
-                transports: ['websocket'], // 🟢 Forzar EXCLUSIVAMENTE WebSocket (sin polling lento)
+                transports: ['websocket', 'polling'],  // ← Ambos, más robusto
                 reconnection: true,
                 reconnectionAttempts: 5,          
                 reconnectionDelay: 1000,          
