@@ -272,7 +272,25 @@ def webhook():
             enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
-        # 4. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
+        # 🛑 4. VALIDACIÓN ESTRICTA: ¿El conductor registrado tiene un turno activo creado en la BD?
+        if "location" in msg:
+            turno_activo = Turno.query.filter_by(
+                conductor_id=conductor.id_conductor, 
+                estado="activo"
+            ).first()
+
+            if not turno_activo:
+                print(f"🚫 [BLOQUEO] Conductor {conductor.codigo} intentó enviar ubicación sin turno activo en la BD.")
+                enviar_mensaje(
+                    chat_id, 
+                    "⚠️ *Turno no autorizado*\n\n"
+                    "La central aún no ha creado o autorizado tu turno de trabajo. "
+                    "No puedes transmitir ubicación hasta que el operador inicie tu turno."
+                )
+                enviar_menu_botones(chat_id)
+                return jsonify({"status": "ubicacion_rechazada_sin_turno"}), 200
+
+        # 5. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
         
         # 🛑 DETECCIÓN DE CIERRE MANUAL: 
         # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)
