@@ -96,30 +96,44 @@ def crear_turno():
         elif "8" in opcion_clean:
             expiracion_gps = ahora + timedelta(hours=8)
 
-        # Asignar al conductor
+     # Asignar al conductor al iniciar turno
         conductor.opcion_gps = opcion_gps
         conductor.expiracion_gps = expiracion_gps
         conductor.estado = "activo"
-        conductor.ultima_actualizacion = hora_local()
+        
+        # 🛑 REINICIO TOTAL PARA EL NUEVO TURNO:
+        conductor.latitud = None              # Borramos coordenadas viejas
+        conductor.longitud = None             # Borramos coordenadas viejas
+        conductor.ultima_actualizacion = None # Borramos la fecha vieja (¡vital!)
+        conductor.estado_red = "desconectado" # Forzamos rojo
         conductor.alerta_enviada = False
-        # Opcional: si tu modelo Turno tiene estas columnas, guardas también la copia histórica
+
         if hasattr(turno, 'opcion_gps'):
             turno.opcion_gps = opcion_gps
         if hasattr(turno, 'expiracion_gps'):
             turno.expiracion_gps = expiracion_gps
-        # Cambiar estados
-        conductor.estado = "activo"
+            
+        
         auto.estado = "activo"
 
         db.session.add(turno)
+        print("--------------------------------------------------")
+        print(f"🛑 [DEBUG CREAR_TURNO] Conductor ID: {conductor.id_conductor}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Estado asignado: {conductor.estado}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Estado Red antes de commit: {conductor.estado_red}")
+        print(f"🛑 [DEBUG CREAR_TURNO] Ultima Actualización: {conductor.ultima_actualizacion}")
+        print("--------------------------------------------------")
         db.session.commit()
 
+        # 🚀 NOTIFICACIÓN DE CORTESÍA A TELEGRAM (Sin alterar el estado de red)
+       
         return jsonify({
             "msg": "Turno iniciado",
             "id_turno": turno.id_turno,
             "estado_turno": turno.estado,
             "conductor_estado": conductor.estado,
-            "auto_estado": auto.estado
+            "auto_estado": auto.estado,
+            "estado_red": conductor.estado_red
         }), 201
 
     except Exception as e:
@@ -152,16 +166,15 @@ def finalizar_turno(turno_id, es_bot=False):
                 "error": "No se puede finalizar el turno: el conductor tiene un despacho en curso"
             }), 400
 
-        # 3. Restaurar Auto y Conductor (Usando db.session.get para robustez)
+        # 3. Restaurar Auto y Conductor
         conductor = db.session.get(Conductor, turno.conductor_id)
         if conductor:
-            conductor.estado = "disponible"
-            # 💡 AQUÍ ESTÁ LA CLAVE: Limpiamos la ubicación
-            conductor.latitud = None    
-            conductor.longitud = None   
-            # Esto hará que el filtro en 'views.py' (latitud != None) 
-            # excluya a este conductor inmediatamente al recargar.
-            # 💡 LIMPIEZA DE GPS: Reseteamos los campos para el próximo turno
+            conductor.latitud = None
+            conductor.longitud = None
+            conductor.ultima_actualizacion = None
+            conductor.estado_red = "desconectado"
+            conductor.alerta_enviada = False
+            conductor.estado = "disponible" # o el estado que corresponda al terminar
             conductor.opcion_gps = None
             conductor.expiracion_gps = None
        # --- AQUÍ LA CORRECCIÓN ---

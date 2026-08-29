@@ -144,6 +144,13 @@
               </label>
           </div>
       </div>
+      <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
+      <li class="mt-2 pt-2 border-t border-gray-200">
+          <button onclick="abrirWhatsAppWeb()" 
+                  class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-green-600 font-bold flex items-center gap-2">
+              <span>📱</span> WhatsApp Web (Win/Super + →)
+          </button>
+      </li>
     </nav>
 
     
@@ -557,27 +564,50 @@
 
 
       <section id="turnosActivos" class="seccion hidden">
-        <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
+          <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
 
-        <div class="mt-4 flex gap-4">
-          <label class="block">Conductor:</label>
-          <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+          <!-- Controles para iniciar turno -->
+          <div class="mt-4 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg border">
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Conductor:</label>
+                  <select id="nuevoConductor" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Auto:</label>
+                  <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div>
+                  <label class="block text-sm font-medium text-gray-700">Punto de espera:</label>
+                  <select id="nuevoPunto" class="border px-2 py-1 rounded"></select>
+              </div>
+              <div class="self-end">
+                  <button id="btnIniciarTurno" type="button"
+                          class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
+                    Iniciar turno
+                  </button>
+              </div>
+          </div>
 
-          <label class="block">Auto:</label>
-          <select id="nuevoAuto" class="border px-2 py-1 rounded"></select>
+          <!-- Lista de turnos activos -->
+          <div id="turnosActivosLista" class="mt-6"></div>
 
-          <label class="block">Punto de espera:</label>
-          <select id="nuevoPunto" class="border px-2 py-1 rounded"></select>
-
-          <button id="btnIniciarTurno" type="button"
-                  class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow">
-            Iniciar turno
-          </button>
-        </div>
-
-        <div id="turnosActivosLista" class="mt-6"></div>
+          <!-- 🔍 NUEVO: Widget rápido de Diagnóstico GPS (ubicado al final de la sección) -->
+          <div class="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-lg shadow-sm">
+              <h3 class="text-lg font-semibold text-blue-800 mb-2">🔎 Diagnóstico Rápido de GPS</h3>
+              <div class="flex gap-2 items-center">
+                  <input type="text" id="inputCodigoDiagnostico" placeholder="Código (ej: B64)" 
+                        class="border px-3 py-1.5 rounded uppercase bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  
+                  <button type="button" onclick="consultarDiagnosticoWeb(document.getElementById('inputCodigoDiagnostico').value)"
+                          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow text-sm font-medium">
+                    Consultar Estado
+                  </button>
+              </div>
+              
+              <!-- Área donde aparecerá el reporte -->
+              <pre id="resultadoDiagnostico" class="mt-3 bg-white p-3 border border-gray-200 rounded text-xs text-gray-800 whitespace-pre-wrap hidden"></pre>
+          </div>
       </section>
-
       <!-- Sección: Despachos Activos -->
       <section id="despachosActivos" class="seccion hidden">
         <h2 class="text-2xl font-bold mb-4">Despachos Activos</h2>
@@ -781,6 +811,42 @@
                 </table>
             </div>
           </div>
+          <!-- Reporte de Calidad y Encuestas de Satisfacción -->
+        <div class="mt-8 border-t pt-6">
+            <h3 class="text-xl font-bold mb-3 text-amber-600">⭐ Reporte de Calidad y Encuestas</h3>
+            
+            <div class="flex gap-2 mb-4 items-center">
+                <div>
+                    <label for="fechaInicioEncuesta">Desde:</label>
+                    <input type="date" id="fechaInicioEncuesta" class="border p-2 rounded text-sm">
+                </div>
+                <div>
+                    <label for="fechaFinEncuesta">Hasta:</label>
+                    <input type="date" id="fechaFinEncuesta" class="border p-2 rounded text-sm">
+                </div>
+                <button id="btnGenerarReporteEncuestas" class="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 shadow-md self-end">
+                    📊 Consultar Encuestas
+                </button>
+            </div>
+
+            <div class="overflow-x-auto max-h-[400px] overflow-y-auto border rounded bg-white shadow-sm">
+                <table class="w-full border-collapse border mt-0" id="tablaEncuestasReporte">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="border p-2 text-center">Nro Unidad</th>
+                            <th class="border p-2">Conductor</th>
+                            <th class="border p-2">Cliente</th>
+                            <th class="border p-2 text-center">Teléfono</th>
+                            <th class="border p-2 text-center">Calificación</th>
+                            <th class="border p-2 text-center">Fecha Respuesta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyEncuestasReporte" class="text-sm">
+                        <!-- Las filas dinámicas se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
       </section>
       <!-- Sección: Respaldo -->
       <section id="respaldo" class="seccion hidden">
@@ -2252,6 +2318,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 100); // Un pequeño delay de 100ms para asegurar que el DOM esté listo
     }
   });
+  // Función para abrir WhatsApp Web en ventana optimizada
+    function abrirWhatsAppWeb() {
+        // Calcular posición: a la derecha de la pantalla
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        const windowWidth = 650;
+        const windowHeight = 800;
+        const leftPos = screenWidth - windowWidth - 10;
+        
+        // Abrir ventana de WhatsApp Web
+        const whatsappWindow = window.open(
+            'https://web.whatsapp.com',
+            'WhatsAppWeb',
+            `width=${windowWidth},height=${windowHeight},left=${leftPos},top=50,menubar=no,toolbar=no,location=no,status=no`
+        );
+        
+        // Mostrar instrucción
+        mostrarToast("💡 Tip: Presiona Win+→ para acomodar WhatsApp a la derecha", "info");
+        
+        // Guardar referencia para reutilizar
+        window.whatsappPanel = whatsappWindow;
+    }
    
 </script>
     <!-- Modal Editar Cliente -->
@@ -2620,6 +2708,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       </div>
+      <!-- 🔗 Enlace oculto para reutilizar la pestaña de WhatsApp Web -->
+      <!--<a id="linkWhatsappGlobal" href="#" target="whatsapp_panel" style="display: none;">WhatsApp Global</a>-->
   <!-- Modal de Carga Inicial (Nivelación de Saldo) -->
     <div id="modalCargaInicial" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -2872,6 +2962,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Usamos Jinja2 para pintar el valor que viene directo de app.py
    window.TARIFA_SEMANAL_SISTEMA = Number('{{ monto_cuota_oficial | default(40000) }}');
 </script>
-
+    
 </body>
 </html>

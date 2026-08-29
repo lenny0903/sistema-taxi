@@ -23,12 +23,14 @@ from flask_apscheduler import APScheduler
 from flask_socketio import SocketIO
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
-
-from extensions import db
+from extensions import db, socketio
 from models.turnos import Turno
 from models.matriz_tarifas import MatrizTarifa
 from models.cuota_semanal import CuotaSemanal
 from models.pago_cuotas import PagoCuota
+from models.conductores import Conductor  
+from models.clientes import Cliente
+import models
 import routes
 import config
 from tasks.scheduler import iniciar_scheduler
@@ -37,10 +39,7 @@ from tasks.scheduler import iniciar_scheduler
 MONTO_CUOTA_SEMANAL = getattr(config, 'MONTO_CUOTA_SEMANAL', 40000)
 
 # Inicializamos SocketIO de manera segura según el comando ejecutado
-if 'db' not in sys.argv:
-    socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
-else:
-    socketio = SocketIO(cors_allowed_origins="*")
+
 
 # 🔥 CONFIGURACIÓN DE LOGGING
 import logging
@@ -170,17 +169,22 @@ def create_app():
         ]
         return render_template("dashboard.html", destinos=destinos_lista)
 
-    @app.route('/configurar_webhook')
+    @app.route('/configurar_webhook', methods=['POST'])
     def configurar_webhook():
-        url_tunel = request.args.get('url')
+        # 1. Leemos el JSON que envía el script .bat
+        data = request.get_json()
+        url_tunel = data.get('url') if data else None
+        
         if not url_tunel:
-            return "Falta la URL del túnel", 400
+            return "Falta la URL del túnel en el cuerpo de la petición", 400
             
         import requests
         TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-        url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
+        
+        # 2. Tu lógica original (intacta)
+        url_api = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url_tunel}/telegram/webhook"
         try:
-            respuesta = requests.get(url)
+            respuesta = requests.get(url_api)
             print("[BOT] [TELEGRAM] Webhook configurado:", respuesta.json())
             return f"Webhook configurado con éxito a: {url_tunel}/telegram/webhook", 200
         except Exception as e:

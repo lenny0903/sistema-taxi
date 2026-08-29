@@ -5,18 +5,24 @@ import json
 import os
 import pytz
 from flask_socketio import emit
+from flask import url_for
+#from rescatado.models import Despacho
 from routes.turnos import finalizar_turno
 from utils.time import hora_local
+from utils.notificaciones import enviar_mensaje, enviar_menu_botones, enviar_mensaje_con_teclado_inline
+from models.despachos import Despacho
 from dotenv import load_dotenv
-
+from extensions import socketio
+import time
 load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
 
-
-def emitir_al_panel(evento, datos):
+usuarios_reportando = {}
+def emitir_al_panel(evento, datos=None):
     try:
-        emit(evento, datos, namespace='/', broadcast=True)
-        print("✅ Evento emitido con éxito usando flask_socketio.emit")
+        # 🟢 Usar la instancia de socketio importada de extensions
+        socketio.emit(evento, datos, namespace='/')
+        print(f"✅ Evento '{evento}' emitido con éxito usando socketio.emit")
     except Exception as e:
         print(f"❌ Error al emitir evento: {e}")
 
@@ -39,6 +45,51 @@ def webhook():
         if not update:
             return jsonify({"status": "ok"}), 200
 
+        # 0. 🔘 PROCESAMIENTO DE CLICS EN BOTONES (ENCUESTA DEL CLIENTE)
+        callback = update.get('callback_query')
+        if callback:
+            data = callback.get('data') # Ej: 'cal_123_5'
+            chat_id = str(callback['from']['id'])
+            callback_id = callback['id']
+            
+            if data and data.startswith('cal_'):
+                try:
+                    _, id_despacho_str, calificacion_str = data.split('_')
+                    id_despacho = int(id_despacho_str)
+                    estrellas = int(calificacion_str)
+
+                    # 🌟 GUARDAR EN LA BASE DE DATOS
+                    despacho = Despacho.query.get(id_despacho)
+                    if despacho:
+                        despacho.calificacion = estrellas
+                        despacho.fecha_calificacion = datetime.now()
+                        despacho.telegram_id_cliente = chat_id
+                        db.session.commit()
+                        print(f"⭐ Calificación guardada: Despacho #{id_despacho} con {estrellas} estrellas")
+                    else:
+                        print(f"⚠️ Despacho #{id_despacho} no encontrado para la calificación.")
+
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Error al guardar calificación en DB: {e}")
+
+                # Responder al clic para quitar el estado de carga del botón
+                confirmar_clic(callback_id)
+                
+                # 🚨 NUEVO: Si marca 1 estrella (Inconveniente), activamos el modo reporte
+                if estrellas == 1:
+                    usuarios_reportando[chat_id] = id_despacho
+                    enviar_mensaje(
+                        chat_id, 
+                        "⚠️ Lamentamos mucho el inconveniente. Por favor, **escribe en un breve mensaje qué sucedió** "
+                        "para reportarlo de inmediato con la administración."
+                    )
+                    return jsonify({"status": "esperando_comentario_inconveniente"}), 200
+                else:
+                    # Para las demás calificaciones, mensaje normal de agradecimiento
+                    enviar_mensaje(chat_id, "✅ ¡Muchas gracias por tu opinión! Nos ayuda a mejorar el servicio.")
+                    return jsonify({"status": "encuesta_recibida"}), 200
+
         # 1. Identificar el mensaje de forma segura
         msg = update.get('message') or update.get('edited_message')
         if not msg:
@@ -49,16 +100,134 @@ def webhook():
             return jsonify({"status": "sin_remitente_valido"}), 200
         chat_id = str(user_from['id'])
 
-        # 2. PROCESAMIENTO DE TEXTO (Lo subimos para que los no registrados puedan enviar su código Bxx o /start)
+        # 2. PROCESAMIENTO DE TEXTO
+        # 2. PROCESAMIENTO DE TEXTO
         if 'text' in msg:
             texto = msg['text']
             
+            # 🟢 ACTUALIZAR ESTADO DE RED: Si el mensaje viene de un conductor, actualizamos su actividad de red
+            conductor_activo_check = Conductor.query.filter_by(telegram_id=chat_id).first()
+            if conductor_activo_check:
+                # Actualizamos su marca de vida para que el planificador (scheduler) sepa que hay red activa
+                conductor_activo_check.ultima_actualizacion_red = hora_local().replace(microsecond=0) # O el campo que uses para la red
+                db.session.commit()
+
+            # 📝 NUEVO: ¿El usuario está escribiendo un reporte de inconveniente pendiente?
+            if chat_id in usuarios_reportando:
+                id_despacho = usuarios_reportando.pop(chat_id) # Extrae y borra del diccionario para liberar el estado
+                try:
+                    despacho = Despacho.query.get(id_despacho)
+                    if despacho:
+                        despacho.comentario_calificacion = texto
+                        db.session.commit()
+                        print(f"📝 [REPORTE] Comentario guardado para Despacho #{id_despacho}: {texto}")
+                    else:
+                        print(f"⚠️ [REPORTE] Despacho #{id_despacho} no encontrado para guardar el comentario.")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Error al guardar comentario de inconveniente: {e}")
+
+                enviar_mensaje(chat_id, "✅ Reporte recibido. Muchas gracias por ayudarnos a mejorar. ¡Feliz día!")
+                return jsonify({"status": "comentario_inconveniente_guardado"}), 200
+
+            # --- COMANDO START ---
             # --- COMANDO START ---
             if texto.startswith('/start'):
-                enviar_menu_botones(chat_id)
-                return jsonify({"status": "menu_enviado"}), 200
+                partes = texto.split(' ')
+                if len(partes) > 1:
+                    servicio_id = partes[1].replace('srv-', '')
+                    try:
+                        id_despacho = int(servicio_id)
+                        despacho = Despacho.query.get(id_despacho)
+                        
+                        if despacho:
+                            despacho.telegram_id_cliente = chat_id
+                            db.session.commit()
+                            print(f"🔗 [TELEGRAM] Cliente {chat_id} vinculado al Despacho #{id_despacho}")
+                            conductor_asig = db.session.get(Conductor, despacho.conductor_id) if hasattr(despacho, 'conductor_id') and despacho.conductor_id else None
+                            nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
+                            nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
+                            
+                            base_url = request.host_url.rstrip('/')
+                            url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=id_despacho, _external=True)
+                            
+                            teclado_cliente = {
+                                "inline_keyboard": [
+                                    [{"text": "🗺️ Ver Mapa en Tiempo Real", "url": url_mapa}]
+                                ]
+                            }
+                            
+                            mensaje_cliente = (
+                                f"📍 *¡Hola! Aquí tienes el rastreo de tu servicio #{id_despacho}*\n\n"
+                                f"🚗 Unidad: #{nro_ctrl}\n"
+                                f"👤 Conductor: {nombre_cond}\n\n"
+                                "Haz clic en el botón de abajo para seguir el recorrido en vivo:"
+                            )
+                            
+                            enviar_mensaje_con_teclado_inline(chat_id, mensaje_cliente, teclado_cliente)
+                        else:
+                            enviar_mensaje(chat_id, "⚠️ No encontramos los datos de este servicio.")
+                    except Exception as e:
+                        print(f"❌ Error al procesar start de cliente: {e}")
+                        enviar_mensaje(chat_id, "❌ Ocurrió un error al procesar tu solicitud de rastreo.")
+                    
+                    return jsonify({"status": "menu_client_enviado"}), 200
+                else:
+                    # 🟢 BUSCAR AL CONDUCTOR POR SU TELEGRAM_ID O POR TURNO ACTIVO
+                    try:
+                        from models.conductores import Conductor
+                        from models.turnos import Turno
+                        
+                        # Buscamos primero por telegram_id exacto
+                        conductor_activo = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
+                        
+                        # Si no lo encuentra por telegram_id pero hay un turno activo reciente sin amarrar, intentamos enlazarlo o buscarlo
+                        if conductor_activo:
+                            conductor_activo.estado_red = 'conectado'
+                            if hasattr(conductor_activo, 'ultima_actualizacion_red'):
+                                conductor_activo.ultima_actualizacion_red = hora_local() 
+                            db.session.commit()
+                            
+                            try:
+                                from app import socketio
+                                socketio.emit('estado_red_cambiado', namespace='/')
+                            except Exception as e:
+                                print(f"⚠️ No se pudo emitir por socket: {e}")
+                            
+                            print(f"🟢 [TELEGRAM] Conductor {conductor_activo.codigo} envió /start. Red marcada como conectada.")
+                    except Exception as err:
+                        print(f"⚠️ Error actualizando estado de red en /start: {err}")
 
-            # --- BOTÓN ACTIVAR ---
+                    enviar_menu_botones(chat_id)
+                    return jsonify({"status": "menu_enviado"}), 200
+            # 📍 Palabra clave "UBI"
+            if texto.strip().upper() == "UBI":
+                print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
+                
+                despacho_reciente = Despacho.query.order_by(Despacho.id_despacho.desc()).first()
+                
+                if despacho_reciente:
+                    despacho_reciente.telegram_id_cliente = chat_id
+                    db.session.commit()
+                    conductor_asig = db.session.get(Conductor, despacho_reciente.conductor_id) if hasattr(despacho_reciente, 'conductor_id') and despacho_reciente.conductor_id else None
+                    nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
+                    nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"
+                    
+                    base_url = request.host_url.rstrip('/')
+                    enlace_mapa = f"{base_url}/monitoreo/{despacho_reciente.id_despacho}"
+                    
+                    mensaje_ubi = (
+                        f"📍 Rastreo activo (Despacho #{despacho_reciente.id_despacho})\n\n"
+                        f"🚗 Unidad: #{nro_ctrl}\n"
+                        f"👤 Conductor: {nombre_cond}\n\n"
+                        f"🗺️ Ver mapa en tiempo real:\n{enlace_mapa}"
+                    )
+                    enviar_mensaje(chat_id, mensaje_ubi, parse_mode=None)
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No tienes ningún servicio activo registrado en este momento.", parse_mode=None)
+                return jsonify({"status": "ubi_procesado"}), 200
+
+            # --- BOTÓN ACTIVAR (Conductores) ---
             if texto == "🔗 Activar":
                 conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
                 if conductor_temp:
@@ -104,7 +273,41 @@ def webhook():
             enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
-        # 4. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
+        # 🛑 4. VALIDACIÓN ESTRICTA: ¿El conductor registrado tiene un turno activo creado en la BD?
+       # Diccionario global para llevar el control del antispam (guarda el timestamp del último aviso por conductor)
+        ULTIMOS_AVISOS_SIN_TURNO = {}
+
+        # Dentro de tu ruta del bot donde recibes el mensaje:
+        if "location" in msg:
+            turno_activo = Turno.query.filter_by(
+                conductor_id=conductor.id_conductor, 
+                estado="activo"
+            ).first()
+
+            if not turno_activo:
+                print(f"🚫 [BLOQUEO] Conductor {conductor.codigo} intentó enviar ubicación sin turno activo en la BD.")
+                
+                tiempo_actual = time.time()
+                ultimo_aviso = ULTIMOS_AVISOS_SIN_TURNO.get(conductor.id_conductor, 0)
+                
+                # 🕒 INTERVALO DE COOLDOWN: 300 segundos = 5 minutos
+                # Solo le mandamos mensaje de texto y botones si han pasado más de 5 minutos desde el último aviso
+                if tiempo_actual - ultimo_aviso > 300:
+                    enviar_mensaje(
+                        chat_id, 
+                        "⚠️ *Turno no autorizado*\n\n"
+                        "La central aún no ha creado o autorizado tu turno de trabajo. "
+                        "No puedes transmitir ubicación hasta que el operador inicie tu turno."
+                    )
+                    enviar_menu_botones(chat_id)
+                    
+                    # Actualizamos la hora del último aviso para este conductor
+                    ULTIMOS_AVISOS_SIN_TURNO[conductor.id_conductor] = tiempo_actual
+
+                # El servidor procesa el rechazo en silencio para los pings repetitivos y evita el spam
+                return jsonify({"status": "ubicacion_rechazada_sin_turno"}), 200
+
+        # 5. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
         
         # 🛑 DETECCIÓN DE CIERRE MANUAL: 
         # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)
@@ -139,8 +342,8 @@ def webhook():
         if "location" in msg:
             print(">>> LLEGÓ UNA UBICACIÓN DESDE TELEGRAM <<<")
             print(">>> CONTENIDO COMPLETO DE LOCATION:", msg["location"])
+            
             # 🚨 🛑 FILTRO: Validar que NO envíe ubicación fija (estática). 
-            # Si el mensaje no viene de un mensaje editado y carece de 'live_period', es una ubicación estática compartida por error.
             if "edited_message" not in update and "live_period" not in msg["location"]:
                 enviar_mensaje(
                     chat_id, 
@@ -153,12 +356,18 @@ def webhook():
                 return jsonify({"status": "ubicacion_estatica_rechazada"}), 200
 
             # 🟢 SI PASA LA VALIDACIÓN: ES UBICACIÓN EN TIEMPO REAL (LIVE LOCATION)
-            # 🟢 AL PROCESAR LA UBICACIÓN:
             ahora = hora_local().replace(microsecond=0)  # 🔥 TRUNCAR MICROSEGUNDOS
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
+            
+            # 🟢 ACTUALIZAR RED TAMBIÉN AQUÍ: Cada ping de GPS confirma que hay conexión de red activa
+            if hasattr(conductor, 'estado_red'):
+                conductor.estado_red = 'conectado' # O el valor que manejes para red activa
+            if hasattr(conductor, 'ultima_actualizacion_red'):
+                conductor.ultima_actualizacion_red = ahora
+
             conductor.alerta_enviada = False
 
             segundos = msg["location"].get("live_period")
@@ -254,27 +463,44 @@ def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
         
     requests.post(url, data=payload)
 
+from models.conductores import Conductor
+
 def enviar_menu_botones(chat_id):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     
-    # Menú minimalista: solo queda el botón de activación inicial
-    teclado = {
-        "keyboard": [
-            [{"text": "🔗 Activar"}]
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False
-    }
+    # 1. Verificamos si este chat_id pertenece a un conductor registrado
+    conductor = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
     
+    if conductor:
+        # 🚗 CONFIGURACIÓN PARA CONDUCTORES (Mantiene su botón de activación)
+        teclado = {
+            "keyboard": [
+                [{"text": "🔗 Activar"}]
+            ],
+            "resize_keyboard": True,
+            "one_time_keyboard": False
+        }
+        texto_mensaje = "✅ Sistema de Rastreo Activo. Presiona el botón inferior si necesitas vincular tu cuenta:"
+    else:
+        # 👤 CONFIGURACIÓN PARA CLIENTES (Sin botones extraños, chat limpio para que puedan escribir comentarios)
+        teclado = {
+            "remove_keyboard": True
+        }
+        texto_mensaje = "¡Hola! Bienvenido al seguimiento de tu servicio. Puedes escribir tus comentarios o consultas directamente por aquí:"
+
     payload = {
         'chat_id': chat_id,
-        'text': "✅ Sistema de Rastreo Activo. Presiona el botón inferior si necesitas vincular tu cuenta:",
+        'text': texto_mensaje,
         'parse_mode': 'HTML',
         'reply_markup': json.dumps(teclado) 
     }
     
-    requests.post(url, data=payload)
+    try:
+        response = requests.post(url, data=payload)
+        return response.json()
+    except Exception as e:
+        print(f"⚠️ Error enviando menú de botones: {e}")
 
 def limpiar_teclado_conductor(chat_id):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -285,3 +511,15 @@ def limpiar_teclado_conductor(chat_id):
         'reply_markup': json.dumps({"remove_keyboard": True})
     }
     requests.post(url, data=payload)
+
+def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='HTML'):
+    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {
+        'chat_id': chat_id,
+        'text': texto,
+        'parse_mode': parse_mode,
+        'reply_markup': json.dumps(teclado_json)
+    }
+    requests.post(url, data=payload)    
+

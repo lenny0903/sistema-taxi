@@ -97,10 +97,41 @@
 
     <div id="toast-container"></div>
     <div id="map"></div>
-
+    <script>
+        // Si no se pasa desde Flask, será una cadena vacía o cero
+        const ID_DESPACHO_ACTIVO = "{{ id_despacho_activo if id_despacho_activo is not none else '' }}";
+    </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        
         document.addEventListener('DOMContentLoaded', function() {
+            // Verificamos si la página fue abierta por un cliente con un despacho activo
+            const idDespachoCliente = parseInt(ID_DESPACHO_ACTIVO) || 0;
+
+            // 🟢 SOLO si el ID es mayor a 0 (significa que abrió el enlace del bot) se oculta el panel
+            if (idDespachoCliente > 0) {
+                const panel = document.getElementById('panel');
+                if (panel) panel.style.display = 'none';
+
+                const btnToggle = document.getElementById('btnToggle');
+                if (btnToggle) btnToggle.style.display = 'none';
+
+                const mapaDiv = document.getElementById('map');
+                if (mapaDiv) {
+                    mapaDiv.style.position = 'fixed';
+                    mapaDiv.style.top = '0';
+                    mapaDiv.style.left = '0';
+                    mapaDiv.style.width = '100vw';
+                    mapaDiv.style.height = '100vh';
+                    mapaDiv.style.zIndex = '999';
+                }
+
+                setTimeout(() => {
+                    if (typeof map !== 'undefined') {
+                        map.invalidateSize();
+                    }
+                }, 250);
+            }
             const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
@@ -249,12 +280,9 @@
                     let tr = tbody.querySelector(`tr[data-codigo="${c.codigo}"]`);
                     
                     const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
-                    // Eliminamos 'desactiv' de aquí para que "hasta que se desactive" no se confunda con cierre
-                    
                     const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
-                    // Si está disponible pero NO por haber finalizado la compartición de GPS:
-                    if (c.estado === 'disponible' && !estaFinalizado) {
+                    if (c.estado === 'disponible') {
                         if (marcadores[c.codigo]) { 
                             map.removeLayer(marcadores[c.codigo]); 
                             delete marcadores[c.codigo]; 
@@ -264,7 +292,6 @@
                         return;
                     }
 
-                    // 🛑 Si el conductor dejó de compartir (Finalizado / Detenido):
                     if (estaFinalizado) {
                         if (marcadores[c.codigo]) {
                             map.removeLayer(marcadores[c.codigo]);
@@ -277,55 +304,20 @@
                             tr.setAttribute('data-codigo', c.codigo);
                             tbody.appendChild(tr);
                         }
-                        tr.style.backgroundColor = '#f8d7da'; // Color rojo claro de alerta
+                        tr.style.backgroundColor = '#f8d7da';
                         tr.innerHTML = `
                             <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
                             <td style="padding: 6px; vertical-align: top; color: #721c24;">
                                 🛑 Finalizado por el conductor
-                                
                             </td>
                         `;
                         return;
                     }
 
                     if (c.estado === 'activo' || c.estado === 'en curso') {
-                        if (c.latitud === null || c.longitud === null) {
-                            if (marcadores[c.codigo]) {
-                                map.removeLayer(marcadores[c.codigo]);
-                                delete marcadores[c.codigo];
-                            }
-                            delete cronometrosActivos[c.codigo];
-
-                            if (!tr) {
-                                tr = document.createElement('tr');
-                                tr.setAttribute('data-codigo', c.codigo);
-                                tbody.appendChild(tr);
-                            }
-                            tr.style.backgroundColor = '#fff3cd';
-                            tr.innerHTML = `
-                                <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
-                                <td style="padding: 6px; vertical-align: top;">
-                                    ⚠️ Sin Ubicación 
-                                    
-                                </td>
-                            `;
-                            return;
-                        }
-
-                        if (!tr) {
-                            tr = document.createElement('tr');
-                            tr.setAttribute('data-codigo', c.codigo);
-                            tbody.appendChild(tr);
-                        }
-                        tr.style.backgroundColor = '';
-
-                        // Calcular el texto del cronómetro (siempre se muestra)
-                        let textoTiempoRestante = '⏱️ Activo';
-                        let esModoIndefinido = false;
-                        const opcionGpsTexto = (c.opcion_gps || '').toLowerCase();
-
-                        // 🛡️ Usamos directamente la fecha normalizada con su zona horaria (-04:00) 
-                        // para evitar cualquier error de escala entre milisegundos y segundos.
+                        
+                        // ⏱️ CALCULAMOS PRIMERO EL CRONÓMETRO Y LA EXPIRACIÓN PARA USARLA EN TODO EL BLOQUE
+                        const textoTiempoRestante = '⏱️ Activo';
                         const fechaExp = obtenerTimestampLocal(c.expiracion_gps);
 
                         if (!isNaN(fechaExp) && fechaExp > 0) {
@@ -339,60 +331,132 @@
                             };
                         }
 
-                        // Obtener el texto del cronómetro usando la función que ya tienes
                         const tiempoRestanteTexto = obtenerTextoRestante(c.codigo);
-                        const estaExpirado = tiempoRestanteTexto.includes('Expirado');
+                        const estaExpirado = (c.opcion_gps === 'Expirado') || 
+                                            (c.exp_timestamp > 0 && Date.now() > c.exp_timestamp) || 
+                                            (typeof tiempoRestanteTexto === 'string' && tiempoRestanteTexto.includes('Expirado'));
 
-                        // Determinar si hay señal (por si no se usa el cronómetro)
+                        // 🟢 FORZAMOS LA RED A CONECTADO SI YA EXPIRÓ EL TIEMPO
+                        let redForzada = estaExpirado ? 'conectado' : c.estado_red;
+
+                        if (c.latitud === null || c.longitud === null) {
+                            if (marcadores[c.codigo]) {
+                                map.removeLayer(marcadores[c.codigo]);
+                                delete marcadores[c.codigo];
+                            }
+                            delete cronometrosActivos[c.codigo];
+
+                            if (!tr) {
+                                tr = document.createElement('tr');
+                                tr.setAttribute('data-codigo', c.codigo);
+                                tbody.appendChild(tr);
+                            }
+                            tr.style.backgroundColor = '#fff3cd';
+
+                            let iconoBateria = '🔋 ?';
+                            if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
+                                let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
+                                iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
+                            }
+
+                            // Usamos redForzada aquí también
+                            let badgeRed = (redForzada === 'conectado' && c.ultima_actualizacion !== null)
+                                ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
+                                : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
+
+                            let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
+
+                            tr.innerHTML = `
+                                <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                                <td style="padding: 6px; vertical-align: top;">
+                                    ⚠️ Sin Ubicación<br>
+                                    <small style="color: #555;">Esperando coordenadas...</small>
+                                    ${indicadorDiagnostico}
+                                </td>
+                            `;
+                            return;
+                        }
+
+                        if (!tr) {
+                            tr = document.createElement('tr');
+                            tr.setAttribute('data-codigo', c.codigo);
+                            tbody.appendChild(tr);
+                        }
+                        tr.style.backgroundColor = '';
+
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
-                        if (c.ultima_actualizacion) {
+
+                        if (estaExpirado) {
+                            estaDesactualizado = false; // Si expiró, no se marca como desactualizado
+                        } else if (c.ultima_actualizacion) {
                             const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
                             minutosSinReportar = (Date.now() - fechaUltima) / (1000 * 60);
-                            estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual;
+                            estaDesactualizado = (redForzada !== 'conectado') && (isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual);
                         } else {
                             estaDesactualizado = true;
                         }
 
-                        // Construir el HTML del cronómetro (siempre visible)
-                        // Construir el HTML del cronómetro (siempre visible)
                         const cronometroHtml = `<span class="reloj-minutos" data-codigo="${c.codigo}">${tiempoRestanteTexto}</span>`;
 
-                        // Construir etiqueta de estado combinando señal y cronómetro
+                        let iconoBateria = '🔋 ?';
+                        if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
+                            let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
+                            iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
+                        }
+
+                        // 🟢 AQUÍ USAMOS redForzada para el badge de red principal
+                        let badgeRed = (redForzada === 'conectado')
+                            ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
+                            : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
+
+                        let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
+
                         let etiquetaEstado = '';
                         
-                        // 🟢 VERIFICACIÓN CLAVE: Si ya expiró el tiempo, se muestra estrictamente esto:
                         if (estaExpirado) {
                             etiquetaEstado = `
                                 <span style="color: red; font-weight: bold;">⏳ Tiempo Expirado</span><br>
                                 <small style="color: #555;">${cronometroHtml}</small>
+                                ${indicadorDiagnostico}
                             `;
-                            tr.style.backgroundColor = '#f8d7da'; // Opcional: fondo rojo claro de alerta
+                            tr.style.backgroundColor = '#f8d7da';
                         } else if (estaDesactualizado) {
                             tr.style.backgroundColor = '';
                             const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
                             etiquetaEstado = `
                                 <span style="color: orange; font-weight: bold;">⚠️ Sin señal (${minTexto}m)</span><br>
                                 <small style="color: #555;">${cronometroHtml}</small><br>
-                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')">📲 Notificar</button>
+                                ${indicadorDiagnostico}
+                                <button class="btn-notificar" onclick="notificarConductorManual('${c.id_conductor}', '${c.codigo}')" style="margin-top: 4px;">📲 Notificar</button>
                             `;
                         } else {
                             tr.style.backgroundColor = '';
                             const opcionMostrada = c.opcion_gps ? `<br><small style="color: #555;">Modo: <b>${c.opcion_gps}</b></small>` : '';
+                            
+                            const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
+                            const haceMinutos = Math.round((Date.now() - fechaUltima) / 60000);
+                            const textoUltimaVez = haceMinutos < 1 ? "📡 Hace segundos" : `📡 Hace ${haceMinutos}m`;
+                            const colorUltimaVez = haceMinutos > 2 ? "#e67e22" : "#27ae60";
+
                             etiquetaEstado = `
                                 <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
-                                <small style="color: #555;">${cronometroHtml}</small>
+                                <small style="color: #555;">${cronometroHtml}</small><br>
+                                <small style="color: ${colorUltimaVez}; font-weight: bold;">${textoUltimaVez}</small>
                                 ${opcionMostrada}
+                                ${indicadorDiagnostico}
                             `;
                         }
+                        
                         tr.innerHTML = `
                             <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
                             <td style="padding: 6px; vertical-align: top;">${etiquetaEstado}</td>
                         `;
+                        
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
-                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
+                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado, precision);
 
                         if (!marcadores[c.codigo]) {
                             marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
@@ -400,11 +464,39 @@
                             marcadores[c.codigo].setLatLng(coords);
                             marcadores[c.codigo].setIcon(iconoVehiculo);
                         }
-                        marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
+                        marcadores[c.codigo].setOpacity(estaDesactualizado ? 0.35 : 1.0);
+                        if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '' && parseInt(c.id_despacho) === parseInt(ID_DESPACHO_ACTIVO)) {
+                            map.setView(coords, 17);
+                        }
                     }
                 });
             }
 
+            async function enviarUbicacionGPS(lat, lon) {
+                let nivelBateria = null;
+                
+                // Consultar batería si el navegador del móvil lo soporta
+                if (navigator.getBattery) {
+                    try {
+                        const battery = await navigator.getBattery();
+                        nivelBateria = Math.round(battery.level * 100);
+                    } catch (e) {
+                        console.log("No se pudo leer la batería");
+                    }
+                }
+
+                // Enviar datos al backend de Flask
+                fetch('/api/actualizar_ubicacion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        codigo: codigoUnidad,
+                        latitud: lat,
+                        longitud: lon,
+                        bateria: nivelBateria
+                    })
+                });
+            }
             window.togglePanel = function() {
                 const panel = document.getElementById('panel');
                 const btn = document.getElementById('btnToggle');
@@ -469,15 +561,14 @@
                 }
             });
 
-            // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN
+            // CONEXIÓN SOCKET.IO CON OPCIONES DE RECONEXIÓN Y TRANSPORTE FORZADO
             const socket = io({
+                transports: ['websocket', 'polling'],  // ← Ambos, más robusto
                 reconnection: true,
-                reconnectionAttempts: 5,          // Intentará reconectar 5 veces
-                reconnectionDelay: 1000,          // Espera 1 segundo entre intentos
-                reconnectionDelayMax: 5000,       // Máximo 5 segundos de espera
-                timeout: 20000                    // Tiempo máximo para establecer conexión
+                reconnectionAttempts: 5,          
+                reconnectionDelay: 1000,          
+                timeout: 10000                    
             });
-
             // Listeners para depuración de conexión
             socket.on('connect', () => {
                 console.log('🔌 Socket.IO conectado');
@@ -496,8 +587,8 @@
             // Eventos de negocio (ubicaciones, inactivos)
             socket.on('nueva_ubicacion', () => actualizarMapa());
             socket.on('conductor_inactivo', () => actualizarMapa());
-
-            setInterval(actualizarMapa, 60000);
+            socket.on('estado_red_cambiado', () => actualizarMapa());
+            setInterval(actualizarMapa, 30000);
             actualizarMapa();
 
             // Bucle autónomo optimizado para actualizar exclusivamente el texto de los minutos cada 10 segundos

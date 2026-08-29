@@ -16,7 +16,8 @@ async function apiFetch(endpoint, options = {}) {
     // --- MANEJO INTELIGENTE DEL ERROR 401 ---
     if (res.status === 401) {
       console.warn("⚠️ Sesión expirada. Redirigiendo a login...");
-      window.location.href = '/login';
+      // Opcional: localStorage.removeItem('token');
+      window.location.href = '/login'; // O tu ruta de login
       throw new Error("Token expirado");
     }
 
@@ -39,14 +40,16 @@ window.apiFetch = apiFetch;
 function validarNombre(nombre) {
   return nombre && nombre.trim().length >= 2;
 }
-
 // ==================== Fetch defensivo ====================
 async function fetchDefensivo(url, options = {}) {
   try {
+    // 1. Confiamos en que apiFetch ya devuelve el JSON parseado
     const data = await apiFetch(url, options);
 
+    // 2. Si apiFetch falló catastróficamente, vendrá null/undefined
     if (!data) return [];
 
+    // 3. Manejo de errores que vienen dentro del JSON
     if (data.error) {
       console.error("❌ Error en respuesta:", data.error);
       return [];
@@ -54,6 +57,7 @@ async function fetchDefensivo(url, options = {}) {
 
     console.log("📡 Datos recibidos:", data);
 
+    // 4. Mapeo inteligente de datos
     if (Array.isArray(data)) return data;
     
     if (typeof data === "object") {
@@ -70,11 +74,13 @@ async function fetchDefensivo(url, options = {}) {
   }
 }
 
+// Asegura que sea global asignándola a window
 window.refrescarConductoresDisponibles = async function() {
     try {
         const data = await apiFetch("/conductores/en_turno_disponibles");
         window.conductoresGlobales = data; 
         
+        // Verificación de seguridad para no romper el código
         if (typeof actualizarContadorConductores === 'function') {
             actualizarContadorConductores(data.length);
         }
@@ -91,19 +97,21 @@ document.getElementById('buscadorRapido')?.addEventListener('input', function() 
     const destinoBusqueda = this.value;
     const resultadoDiv = document.getElementById('resultadoPrecioRapido');
     
+    // Buscamos en la matriz global que ya cargamos desde Flask
     const tarifa = MATRIZ_TARIFAS.find(t => t.destino === destinoBusqueda);
     
     if (tarifa) {
+        // Formateamos el número para que se vea profesional (ej: 5.000)
         const precioFormateado = new Intl.NumberFormat('es-CO').format(tarifa.precio_cop);
         resultadoDiv.innerText = `$ ${precioFormateado}`;
-        resultadoDiv.classList.replace('bg-light', 'bg-warning-subtle');
+        resultadoDiv.classList.replace('bg-light', 'bg-warning-subtle'); // Resalte visual
     } else {
         resultadoDiv.innerText = "$ 0";
         resultadoDiv.classList.replace('bg-warning-subtle', 'bg-light');
     }
 });
 
-const DEBUG_MODE = true; 
+const DEBUG_MODE = true; // Cámbialo a false antes del estrés o producción
 
 function log(mensaje, tipo = 'info') {
     if (!DEBUG_MODE) return;
@@ -113,18 +121,59 @@ function log(mensaje, tipo = 'info') {
     else console.log("🔹 " + mensaje);
 }
 
+// Ejemplo de uso:
 log("Dashboard sincronizado", 'success');
 
-// 🟢 Función para colapsar/expandir el menú lateral
-function toggleMenu() {
-    const menu = document.getElementById('menuLateral');
-    if (menu.style.width === '0px' || menu.classList.contains('w-0')) {
-        menu.classList.remove('w-0', 'p-0', 'opacity-0');
-        menu.classList.add('w-64', 'p-3');
-        menu.style.width = '';
-    } else {
-        menu.classList.remove('w-64', 'p-3');
-        menu.classList.add('w-0', 'p-0', 'opacity-0');
-        menu.style.width = '0px';
+window.apiFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('token');
+  const baseHeaders = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+  };
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: { ...baseHeaders, ...(options.headers || {}) }
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Error ${res.status}: ${errorText}`);
     }
+
+    // Retornamos el JSON de una vez para simplificar el resto del sistema
+    return await res.json(); 
+  } catch (err) {
+    console.error("❌ Error en apiFetch:", err);
+    throw err;
+  }
+};
+
+function consultarDiagnosticoWeb(codigoConductor) {
+    if (!codigoConductor) {
+        alert("Por favor ingresa un código de conductor válido.");
+        return;
+    }
+
+    let url = '/conductores/diagnostico-texto/' + encodeURIComponent(codigoConductor.trim());
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Conductor no encontrado en el sistema.");
+            }
+            return response.text();
+        })
+        .then(textoReporte => {
+            let contenedor = document.getElementById('resultadoDiagnostico');
+            if (contenedor) {
+                contenedor.innerText = textoReporte;
+                contenedor.classList.remove('hidden'); // ¡Muestra el cuadro con el resultado!
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("❌ " + error.message);
+        });
 }

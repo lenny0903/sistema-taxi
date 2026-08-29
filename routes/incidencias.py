@@ -137,10 +137,10 @@ def validar_afinidad():
         return jsonify({"error": str(e)}), 500
 
 @incidencias_bp.route('/verificar_cliente/<int:cliente_id>', methods=['GET'])
-@jwt_required() # Déjalo si usas token, o quítalo si no lo necesitas
+@jwt_required() 
 def verificar_cliente(cliente_id):
     try:
-        # 1. Buscar si tiene un veto explícito en la tabla de bloqueos
+        # 1. Buscar si tiene un veto explícito por impago (Veto General Real)
         veto = BloqueoAfinidad.query.filter_by(
             cliente_id=cliente_id,
             tipo_bloqueo="CLIENTE_GENERAL",
@@ -154,21 +154,20 @@ def verificar_cliente(cliente_id):
                 "tiene_exclusiones": False
             }), 200
 
-        # 2. 🚨 ¡NUEVA REGLA DE RESPALDO!: Buscar directamente en la tabla de incidencias
-        # Si tiene alguna incidencia de categoría grave, lo vetamos de inmediato.
+        # 2. 🚨 Veto general absoluto SOLO para NO_PAGO (Falta grave a la empresa)
         incidencia_grave = Incidencia.query.filter(
             Incidencia.cliente_id == cliente_id,
-            Incidencia.categoria.in_(["CLIENTE_EBRIO", "NO_PAGO", "VIOLENCIA", "AGRESIÓN"])
+            Incidencia.categoria.in_(["NO_PAGO"]) # 👈 Únicamente impago bloquea de forma general
         ).order_by(Incidencia.id.desc()).first()
 
         if incidencia_grave:
             return jsonify({
                 "tiene_veto_general": True,
-                "mensaje_veto": f"Reporte de {incidencia_grave.categoria}: {incidencia_grave.descripcion}",
+                "mensaje_veto": f"Reporte por {incidencia_grave.categoria}: {incidencia_grave.descripcion}",
                 "tiene_exclusiones": False
             }), 200
 
-        # 3. ¿Tiene exclusiones de afinidad con conductores?
+        # 3. Resto de incidencias (como CLIENTE_EBRIO): Solo informativas para el operador
         exclusiones = BloqueoAfinidad.query.filter_by(
             cliente_id=cliente_id,
             tipo_bloqueo="CONDUCTOR_EXCLUSION",
@@ -178,10 +177,9 @@ def verificar_cliente(cliente_id):
         ultima_incidencia = Incidencia.query.filter_by(cliente_id=cliente_id).order_by(Incidencia.id.desc()).first()
 
         return jsonify({
-            "tiene_veto_general": False,
+            "tiene_veto_general": False, # 👈 Permite que entre a la cola sin bloquearlo
             "tiene_exclusiones": len(exclusiones) > 0,
             "total_exclusiones": len(exclusiones),
-            # 🎯 CORRECCIÓN: Agregamos la categoría real de la base de datos
             "categoria": ultima_incidencia.categoria if ultima_incidencia else "NOTA",
             "descripcion": ultima_incidencia.descripcion if ultima_incidencia else "Cliente sin reportes recientes."
         }), 200

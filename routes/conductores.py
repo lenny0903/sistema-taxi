@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, app, request, jsonify, render_template
 from app import MONTO_CUOTA_SEMANAL
 from extensions import db
 from models.conductores import Conductor
@@ -10,6 +10,8 @@ from models.autos import Auto
 from models.puntos_espera import PuntoEspera
 from sqlalchemy import func
 from models.cuota_semanal import CuotaSemanal
+from utils.flota_helpers import evaluar_estado_flota_backend
+import os
 from utils.time import hora_local
 # routes/conductores.py
 conductores_bp = Blueprint("conductores", __name__)  # sin url_prefix
@@ -383,7 +385,12 @@ def actualizar_ubicacion():
         #    except Exception as e:
         #        print(f"⚠️ Error parseando expiracion_gps: {e}")
         # 👈 NOTA: Si no viene expiracion_gps en 'data', NO HACEMOS NADA y conservamos la que ya tenía guardada la base de datos.
-
+        bateria = data.get('bateria')
+        if bateria is not None:
+            conductor.nivel_bateria = int(bateria)
+            
+        
+        conductor.estado_red = 'conectado' # Si reportó, la red está viva
         db.session.commit()
         return (
             jsonify(
@@ -422,9 +429,16 @@ def confirmar_turno(id_conductor):
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
+    # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
+    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
+    evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
+    
+    # 🔄 ¡OBLIGAR A SQLALCHEMY A DESCARTAR EL CACHÉ Y LEER DE NUEVO LA BD!
+    db.session.expire_all()
+    
     conductores = Conductor.query.filter(  
         Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
-    ).all()  
+    ).all()
       
     resultado = []  
       
@@ -433,6 +447,19 @@ def obtener_ubicaciones():
             conductor_id=c.id_conductor, 
             estado='activo'
         ).first()
+
+        id_despacho_actual = None
+        try:
+            despacho_activo = Despacho.query.filter_by(
+                conductor_id=c.id_conductor, 
+                estado_despacho='en curso'
+            ).first()
+            
+            if despacho_activo:
+                id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
+        except Exception as e:
+            print(f"⚠️ Error consultando despacho para conductor {c.codigo}: {e}")
+            id_despacho_actual = None
 
         # 🟢 Extracción unificada y segura
         opcion_val = getattr(c, 'opcion_gps', None) or (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None)
@@ -448,17 +475,19 @@ def obtener_ubicaciones():
         opcion_str = str(opcion_val or '').strip().lower()
 
         # 🎯 DETECCIÓN DE MODO INDEFINIDO
-        # Si la opción contiene palabras clave o está vacía, se considera "Hasta que se desactive"
         es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
 
         if es_indefinido:
             opcion_gps_label = "Hasta que se desactive"
-            exp_gps = None        # 👈 Anulamos la fecha para que no corra temporizador
-            exp_timestamp = 0     # 👈 Timestamp en 0 para el frontend
+            exp_gps = None        
+            exp_timestamp = 0     
         else:
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
+        # 🧠 USAR DIRECTAMENTE EL ESTADO DE RED CALCULADO EN LA BD (SIN RE-EVALUACIONES CONFLICTIVAS)
+        estado_red_calculado = getattr(c, 'estado_red', 'desconectado')
+
         resultado.append({  
             "id_conductor": c.id_conductor,  
             "codigo": c.codigo,  
@@ -471,10 +500,14 @@ def obtener_ubicaciones():
             "exp_timestamp": exp_timestamp,
             "opcion_gps": opcion_gps_label,
             "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
-            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15)
+            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
+            "id_despacho": id_despacho_actual,
+            "bateria": getattr(c, 'nivel_bateria', None),
+            "estado_red": estado_red_calculado  # 👈 Respetamos fielmente lo que decidió la base de datos y el helper
         })  
       
     return jsonify(resultado), 200
+
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)
@@ -508,3 +541,48 @@ def notificar_gps_manual(id_conductor):
 
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+
+@conductores_bp.route('/diagnostico-texto/<string:codigo>', methods=['GET'])
+def diagnostico_texto(codigo):
+    codigo = codigo.strip().upper()
+    conductor = Conductor.query.filter_by(codigo=codigo).first()
+    
+    if not conductor:
+        return f"❌ Conductor {codigo} no encontrado", 404
+        
+    ahora = hora_local()
+    ahora_naive = ahora.replace(tzinfo=None) if ahora.tzinfo else ahora
+    
+    reporte = []
+    reporte.append(f"🔎 DIAGNÓSTICO DE GPS - {conductor.codigo} ({conductor.nombre})")
+    reporte.append(f"Hora del servidor: {ahora}")
+    reporte.append(f"Latitud: {conductor.latitud} | Longitud: {conductor.longitud}")
+    
+    if conductor.latitud is None or conductor.longitud is None:
+        reporte.append("⚠️ SIN COORDENADAS (nunca ha compartido ubicación)")
+    else:
+        reporte.append("✅ Coordenadas válidas registradas")
+        
+    reporte.append(f"Timestamp en BD: {conductor.ultima_actualizacion}")
+    
+    if conductor.ultima_actualizacion:
+        diff = ahora_naive - conductor.ultima_actualizacion
+        minutos_sin_senal = int(diff.total_seconds() / 60)
+        reporte.append(f"Minutos transcurridos sin señal: {minutos_sin_senal}")
+        
+        tolerancia = conductor.tolerancia_dinamica_minutos or 5
+        if minutos_sin_senal > tolerancia:
+            reporte.append(f"⚠️ ESTADO: SIN SEÑAL (superó la tolerancia de {tolerancia} min)")
+        else:
+            reporte.append(f"✅ ESTADO: ACTIVO (dentro del rango)")
+    else:
+        reporte.append("⚠️ NUNCA HA ACTUALIZADO")
+        
+    reporte.append(f"Opción GPS: {conductor.opcion_gps} | Tolerancia: {conductor.tolerancia_dinamica_minutos} min")
+    
+    if conductor.latitud and conductor.longitud:
+        link_maps = f"https://www.google.com/maps?q={conductor.latitud},{conductor.longitud}"
+        reporte.append(f"Google Maps: {link_maps}")
+        
+    return "\n".join(reporte), 200, {'Content-Type': 'text/plain; charset=utf-8'}

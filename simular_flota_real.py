@@ -41,7 +41,7 @@ if __name__ == "__main__":
     lat_centro = 7.7661
     lon_centro = -72.2230
 
-    for ronda in range(1, 50):
+    for ronda in range(1, 20):
         print(f"\n--- Ronda #{ronda} ---")
         for cond in CONDUCTORES_SIMULADOS:
             lat_aleatoria = lat_centro + random.uniform(-0.015, 0.015)
