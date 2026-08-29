@@ -315,6 +315,30 @@
                     }
 
                     if (c.estado === 'activo' || c.estado === 'en curso') {
+                        
+                        // ⏱️ CALCULAMOS PRIMERO EL CRONÓMETRO Y LA EXPIRACIÓN PARA USARLA EN TODO EL BLOQUE
+                        const textoTiempoRestante = '⏱️ Activo';
+                        const fechaExp = obtenerTimestampLocal(c.expiracion_gps);
+
+                        if (!isNaN(fechaExp) && fechaExp > 0) {
+                            cronometrosActivos[c.codigo] = { 
+                                indefinido: false, 
+                                expTime: fechaExp 
+                            };
+                        } else {
+                            cronometrosActivos[c.codigo] = { 
+                                indefinido: true 
+                            };
+                        }
+
+                        const tiempoRestanteTexto = obtenerTextoRestante(c.codigo);
+                        const estaExpirado = (c.opcion_gps === 'Expirado') || 
+                                            (c.exp_timestamp > 0 && Date.now() > c.exp_timestamp) || 
+                                            (typeof tiempoRestanteTexto === 'string' && tiempoRestanteTexto.includes('Expirado'));
+
+                        // 🟢 FORZAMOS LA RED A CONECTADO SI YA EXPIRÓ EL TIEMPO
+                        let redForzada = estaExpirado ? 'conectado' : c.estado_red;
+
                         if (c.latitud === null || c.longitud === null) {
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
@@ -335,8 +359,8 @@
                                 iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
                             }
 
-                            // Validación estricta unificada para cuando no hay ubicación
-                            let badgeRed = (c.estado_red === 'conectado' && c.ultima_actualizacion !== null)
+                            // Usamos redForzada aquí también
+                            let badgeRed = (redForzada === 'conectado' && c.ultima_actualizacion !== null)
                                 ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
                                 : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
 
@@ -360,30 +384,16 @@
                         }
                         tr.style.backgroundColor = '';
 
-                        let textoTiempoRestante = '⏱️ Activo';
-                        const fechaExp = obtenerTimestampLocal(c.expiracion_gps);
-
-                        if (!isNaN(fechaExp) && fechaExp > 0) {
-                            cronometrosActivos[c.codigo] = { 
-                                indefinido: false, 
-                                expTime: fechaExp 
-                            };
-                        } else {
-                            cronometrosActivos[c.codigo] = { 
-                                indefinido: true 
-                            };
-                        }
-
-                        const tiempoRestanteTexto = obtenerTextoRestante(c.codigo);
-                        const estaExpirado = tiempoRestanteTexto.includes('Expirado');
-
                         let estaDesactualizado = false;
                         let minutosSinReportar = 0;
                         const toleranciaIndividual = c.tolerancia_dinamica_minutos || 5;
-                        if (c.ultima_actualizacion) {
+
+                        if (estaExpirado) {
+                            estaDesactualizado = false; // Si expiró, no se marca como desactualizado
+                        } else if (c.ultima_actualizacion) {
                             const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
                             minutosSinReportar = (Date.now() - fechaUltima) / (1000 * 60);
-                            estaDesactualizado = isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual;
+                            estaDesactualizado = (redForzada !== 'conectado') && (isNaN(minutosSinReportar) || minutosSinReportar > toleranciaIndividual);
                         } else {
                             estaDesactualizado = true;
                         }
@@ -396,8 +406,8 @@
                             iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
                         }
 
-                        // 🟢 AQUÍ ESTABA EL DETALLE PRINCIPAL: Actualizado con la misma lógica estricta y segura
-                        let badgeRed = (c.estado_red === 'conectado' && c.ultima_actualizacion !== null)
+                        // 🟢 AQUÍ USAMOS redForzada para el badge de red principal
+                        let badgeRed = (redForzada === 'conectado')
                             ? '<span style="color: #27ae60; font-weight: bold;">🟢 Red Activa</span>' 
                             : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
 
@@ -425,11 +435,10 @@
                             tr.style.backgroundColor = '';
                             const opcionMostrada = c.opcion_gps ? `<br><small style="color: #555;">Modo: <b>${c.opcion_gps}</b></small>` : '';
                             
-                            // 🟢 MEJORA: Calcular tiempo exacto desde la última actualización
                             const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
                             const haceMinutos = Math.round((Date.now() - fechaUltima) / 60000);
                             const textoUltimaVez = haceMinutos < 1 ? "📡 Hace segundos" : `📡 Hace ${haceMinutos}m`;
-                            const colorUltimaVez = haceMinutos > 2 ? "#e67e22" : "#27ae60"; // Naranja si > 2min, Verde si es reciente
+                            const colorUltimaVez = haceMinutos > 2 ? "#e67e22" : "#27ae60";
 
                             etiquetaEstado = `
                                 <span style="color: green; font-weight: bold;">Activo (GPS)</span><br>
@@ -447,7 +456,7 @@
                         
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
-                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
+                        const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado, precision);
 
                         if (!marcadores[c.codigo]) {
                             marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
@@ -455,7 +464,7 @@
                             marcadores[c.codigo].setLatLng(coords);
                             marcadores[c.codigo].setIcon(iconoVehiculo);
                         }
-                        marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
+                        marcadores[c.codigo].setOpacity(estaDesactualizado ? 0.35 : 1.0);
                         if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '' && parseInt(c.id_despacho) === parseInt(ID_DESPACHO_ACTIVO)) {
                             map.setView(coords, 17);
                         }

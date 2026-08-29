@@ -13,6 +13,7 @@ from utils.notificaciones import enviar_mensaje, enviar_menu_botones, enviar_men
 from models.despachos import Despacho
 from dotenv import load_dotenv
 from extensions import socketio
+import time
 load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
 
@@ -273,6 +274,10 @@ def webhook():
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
         # 🛑 4. VALIDACIÓN ESTRICTA: ¿El conductor registrado tiene un turno activo creado en la BD?
+       # Diccionario global para llevar el control del antispam (guarda el timestamp del último aviso por conductor)
+        ULTIMOS_AVISOS_SIN_TURNO = {}
+
+        # Dentro de tu ruta del bot donde recibes el mensaje:
         if "location" in msg:
             turno_activo = Turno.query.filter_by(
                 conductor_id=conductor.id_conductor, 
@@ -281,13 +286,25 @@ def webhook():
 
             if not turno_activo:
                 print(f"🚫 [BLOQUEO] Conductor {conductor.codigo} intentó enviar ubicación sin turno activo en la BD.")
-                enviar_mensaje(
-                    chat_id, 
-                    "⚠️ *Turno no autorizado*\n\n"
-                    "La central aún no ha creado o autorizado tu turno de trabajo. "
-                    "No puedes transmitir ubicación hasta que el operador inicie tu turno."
-                )
-                enviar_menu_botones(chat_id)
+                
+                tiempo_actual = time.time()
+                ultimo_aviso = ULTIMOS_AVISOS_SIN_TURNO.get(conductor.id_conductor, 0)
+                
+                # 🕒 INTERVALO DE COOLDOWN: 300 segundos = 5 minutos
+                # Solo le mandamos mensaje de texto y botones si han pasado más de 5 minutos desde el último aviso
+                if tiempo_actual - ultimo_aviso > 300:
+                    enviar_mensaje(
+                        chat_id, 
+                        "⚠️ *Turno no autorizado*\n\n"
+                        "La central aún no ha creado o autorizado tu turno de trabajo. "
+                        "No puedes transmitir ubicación hasta que el operador inicie tu turno."
+                    )
+                    enviar_menu_botones(chat_id)
+                    
+                    # Actualizamos la hora del último aviso para este conductor
+                    ULTIMOS_AVISOS_SIN_TURNO[conductor.id_conductor] = tiempo_actual
+
+                # El servidor procesa el rechazo en silencio para los pings repetitivos y evita el spam
                 return jsonify({"status": "ubicacion_rechazada_sin_turno"}), 200
 
         # 5. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
