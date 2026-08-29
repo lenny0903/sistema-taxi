@@ -50,14 +50,8 @@
 </head>
 <body class="bg-gray-100">
   <!-- Barra superior -->
- <header class="bg-indigo-700 text-white p-4 flex justify-between items-center">
-    <div class="flex items-center space-x-3">
-      <!-- 🟢 Botón integrado en la barra superior para abrir/cerrar el menú -->
-      <button onclick="toggleMenu()" class="bg-indigo-800 hover:bg-indigo-900 text-white px-2.5 py-1.5 rounded text-sm font-bold shadow transition focus:outline-none" title="Ocultar/Mostrar Menú">
-        ☰
-      </button>
-      <h1 class="text-xl font-bold">Sistema de Gestión de Taxis</h1>
-    </div>
+  <header class="bg-indigo-700 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Sistema de Gestión de Taxis</h1>
     <div>
       <span id="userRole" class="mr-4"></span>
       <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded">Salir</button>
@@ -65,21 +59,9 @@
   </header>
 
   <!-- Layout principal -->
-<div class="flex">
-  
-   <!-- Botón flotante o superior para abrir/cerrar el menú (si quieres ponerlo afuera o arriba) -->
-   <button onclick="toggleMenu()" class="absolute top-3 left-3 z-50 bg-gray-800 text-white p-2 rounded shadow-md hover:bg-gray-700 focus:outline-none" title="Ocultar/Mostrar Menú">
-     ☰
-   </button>
-
-   <!-- Menú lateral con ID y transición de ancho -->
-   <nav id="menuLateral" class="w-64 bg-white shadow-md h-screen flex flex-col justify-between p-3 transition-all duration-300 overflow-hidden">
-     
-      <!-- Contenedor interno para que los elementos no se deformen al encogerse -->
-      <div class="flex justify-end mb-2 md:hidden">
-          <button onclick="toggleMenu()" class="text-gray-500 hover:text-black font-bold">✕ Cerrar</button>
-      </div>
-
+  <div class="flex">
+   <!-- Menú lateral -->
+    <nav class="w-64 bg-white shadow-md h-screen flex flex-col justify-between p-3">
       <ul class="space-y-1 overflow-y-auto flex-grow pr-1">
         <li class="menu-admin">
           <button onclick="mostrarSeccion('conductores')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Conductores(F7)</button>
@@ -87,10 +69,7 @@
         <li class="menu-admin">
           <button onclick="mostrarSeccion('autos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Autos(F4)</button>
         </li>
-        <li>
-          <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
-        </li>
-        <li>
+        
         <li class="menu-admin">
           <button onclick="mostrarSeccion('pagos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-semibold text-blue-700">
             Pagos Semanales(F8)
@@ -105,6 +84,9 @@
         </li>
         <li>
           <button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Despachos Activos(F2)</button>
+        </li>
+        <li>
+          <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
         </li>
         <li>
           <button onclick="generarRespaldo()" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Respaldo</button>
