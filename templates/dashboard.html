@@ -84,7 +84,7 @@
         <li class="menu-admin">
           <button onclick="mostrarSeccion('autos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Autos(F4)</button>
         </li>
-        <li>
+        <li> 
           <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
         </li>
         <li>
@@ -1605,45 +1605,40 @@ document.addEventListener('DOMContentLoaded', () => {
    
  
   ////////// Función para poblar select de conductores disponibles al crear turno //////////
-async function cargarConductoresEnTurnoCrear() {
-  try {
-    // ⚡ Apuntamos a la ruta que valida turnos activos y disponibilidad real
-    const data = await apiFetch('/conductores/en_turno_disponibles');
-    const sel = document.getElementById('nuevoConductor');
-
-    if (sel) {
-      sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
-    }
-
-    console.log("--- CONDUCTORES EN TURNO RECIBIDOS ---", data);
-
-    if (Array.isArray(data) && data.length > 0) {
-      // Pasa el listado al select unificado si existe la función global
-      if (typeof window.llenarSelectConductoresUnico === "function") {
-        window.llenarSelectConductoresUnico(data);
-      }
+  async function cargarConductoresEnTurnoCrear() {
+    try {
+      // ⚡ Obtener conductores disponibles para iniciar turno
+      const data = await apiFetch('/conductores/disponibles_conductores');
+      const sel = document.getElementById('nuevoConductor');
 
       if (sel) {
-        data.forEach(c => {
-          const opt = document.createElement("option");
-          opt.value = c.id_conductor;
-          opt.dataset.codigo = c.codigo; 
-          opt.setAttribute("data-saldo", c.saldo || 0);
-          opt.setAttribute("data-excepcion", c.permitir_deudor ? "1" : "0");
+        sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
+      }
 
-          opt.textContent = `${c.codigo} - ${c.nombre}`;
-          sel.appendChild(opt);
-        });
+      console.log("--- CONDUCTORES DISPONIBLES PARA TURNO RECIBIDOS ---", data);
+
+      if (Array.isArray(data) && data.length > 0) {
+        if (sel) {
+          data.forEach(c => {
+            const opt = document.createElement("option");
+            opt.value = c.id_conductor;
+            opt.dataset.codigo = c.codigo || "S/C"; 
+            opt.setAttribute("data-saldo", c.saldo || 0);
+            opt.setAttribute("data-excepcion", c.permitir_deudor ? "1" : "0");
+
+            opt.textContent = `[${c.codigo}] ${c.nombre}`;
+            sel.appendChild(opt);
+          });
+        }
+      } else {
+        if (sel) {
+          sel.innerHTML = '<option disabled>No hay conductores disponibles para turno</option>';
+        }
       }
-    } else {
-      if (sel) {
-        sel.innerHTML = '<option disabled>No hay conductores disponibles en turno</option>';
-      }
+    } catch (err) {
+      console.error("Error al cargar conductores disponibles para turno:", err);
     }
-  } catch (err) {
-    console.error("Error al cargar conductores en turno:", err);
   }
-}
  //Para auto-seleccionar el auto al elegir un conductor//////
     document.getElementById('nuevoConductor').addEventListener('change', function() {
       // 1. Obtener el código del conductor desde el data-attribute (ej: "b10")

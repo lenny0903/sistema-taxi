@@ -5,77 +5,82 @@ let memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} };
 // */
 window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
     const selectCond = document.getElementById("selectConductorUnico");
+    const contadorSpan = document.getElementById("contadorConductores"); // 👈 Capturamos el span del HTML
     
     if (!selectCond) {
         console.warn("⚠️ No se encontró el elemento <select id='selectConductorUnico'>.");
         return;
     }
 
-    // Limpiar opciones previas manteniendo la opción por defecto para cola
+    // Mantener la opción por defecto para enviar a la cola
     selectCond.innerHTML = '<option value="">-- Sin Conductor (Enviar a Cola) --</option>';
 
     if (!Array.isArray(conductoresEnTurno) || conductoresEnTurno.length === 0) {
-        console.warn("⚠️ Arreglo de conductores en turno vacío.");
-        selectCond.selectedIndex = 0; // Se queda en "-- Sin Conductor --"
+        console.warn("⚠️ No hay conductores en turno disponibles actualmente.");
+        selectCond.selectedIndex = 0;
+        
+        // 🔢 Si no hay conductores, actualiza a 0
+        if (contadorSpan) {
+            contadorSpan.textContent = "Conductores disponibles: 0";
+        }
         return;
     }
 
     let contador = 0;
     conductoresEnTurno.forEach(item => {
-        const c = item.conductor || item;
-        const a = item.auto || item;
+        // Extraer los sub-objetos devueltos por /en_turno_disponibles
+        const c = item.conductor;
+        const a = item.auto;
 
-        const estadoTurno = item.estado || c.estado || "disponible";
-        
-        if (estadoTurno === "disponible" || estadoTurno === "en_turno" || estadoTurno === "activo") {
+        // Validar que exista el objeto conductor
+        if (c && c.id_conductor) {
             const option = document.createElement("option");
             
-            const idConductor = c.id_conductor || c.id || item.id_conductor;
-            const idAuto = a.id_auto || item.id_auto || idConductor;
-            const nroControl = c.codigo || c.numero_control || c.nro_control || "B1";
-            const nombre = c.nombre || c.nombre_conductor || "Conductor";
+            const idConductor = c.id_conductor;
+            const idAuto = a ? a.id_auto : "";
+            const nroControl = c.codigo || "S/C";
+            const nombre = c.nombre || "Conductor";
 
-            if (idConductor) {
-                option.value = idConductor;
+            option.value = idConductor;
+            if (idAuto) {
                 option.dataset.autoId = idAuto;
-                option.textContent = `[${nroControl}] ${nombre}`;
-
-                selectCond.appendChild(option);
-                contador++;
             }
+            
+            // Texto formateado: [B15] Pedro Pérez
+            option.textContent = `[${nroControl}] ${nombre}`;
+
+            selectCond.appendChild(option);
+            contador++;
         }
     });
 
-    // 🚀 PRESELECCIÓN: Si hay conductores, selecciona el primero (índice 1)
+    // Preseleccionar el primer conductor disponible si existe
     if (contador > 0) {
         selectCond.selectedIndex = 1;
     } else {
         selectCond.selectedIndex = 0;
     }
 
-    console.log(`✅ Select Express poblado exitosamente con ${contador} conductor(es) en turno.`);
-};;/**
- * 📡 Consulta autosuficiente para cargar el select express al iniciar o cambiar cliente
- */
-/**
- * 📡 Consulta autosuficiente para cargar únicamente los conductores EN TURNO
- */
-async function refrescarSelectConductorUnico() {
-    try {
-        const data = await apiFetch('/conductores/en_turno_disponibles');
-        console.log("📡 [EXPRESS] Conductores en turno recibidos:", data);
-
-        let listaData = data;
-        if (data && typeof data.json === 'function') {
-            listaData = await data.json();
-        }
-
-        if (Array.isArray(listaData)) {
-            window.llenarSelectConductoresUnico(listaData);
-        }
-    } catch (err) {
-        console.error("❌ [EXPRESS] Error al refrescar selectConductorUnico en turno:", err);
+    // 🚀 Actualiza dinámicamente el badge en la interfaz
+    if (contadorSpan) {
+        contadorSpan.textContent = `Conductores disponibles: ${contador}`;
     }
+
+    console.log(`✅ Select Express poblado exitosamente con ${contador} conductor(es) en turno disponible(s).`);
+};
+// * 📡 Consulta autosuficiente para cargar únicamente los conductores EN TURNO
+
+async function refrescarSelectConductorUnico() { 
+    try { 
+        // ⚡ Consumimos el endpoint de conductores EN TURNO y LIBRES (sin despacho en curso)
+        const data = await apiFetch('/conductores/en_turno_disponibles'); 
+        console.log("📡 [EXPRESS] Conductores en turno recibidos:", data); 
+
+        let listaData = Array.isArray(data) ? data : []; 
+        window.llenarSelectConductoresUnico(listaData); 
+    } catch (err) { 
+        console.error("❌ [EXPRESS] Error al refrescar selectConductorUnico en turno:", err); 
+    } 
 }
 window.refrescarSelectConductorUnico = refrescarSelectConductorUnico;
 /**
@@ -1125,6 +1130,7 @@ function actualizarPrecio(input, idFila) {
         console.log(`💰 Precio actualizado para ${datos.destino}: ${datos.precio_cop} COP`);
     }
 }
+
 // 🚀 INICIALIZACIÓN ÚNICA Y SECUENCIAL DE TODO EL FORMULARIO DE DESPACHO
 // 🚀 INICIALIZACIÓN ÚNICA Y SECUENCIAL DE TODO EL FORMULARIO DE DESPACHO
 document.addEventListener("DOMContentLoaded", () => {
