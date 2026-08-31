@@ -2178,3 +2178,22 @@ window.socket.on('turno_finalizado', function(data) {
     console.log("⚡ Evento 'turno_finalizado' recibido en el panel:", data);
     refrescarTodo(); // Dispara tu función global para actualizar todas las tablas
 });
+
+// Listener para el botón y tecla Enter en el input de diagnóstico
+const inputDiag = document.getElementById("inputCodigoDiagnostico");
+const btnDiag = document.getElementById("btnConsultarDiagnostico");
+
+const dispararConsultaDiagnostico = () => {
+    const codigo = inputDiag?.value;
+    consultarDiagnosticoWeb(codigo);
+};
+
+btnDiag?.addEventListener("click", dispararConsultaDiagnostico);
+
+// 🚀 Permite consultar al presionar Enter en la casilla de texto
+inputDiag?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        dispararConsultaDiagnostico();
+    }
+});

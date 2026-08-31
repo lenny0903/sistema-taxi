@@ -103,26 +103,54 @@ window.refrescarConductoresDisponibles = async function() {
 };
 
 // 6. Diagnóstico Clínico / Técnico de Conductor
-function consultarDiagnosticoWeb(codigoConductor) {
-    if (!codigoConductor) {
+// 6. Diagnóstico Clínico / Técnico de Conductor (Versión Final Blindada)
+window.consultarDiagnosticoWeb = async function(codigoInput) {
+    const codigo = codigoInput || document.getElementById('inputCodigoDiagnostico')?.value;
+    
+    if (!codigo || !codigo.trim()) {
         if (typeof mostrarToast === 'function') mostrarToast("⚠️ Ingresa un código de conductor.", "error");
         return;
     }
 
-    const url = `/conductores/diagnostico-texto/${encodeURIComponent(codigoConductor.trim())}`;
+    const codLimpio = codigo.trim().toUpperCase();
+    console.log(`🔎 Iniciando consulta de diagnóstico para: ${codLimpio}`);
 
-    apiFetch(url)
-        .then(textoReporte => {
-            const contenedor = document.getElementById('resultadoDiagnostico');
-            if (contenedor) {
-                contenedor.innerText = typeof textoReporte === 'string' ? textoReporte : JSON.stringify(textoReporte, null, 2);
-                contenedor.classList.remove('hidden');
-            }
-        })
-        .catch(error => {
-            console.error('Error al consultar diagnóstico:', error);
-        });
-}
+    const contenedor = document.getElementById('resultadoDiagnostico');
+    if (contenedor) {
+        contenedor.innerText = "⏳ Consultando diagnóstico GPS...";
+        contenedor.classList.remove('hidden');
+    }
+
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+        const headers = {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+
+        // 🎯 Usamos fetch directo y .text() para aceptar reportes en texto plano
+        const res = await fetch(`/conductores/diagnostico-texto/${encodeURIComponent(codLimpio)}?t=${Date.now()}`, { headers });
+        
+        if (!res.ok) {
+            throw new Error(`Servidor devolvió estado ${res.status}`);
+        }
+
+        const textoReporte = await res.text();
+        console.log("✅ Reporte de diagnóstico recibido exitosamente:", textoReporte);
+
+        if (contenedor) {
+            contenedor.innerText = textoReporte || "Sin datos de diagnóstico devueltos.";
+        }
+    } catch (error) {
+        console.error('❌ Error grave al consultar diagnóstico:', error);
+        
+        if (contenedor) {
+            contenedor.innerText = `❌ Error consultando diagnóstico: ${error.message}`;
+        }
+        if (typeof mostrarToast === 'function') {
+            mostrarToast(`❌ Error al consultar diagnóstico (${codLimpio})`, "error");
+        }
+    }
+};
 
 // 7. Inicializador de Eventos Rápidos UI
 document.addEventListener("DOMContentLoaded", () => {

@@ -683,7 +683,8 @@
                   <input type="text" id="inputCodigoDiagnostico" placeholder="Código (ej: B64)" 
                         class="border px-3 py-1.5 rounded uppercase bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   
-                  <button type="button" onclick="consultarDiagnosticoWeb(document.getElementById('inputCodigoDiagnostico').value)"
+                  <!-- Agregado id="btnConsultarDiagnostico" y quitado el onclick inline -->
+                  <button id="btnConsultarDiagnostico" type="button"
                           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow text-sm font-medium">
                     Consultar Estado
                   </button>
@@ -1158,34 +1159,65 @@
      }
 
     // Integración maestra
-    function validarTelefono(campoId) {
+      function validarTelefono(campoId) {
         const campo = document.getElementById(campoId);
         if (!campo) return;
 
-        // 1. Escuchar el evento 'paste' (específico para cuando pegan datos)
+        // 🧹 Función interna para limpiar y normalizar al formato venezolano (04... / 0276...)
+        function normalizar(textoRaw) {
+            if (!textoRaw) return "";
+
+            // 1. Extraer solo los números
+            let digitos = textoRaw.replace(/\D/g, "");
+
+            // 2. Si viene de WhatsApp con prefijo 58 (+58414... / 58414...)
+            if (digitos.startsWith("58")) {
+                digitos = "0" + digitos.substring(2);
+            }
+
+            // 3. Si tiene 10 dígitos y empieza por 4 (móvil) o 2 (fijo)
+            if (digitos.length === 10 && (digitos.startsWith("4") || digitos.startsWith("2"))) {
+                digitos = "0" + digitos;
+            }
+
+            // 4. Retornar máximo 11 dígitos
+            return digitos.slice(0, 11);
+        }
+
+        // 1. Evento 'paste': Se ejecuta de inmediato capturando el texto directo del portapapeles
         campo.addEventListener('paste', e => {
-            // Usamos setTimeout para esperar a que el valor pegado realmente esté en el campo
-            setTimeout(() => {
-                let valor = campo.value.replace(/\D/g, ''); 
-                
-                // Si tiene 10 dígitos y empieza por 4, ponemos el 0
-                if (valor.length === 10 && valor.startsWith("4")) {
-                    campo.value = '0' + valor;
-                } else {
-                    campo.value = valor; // Aseguramos que solo queden números
-                }
-            }, 10); // Milisegundos de espera para que el valor "aterrice"
+            e.preventDefault(); // Evita que pegue el texto sin procesar
+            
+            const textoPegado = (e.clipboardData || window.clipboardData).getData("text");
+            const valorLimpio = normalizar(textoPegado);
+            
+            campo.value = valorLimpio;
+
+            // Limpiar mensajes de validación si existían
+            if (typeof campo.setCustomValidity === 'function') {
+                campo.setCustomValidity("");
+            }
+
+            // Notificar al DOM que el valor cambió
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // Si ya completó los 11 dígitos válidos (ej: 04167739099), dispara Enter para consultar
+            if (valorLimpio.length === 11) {
+                const eventoEnter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+                campo.dispatchEvent(eventoEnter);
+            }
         });
 
-        // 2. Mantener la lógica de 'input' por si escriben a mano
+        // 2. Evento 'input': Para cuando tipean a mano o modifican
         campo.addEventListener('input', e => {
-            let valor = e.target.value.replace(/\D/g, '');
-            if (valor.length === 10 && valor.startsWith("4")) {
-                valor = '0' + valor;
+            const valorOriginal = e.target.value;
+            const valorLimpio = normalizar(valorOriginal);
+            
+            if (valorOriginal !== valorLimpio) {
+                e.target.value = valorLimpio;
             }
-            e.target.value = valor;
         });
-     }
+      }
 
     // Validación centralizada de nombres
     function validarNombre(nombre) {

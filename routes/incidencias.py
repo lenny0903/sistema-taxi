@@ -151,23 +151,25 @@ def verificar_cliente(cliente_id):
             return jsonify({
                 "tiene_veto_general": True,
                 "mensaje_veto": veto.nota_gerencial,
-                "tiene_exclusiones": False
+                "tiene_exclusiones": False,
+                "tiene_incidencias": True
             }), 200
 
-        # 2. 🚨 Veto general absoluto SOLO para NO_PAGO (Falta grave a la empresa)
+        # 2. Veto general absoluto SOLO para NO_PAGO
         incidencia_grave = Incidencia.query.filter(
             Incidencia.cliente_id == cliente_id,
-            Incidencia.categoria.in_(["NO_PAGO"]) # 👈 Únicamente impago bloquea de forma general
+            Incidencia.categoria.in_(["NO_PAGO"])
         ).order_by(Incidencia.id.desc()).first()
 
         if incidencia_grave:
             return jsonify({
                 "tiene_veto_general": True,
                 "mensaje_veto": f"Reporte por {incidencia_grave.categoria}: {incidencia_grave.descripcion}",
-                "tiene_exclusiones": False
+                "tiene_exclusiones": False,
+                "tiene_incidencias": True
             }), 200
 
-        # 3. Resto de incidencias (como CLIENTE_EBRIO): Solo informativas para el operador
+        # 3. Resto de incidencias (Informativas para el operador)
         exclusiones = BloqueoAfinidad.query.filter_by(
             cliente_id=cliente_id,
             tipo_bloqueo="CONDUCTOR_EXCLUSION",
@@ -177,11 +179,13 @@ def verificar_cliente(cliente_id):
         ultima_incidencia = Incidencia.query.filter_by(cliente_id=cliente_id).order_by(Incidencia.id.desc()).first()
 
         return jsonify({
-            "tiene_veto_general": False, # 👈 Permite que entre a la cola sin bloquearlo
+            "tiene_veto_general": False,
             "tiene_exclusiones": len(exclusiones) > 0,
             "total_exclusiones": len(exclusiones),
-            "categoria": ultima_incidencia.categoria if ultima_incidencia else "NOTA",
+            "tiene_incidencias": ultima_incidencia is not None, # 🚀 Bandera explícita
+            "categoria": ultima_incidencia.categoria if ultima_incidencia else None,
             "descripcion": ultima_incidencia.descripcion if ultima_incidencia else "Cliente sin reportes recientes."
         }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500

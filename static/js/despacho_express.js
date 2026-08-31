@@ -16,16 +16,15 @@ window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
 
     if (!Array.isArray(conductoresEnTurno) || conductoresEnTurno.length === 0) {
         console.warn("⚠️ Arreglo de conductores en turno vacío.");
+        selectCond.selectedIndex = 0; // Se queda en "-- Sin Conductor --"
         return;
     }
 
     let contador = 0;
     conductoresEnTurno.forEach(item => {
-        // Soporte para estructura anidada { conductor: {...}, auto: {...} } o plana
         const c = item.conductor || item;
         const a = item.auto || item;
 
-        // Validar que el turno o conductor esté libre/disponible
         const estadoTurno = item.estado || c.estado || "disponible";
         
         if (estadoTurno === "disponible" || estadoTurno === "en_turno" || estadoTurno === "activo") {
@@ -47,9 +46,15 @@ window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
         }
     });
 
+    // 🚀 PRESELECCIÓN: Si hay conductores, selecciona el primero (índice 1)
+    if (contador > 0) {
+        selectCond.selectedIndex = 1;
+    } else {
+        selectCond.selectedIndex = 0;
+    }
+
     console.log(`✅ Select Express poblado exitosamente con ${contador} conductor(es) en turno.`);
-};
-/**
+};;/**
  * 📡 Consulta autosuficiente para cargar el select express al iniciar o cambiar cliente
  */
 /**
@@ -277,26 +282,25 @@ document.addEventListener("DOMContentLoaded", () => {
             const inputDes = document.getElementById("desDestino");
             const btnEnv = document.getElementById("btnEnviarDespacho");
 
+            // 1. Si el cliente ya fue validado y presiona Enter de nuevo sobre el teléfono, avanza o envía
             if (clienteListoParaEnviar === telActual && inputNom && inputNom.value.trim() !== "") {
-                console.log("🚀 SEMÁFORO VERDE: Enviando despacho...");
-                if (btnEnv) {
-                    btnEnv.disabled = false;
-                    btnEnv.click();
-                }
-                clienteListoParaEnviar = null; 
+                console.log("🚀 SEMÁFORO VERDE: Saltando al destino / listo...");
+                if (inputDes) inputDes.focus();
                 return;
             }
 
-            console.log("⌨️ SEMÁFORO ROJO: Preparando nueva validación...");
-            clienteListoParaEnviar = null; 
+            console.log("⌨️ SEMÁFORO ROJO: Ejecutando validación asíncrona...");
 
             if (inputNom) inputNom.value = "Buscando..."; 
             if (inputOri) inputOri.value = "Buscando..."; 
             if (inputDes) inputDes.value = ""; 
 
-            // Forzamos actualización de conductores al buscar cliente
-            refrescarSelectConductorUnico();
+            // Cargar conductores en turno
+            if (typeof refrescarSelectConductorUnico === "function") {
+                refrescarSelectConductorUnico();
+            }
 
+            // AWAIT estricto: la ejecución de UI se detiene aquí hasta que el backend responda
             const resultado = await validarClienteExpreso();
             
             if (resultado && resultado.valido === true && resultado.cliente) {
@@ -309,6 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (inputOri) {
                     inputOri.value = c.direccion || "";
+                    inputOri.disabled = false;
                     inputOri.readOnly = false;
                     inputOri.style.backgroundColor = "#f3f4f6";
                 }
@@ -328,54 +333,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     inputDes.readOnly = false;
                     inputDes.style.backgroundColor = "#ffffff";
                     inputDes.value = ""; 
-                    inputDes.focus();
+                    inputDes.focus(); // 🎯 Foco automático al destino al terminar validación
                 }
+
                 clienteListoParaEnviar = telActual; 
                 if (btnEnv) btnEnv.disabled = false;
-                
-                console.log("✅ Validación completa. Siguiente Enter enviará.");
-                const idParaIncidencia = c.id_cliente || c.cliente_id || c.id;
-                if (idParaIncidencia) {
-                    try {
-                       const token = localStorage.getItem("token");
-                        const resInc = await fetch(`/incidencias/verificar_cliente/${idParaIncidencia}`, {
-                            method: "GET",
-                            headers: { 
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer ${token}` 
-                            }
-                        });
-
-                       if (resInc.ok) {
-                            const check = await resInc.json();
-                            console.log("🛑 Datos recibidos (Dinámicos):", check);
-
-                            if (check.tiene_veto_general === true) {
-                                const msgVeto = check.mensaje_veto || "Veto administrativo";
-                                crearToastEmergencia(`🚫 ${msgVeto}`);
-                            } 
-                            else if (check.tiene_exclusiones === true && check.origen_reporte === "CLIENTE") {
-                                const catReal = check.categoria || "INCIDENCIA"; 
-                                const descReal = check.descripcion || "Sin descripción";
-                                crearToastEmergencia(`⚠️ Alerta Cliente - ${catReal}: ${descReal}`);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("❌ Error en incidencias:", err);
-                    }
-                }
 
             } else {
                 console.log("🆕 Cliente no encontrado.");
-                
                 if (typeof mostrarToast === 'function') {
                     mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
                 }
-
-                const inputNom = document.getElementById("desNombre");
-                const inputOri = document.getElementById("desOrigen");
-                const inputDes = document.getElementById("desDestino");
-                const btnEnv = document.getElementById("btnEnviarDespacho");
 
                 if (inputNom) {
                     inputNom.disabled = false;     
@@ -400,9 +368,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 clienteListoParaEnviar = telActual; 
                 if (btnEnv) btnEnv.disabled = false;
 
-                // ⚡ Único salto de foco inicial hacia el nombre
                 telefonoInput.blur();
-                
                 setTimeout(() => {
                     if (inputNom) {
                         inputNom.focus();
@@ -421,10 +387,14 @@ document.addEventListener("DOMContentLoaded", () => {
     formDespacho?.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        // 🛡️ Prevenir submit al dar Enter en inputs intermedios (navegación por campos)
         const elementoActivo = document.activeElement;
-        if (elementoActivo && elementoActivo.tagName === "INPUT" && elementoActivo.id !== "btnEnviarDespacho") {
-            if (elementoActivo.id === "desNombre") {
+
+        // 🛡️ Si el usuario presiona Enter estando en un INPUT o en un SELECT (excepto en el botón Enviar)
+        if (elementoActivo && elementoActivo.id !== "btnEnviarDespacho") {
+            if (elementoActivo.id === "desTelefono") {
+                // Manejado por el listener keydown de desTelefono
+                return;
+            } else if (elementoActivo.id === "desNombre") {
                 document.getElementById("desOrigen")?.focus();
                 document.getElementById("desOrigen")?.select();
             } else if (elementoActivo.id === "desOrigen") {
@@ -440,8 +410,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById("tarifaClienteUnico")?.select();
             } else if (elementoActivo.id === "tarifaClienteUnico") {
                 document.getElementById("selectConductorUnico")?.focus();
+            } else if (elementoActivo.id === "selectConductorUnico") {
+                document.getElementById("btnEnviarDespacho")?.focus();
             }
-            return; 
+            return; // 🛑 Detiene el Submit automático hasta llegar formalmente al botón
+        }
+        // ----------------------------------------------------------------------
+        // 2️⃣ VALIDACIÓN DE SEGURIDAD (Solo se ejecuta al presionar "Enviar Despacho")
+        // ----------------------------------------------------------------------
+        if (window.semaforoRojo) {
+            mostrarToast("🚫 Operación bloqueada por Veto General del cliente", "error");
+            return;
         }
 
         if (btnEnviar && btnEnviar.disabled) {
@@ -631,14 +610,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (modal) modal.classList.add("hidden");
             console.log("🚫 Despacho cancelado por el usuario");
         };
-    }
-});
-
-// Listener de teclado global (Alt + C)
-document.addEventListener("keydown", (event) => {
-    if (event.altKey && (event.key.toLowerCase() === "c" || event.code === "KeyC")) {
-        event.preventDefault();
-        abrirModalCola();
     }
 });
 
@@ -885,19 +856,76 @@ async function validarClienteExpreso() {
             if (inputOrigen) {
                 inputOrigen.value = cliente.direccion || "";
                 inputOrigen.disabled = false;
-                inputOrigen.readOnly = false; // 🔓 Asegura que el origen sea 100% editable
+                inputOrigen.readOnly = false;
             }
 
             const inputDestino = document.getElementById('desDestino');
             if (inputDestino) {
                 inputDestino.disabled = false;
-                inputDestino.readOnly = false; // 🔓 Asegura que el destino esté listo para recibir el salto
+                inputDestino.readOnly = false;
             }
             
             window.nombreClienteGlobal = cliente.nombre || "";
             window.telefonoClienteGlobal = cliente.telefono || "";
             window.clienteIdActual = cliente.id_cliente || cliente.id || cliente.cliente_id;
 
+            // 🛑 Consultar e interpretar incidencias ANTES de continuar
+            try {
+                // 🛡️ Asegurar headers con JWT token
+                const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+                const misHeaders = {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                };
+
+                // 🎯 RUTA CORRECTA SEGÚN TU BACKEND FLASK: /incidencias/verificar_cliente/ID
+                // (Si tu Blueprint está registrado con prefijo '/incidencias', usa '/incidencias/verificar_cliente/...')
+                const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
+                    headers: misHeaders 
+                });
+                
+                if (resIncidencias.ok) {
+                    const check = await resIncidencias.json();
+                    console.log("🛑 Resumen de incidencias recibido del backend:", check);
+
+                    // 1. Bloqueo Absoluto (VETO GENERAL / NO PAGO)
+                    if (check && check.tiene_veto_general === true) {
+                        window.semaforoRojo = true; // 🔴 Bloquea despacho
+                        const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
+                        
+                        if (typeof crearToastEmergencia === "function") {
+                            crearToastEmergencia(msgVeto);
+                        } else if (typeof mostrarToast === "function") {
+                            mostrarToast(msgVeto, "error");
+                        }
+                    } else {
+                        window.semaforoRojo = false; // 🔓 Paso libre
+
+                        // 2. ⚠️ Advertencia visual para Incidencias / Exclusiones
+                        if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
+                            const cat = check.categoria ? `[${check.categoria}] ` : '';
+                            const det = check.descripcion || '';
+                            const textoAlerta = `⚠️ ATENCIÓN CLIENTE: ${cat}${det}`;
+                            
+                            console.warn("📢 Disparando alerta visual de incidencias:", textoAlerta);
+
+                            if (typeof mostrarToast === "function") {
+                                mostrarToast(textoAlerta, "error");
+                            } else if (typeof crearToastEmergencia === "function") {
+                                crearToastEmergencia(textoAlerta);
+                            }
+                        }
+                    }
+                } else {
+                    console.warn("⚠️ Error en endpoint de incidencias. Status:", resIncidencias.status);
+                    window.semaforoRojo = false;
+                }
+            } catch (eErr) {
+                console.error("❌ Error grave al verificar incidencias:", eErr);
+                window.semaforoRojo = false;
+            }
+
+            console.log("✅ Validación completa. Siguiente Enter enviará.");
             return { valido: true, cliente: cliente };
         }
 
@@ -1137,14 +1165,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const ori = document.getElementById("desOrigen");
     const des = document.getElementById("desDestino");
     const tarifa = document.getElementById("tarifaClienteUnico");
+    
+    // 🚀 Variable unificada para el selector de conductores
     const selectConductor = document.getElementById("selectConductorUnico") || document.getElementById("nuevoConductor");
-
-    // 2. Secuencia de salto limpia con la tecla Enter (campo por campo)
-    tel?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-        }
-    });
 
     nom?.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
@@ -1154,10 +1177,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 🛡️ Salto universal de Origen a Destino (Sirve para nuevos y existentes)
+    // 🛡️ Salto universal de Origen a Destino
     ori?.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.keyCode === 13) {
-            e.preventDefault(); // Frena cualquier envío loco del formulario
+            e.preventDefault();
             
             const inputDestino = document.getElementById("desDestino");
             if (inputDestino) {
@@ -1178,39 +1201,93 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // 🎯 Salto de Tarifa al Select de Conductores
     tarifa?.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
-            selectConductor?.focus();
+            if (selectConductor) {
+                selectConductor.focus();
+            }
         }
     });
 
-    // 3. Lógica del Enter final en el selector de conductores
+    // 🎯 Salto del Select de Conductores al Botón de Enviar
     if (selectConductor) {
-        selectConductor.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.keyCode === 13) {
-                event.preventDefault();
+        selectConductor.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.keyCode === 13) {
+                e.preventDefault();
+                e.stopPropagation();
 
-                const valorSelect = selectConductor.value ? selectConductor.value.trim() : "";
-                const formDespacho = document.getElementById("formDespacho");
-
-                const hayConductorSeleccionado = valorSelect !== "" && valorSelect !== "null" && valorSelect !== "undefined";
-
-                if (hayConductorSeleccionado) {
-                    // 🟢 CASO A: Hay un conductor elegido -> Despacho directo
-                    console.log("🚀 Enter con conductor seleccionado. Enviando despacho directo...");
-                    if (formDespacho) {
-                        formDespacho.requestSubmit ? formDespacho.requestSubmit() : formDespacho.submit();
-                    }
-                } 
-                else {
-                    // 🟡 CASO B: Select vacío O 0 conductores disponibles -> Enviamos a la cola de espera
-                    console.log("📋 Sin conductor seleccionado (o 0 disponibles). Enviando a la cola de espera...");
-                    if (formDespacho) {
-                        formDespacho.requestSubmit ? formDespacho.requestSubmit() : formDespacho.submit();
-                    }
+                const btnEnviar = document.getElementById("btnEnviarDespacho");
+                if (btnEnviar) {
+                    btnEnviar.disabled = false;
+                    btnEnviar.focus();
+                    console.log("👉 Foco saltó del select de conductores al botón Enviar Despacho");
+                } else {
+                    console.warn("⚠️ No se encontró el botón con ID 'btnEnviarDespacho'.");
                 }
             }
         });
+    } else {
+        console.warn("⚠️ No se encontró el selector de conductores en el DOM.");
     }
 });
+// 🛡️ Regla de Oro: Normalizador de Teléfono para Integridad de BD
+function normalizarTelefonoVenezolano(textoRaw) {
+    if (!textoRaw) return { valido: false, numero: "" };
+
+    // 1. Limpiar todo lo que no sea número (+, -, espacios, parentesis)
+    let digitos = textoRaw.replace(/\D/g, "");
+
+    // 2. Corregir formato internacional WhatsApp (+58414... / 58414...)
+    if (digitos.startsWith("58")) {
+        digitos = "0" + digitos.substring(2);
+    }
+
+    // 3. Corregir falta de cero inicial (4143748200 -> 04143748200)
+    if (digitos.length === 10 && (digitos.startsWith("4") || digitos.startsWith("2"))) {
+        digitos = "0" + digitos;
+    }
+
+    // 4. VALIDACIÓN ESTRICTA DE BD (Expresión regular de Venezuela)
+    // Debe empezar por 04 (móvil) o 0276 (fijo Táchira) y tener exactamente 11 dígitos
+    const regexValido = /^(04\d{9}|0276\d{7})$/;
+    
+    // Cortamos a 11 por seguridad
+    const numeroFinal = digitos.slice(0, 11);
+    const esValido = regexValido.test(numeroFinal);
+
+    return {
+        valido: esValido,
+        numero: numeroFinal
+    };
+}
+
+// 🎯 Captura en el Pegado (Ctrl+V)
+document.addEventListener("paste", function(e) {
+    const target = e.target;
+    if (target && target.id === "desTelefono") {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const textoClipboard = (e.clipboardData || window.clipboardData).getData("text");
+        const resultado = normalizarTelefonoVenezolano(textoClipboard);
+
+        // Inyectamos SIEMPRE el número transformado y limpio (Ej: 04167739099)
+        target.value = resultado.numero;
+
+        if (resultado.valido) {
+            console.log(`✅ [INTEGRIDAD OK] Pegado limpio: "${textoClipboard}" ➔ BD: "${resultado.numero}"`);
+            
+            // Disparar búsqueda del cliente en la BD
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            const eventoEnter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+            target.dispatchEvent(eventoEnter);
+        } else {
+            console.warn(`⚠️ Teléfono inválido tras normalizar: "${resultado.numero}"`);
+            if (typeof mostrarToast === 'function') {
+                mostrarToast("⚠️ El número debe ser un celular (04...) o fijo (0276...)", "error");
+            }
+        }
+    }
+}, true);
