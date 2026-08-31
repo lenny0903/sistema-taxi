@@ -168,6 +168,26 @@ def create_app():
             } for t in tarifas
         ]
         return render_template("dashboard.html", destinos=destinos_lista)
+    @app.route('/obtener_tarifas', methods=['GET'])
+    def obtener_tarifas():
+        try:
+            conn = sqlite3.connect('taxis.db')
+            conn.row_factory = sqlite3.Row  # Permite retornar diccionarios con el nombre de cada columna
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT id, destino, precio_cop, municipio FROM matriz_tarifas")
+            filas = cursor.fetchall()
+            
+            # Convertimos las filas de SQLite a una lista de diccionarios JSON
+            tarifas = [dict(fila) for fila in filas]
+            return jsonify(tarifas)
+            
+        except Exception as e:
+            print(f"❌ Error consultando tarifas: {e}")
+            return jsonify([]), 500
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
 
     @app.route('/configurar_webhook', methods=['POST'])
     def configurar_webhook():

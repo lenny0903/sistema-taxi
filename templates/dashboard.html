@@ -52,10 +52,7 @@
   <!-- Barra superior -->
  <header class="bg-indigo-700 text-white p-4 flex justify-between items-center">
     <div class="flex items-center space-x-3">
-      <!-- 🟢 Botón integrado en la barra superior para abrir/cerrar el menú -->
-      <button onclick="toggleMenu()" class="bg-indigo-800 hover:bg-indigo-900 text-white px-2.5 py-1.5 rounded text-sm font-bold shadow transition focus:outline-none" title="Ocultar/Mostrar Menú">
-        ☰
-      </button>
+     
       <h1 class="text-xl font-bold">Sistema de Gestión de Taxis</h1>
     </div>
     <div>
@@ -507,64 +504,149 @@
         </div>
       </div>
     </section>
-<!-- Sección: Despachos -->
-    <section id="despachos" class="seccion hidden">
-      <h2 class="text-2xl font-bold mb-4">Gestión de Despachos</h2>
+      <!-- Sección: Despacho Express -->
+      <section id="despachos" class="seccion hidden">
+        <div class="bg-white p-4 rounded shadow mb-6 border-t-4 border-blue-600">
+          
+          <!-- Encabezado del Panel -->
+          <div class="flex justify-between items-center mb-4 pb-2 border-b">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+              ⚡ Despacho Express - Control Rápido
+            </h2>
+            <span id="contadorConductores" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded border border-blue-300">
+              Conductores disponibles: --
+            </span>
+          </div>
 
-      <form id="formDespacho" class="space-y-2">
-        <!-- Teléfono + Tipo de despacho en la misma fila -->
-        <div class="flex items-center gap-2">
-          <label for="tipoDespacho" class="form-label">Tipo de despacho</label>
-          <select id="tipoDespacho" class="border p-2 w-40">
-            <option value="">Seleccione...</option>
-            <option value="reserva">Reserva</option>
-            <optgroup label="Despacho múltiple">
-              <option value="2">2 vehículos</option>
-              <option value="3">3 vehículos</option>
-              <option value="4">4 vehículos</option>
-            </optgroup>
-          </select>
+          <!-- Formulario Unificado Teclado-First -->
+          <form id="formDespacho" class="space-y-4">
+            
+            <!-- FILA SUPERIOR EXCLUSIVA: Tipo de Despacho -->
+            <div class="bg-gray-50 p-3 rounded border border-gray-200">
+              <label for="tipoDespacho" class="block text-xs font-bold text-gray-700 uppercase mb-1">
+                1. Seleccione Tipo / Modalidad de Despacho:
+              </label>
+              <select id="tipoDespacho" tabindex="1" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 bg-white font-semibold text-gray-800">
+                <option value="">Seleccione...</option>
+                <option value="1">1 Vehículo (Inmediato)</option>
+                <option value="reserva">📅 Reserva (Programado)</option>
+                <optgroup label="Despacho múltiple">
+                  <option value="2">2 vehículos</option>
+                  <option value="3">3 vehículos</option>
+                  <option value="4">4 vehículos</option>
+                </optgroup>
+              </select>
+            </div>
 
-          <label class="block">Teléfono:</label>
-          <input type="text" id="desTelefono"
-                maxlength="11"
-                pattern="^(0276[0-9]{7}|04[0-9]{9})$"
-                title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
-                class="border p-2 flex-1"
-                placeholder="Teléfono del cliente">
+            <!-- FILA 2: Datos Principales del Cliente (Teléfono, Nombre, Origen Editable) -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              
+              <!-- Teléfono (Gatillo Semáforo) -->
+              <div class="md:col-span-3">
+                <label for="desTelefono" class="block text-xs font-bold text-gray-700 uppercase mb-1">Teléfono:</label>
+                <input type="text" id="desTelefono" tabindex="2"
+                      maxlength="11"
+                      pattern="^(0276[0-9]{7}|04[0-9]{9})$"
+                      title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
+                      class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="04... o 0276..." required autocomplete="off">
+              </div>
+
+              <!-- Cliente + Botón Modificar -->
+              <div class="md:col-span-4">
+                <label for="desNombre" class="block text-xs font-bold text-gray-700 uppercase mb-1">Cliente:</label>
+                <div class="flex gap-1">
+                  <input type="text" id="desNombre" tabindex="3" class="w-full border border-gray-300 rounded p-2 bg-gray-50 focus:bg-white" placeholder="Nombre del cliente" required readonly disabled>
+                  <button type="button" id="btnModificarCliente" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded border" title="Modificar datos del cliente" disabled>
+                    ✏️
+                  </button>
+                </div>
+              </div>
+
+              <!-- Origen (Editable) -->
+              <div class="md:col-span-5">
+                <label for="desOrigen" class="block text-xs font-bold text-gray-700 uppercase mb-1">Origen (Recogida):</label>
+                <input type="text" id="desOrigen" tabindex="4" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Dirección de origen o recogida" required>
+              </div>
+
+            </div>
+
+            <!-- FILA 3: Destino, Tarifa, Conductor y Botones de Acción -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              
+              <!-- Destino -->
+              <div class="md:col-span-3">
+                <label for="desDestino" class="block text-xs font-bold text-gray-700 uppercase mb-1">Destino:</label>
+                <input type="text" id="desDestino" tabindex="5" list="listaTarifasMatriz" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" placeholder="Destino (Opcional)">
+                <datalist id="listaTarifasMatriz"></datalist>
+              </div>
+
+              <!-- Tarifa (COP) -->
+              <div class="md:col-span-2">
+                <label for="tarifaClienteUnico" class="block text-xs font-bold text-gray-700 uppercase mb-1">Tarifa (COP):</label>
+                <input type="number" id="tarifaClienteUnico" tabindex="6" class="w-full border border-gray-300 rounded p-2 font-bold text-green-700 focus:ring-2 focus:ring-green-500" placeholder="COP">
+              </div>
+
+              <!-- Conductor en Turno -->
+              <div class="md:col-span-4">
+                <label for="selectConductorUnico" class="block text-xs font-bold text-gray-700 uppercase mb-1">Conductor en Turno:</label>
+                <select id="selectConductorUnico" tabindex="7" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500">
+                  <option value="">-- Seleccionar --</option>
+                </select>
+                <select id="selectAutoUnico" class="hidden"></select>
+              </div>
+
+              <!-- Botones de Acción: PRIMERO Despachar (Enviar), LUEGO Limpiar -->
+              <div class="md:col-span-3 flex gap-2 justify-end">
+                <button type="submit" id="btnEnviarDespacho" tabindex="8" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded text-sm w-1/2" disabled>
+                  Despachar
+                </button>
+                <button type="button" id="btnCancelarPrincipal" tabindex="9" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm w-1/2">
+                  Limpiar
+                </button>
+              </div>
+
+            </div>
+
+          </form>
         </div>
 
-        <!-- Nombre del cliente -->
-        <label class="block">Nombre del cliente:</label>
-        <input type="text" id="desNombre" class="border p-2 w-full" placeholder="Nombre del cliente">
+        <!-- Cola de Espera Inferior -->
+       <!-- 1. Quitamos 'overflow-hidden' y usamos flex-col para controlar el layout -->
+      <div class="bg-white rounded shadow border border-yellow-300 flex flex-col">
+        
+        <!-- 2. Agregamos 'flex-shrink-0' al encabezado para que NO se mueva con el scroll -->
+        <div class="bg-yellow-100 px-4 py-2 border-b border-yellow-300 flex justify-between items-center flex-shrink-0">
+          <h3 class="text-sm font-bold text-yellow-900">⏳ Cola de Espera (Clientes pendientes de unidad)</h3>
+          <span class="text-xs text-yellow-700">Asignación en 1 clic</span>
+        </div>
 
-        <!-- Origen -->
-        <label class="block">Origen:</label>
-        <input type="text" id="desOrigen" class="border p-2 w-full" placeholder="Dirección de origen">
-        <input type="text" id="desDestino" placeholder="Destino (Opcional en alta demanda)">
-        <!-- Botones -->
-        <button id="btnEnviarDespacho" type="submit" 
-                class="bg-green-500 text-white px-4 py-2 rounded">
-          Enviar
-        </button>
-
-       <button type="button"
-                id="btnModificarCliente"
-                class="bg-blue-500 text-white px-3 py-1 rounded ml-2"
-                disabled>
-          Modificar cliente
-        </button>
-
-
-        <button id="btnCancelarPrincipal" type="button" class="btn btn-danger">
-          Cancelar
-        </button>
-      </form>
-     
-
-    </section>
-
-
+        <!-- 3. AQUÍ ESTÁ LA MAGIA: 'max-h-96' (altura máxima) + 'overflow-y-auto' (scroll vertical) -->
+        <div class="overflow-y-auto max-h-96"> 
+          
+          <table class="w-full text-sm text-center text-gray-600">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b sticky top-0 z-10">
+              <tr>
+                <th class="py-2 px-3">#</th>
+                <th class="py-2 px-3">Teléfono</th>
+                <th class="py-2 px-3">Cliente</th>
+                <th class="py-2 px-3">Origen</th>
+                <th class="py-2 px-3">Destino</th>
+                <th class="py-2 px-3">Tarifa</th>
+                <th class="py-2 px-3">Estado</th>
+                <th class="py-2 px-3">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tablaColaClientes">
+              <tr>
+                <td colspan="8" class="py-4 text-gray-400">No hay clientes en cola de espera</td>
+              </tr>
+            </tbody>
+          </table>
+          
+        </div>   
+      </div>
+      </section>
 
       <section id="turnosActivos" class="seccion hidden">
           <h2 class="text-2xl font-bold mb-4">Gestión de Turnos Activos</h2>
@@ -1112,43 +1194,260 @@
       return true;
     }
 
-    // Activar validación en todos los campos de teléfono
-    document.addEventListener("DOMContentLoaded", () => {
-      validarTelefono('cliTelefonoNuevo'); // crear cliente
-      validarTelefono('cliTelefonoEdit');  // editar cliente
-      validarTelefono('desTelefono');      // despacho
-      validarTelefono('conTelefono');      // conductor
+  
+  // ==========================================
+// 1. FUNCIONES AUXILIARES (Fuera del listener)
+// ==========================================
+
+// Validador de formulario para habilitar el botón Despachar
+function verificarDespachoListo() {
+    const cliente   = document.getElementById('desNombre')?.value.trim();
+    const conductor = document.getElementById('selectConductorUnico')?.value.trim();
+    const origen    = document.getElementById('desOrigen')?.value.trim();
+    const btnEnviar = document.getElementById('btnEnviarDespacho');
+
+    // Criterio: Requiere Nombre de Cliente, Punto de Origen y Conductor seleccionado
+    const listo = Boolean(cliente && cliente !== "Buscando..." && origen && conductor);
+
+    if (btnEnviar) {
+        btnEnviar.disabled = !listo;
+        if (listo) {
+            btnEnviar.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnEnviar.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+}
+
+//==================================================================
+// ==========================================
+// 1. FUNCIONES AUXILIARES (Fuera del listener)
+// ==========================================
+
+// Validador de formulario para habilitar el botón Despachar
+function verificarDespachoListo() {
+    const cliente   = document.getElementById('desNombre')?.value.trim();
+    const conductor = document.getElementById('selectConductorUnico')?.value.trim();
+    const origen    = document.getElementById('desOrigen')?.value.trim();
+    const btnEnviar = document.getElementById('btnEnviarDespacho');
+
+    const listo = Boolean(cliente && cliente !== "Buscando..." && origen && conductor);
+
+    if (btnEnviar) {
+        btnEnviar.disabled = !listo;
+        if (listo) {
+            btnEnviar.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnEnviar.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+}
+
+// Manejador aislado para el inicio de turno (Validación de deuda + API POST)
+async function manejarInicioTurno(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btnIniciarTurno");
+    if (!btn) return;
+
+    const cSel = document.getElementById("nuevoConductor");
+    const aSel = document.getElementById("nuevoAuto");
+    const pSel = document.getElementById("nuevoPunto");
+
+    if (!cSel?.value || !aSel?.value || !pSel?.value) {
+        mostrarToast("⚠️ Selecciona conductor, auto y punto de espera.", "error");
+        return;
+    }
+
+    // Validación de deuda con rol de usuario
+    const optConductor = cSel.options[cSel.selectedIndex];
+    const excepcion = optConductor.getAttribute("data-excepcion") === "1";
+    const rolUsuario = (localStorage.getItem("rol") || "").toLowerCase().trim(); 
+    const codigoConductor = optConductor.text.split("-")[0].trim(); 
+
+    const celdasDeudor = Array.from(document.querySelectorAll("td, span, div")).find(el => 
+        el.textContent.includes(codigoConductor) && el.textContent.includes("DEUDOR")
+    );
+
+    const tieneDeudaReal = !!celdasDeudor;
+
+    if (tieneDeudaReal && !excepcion) {
+        if (rolUsuario !== "administrador" && rolUsuario !== "admin") {
+            mostrarToast(`🚫 Bloqueado: El conductor presenta deuda activa en el sistema y usted no tiene permisos para autorizarlo.`, "error");
+            return;
+        }
+    }
+    
+    const puntoParaMantener = pSel.value;
+
+    try {
+        btn.style.pointerEvents = "none";
+        btn.style.opacity = "0.5";
+
+        const data = await apiFetch("/turnos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                conductor_id: cSel.value, 
+                auto_id: aSel.value, 
+                punto_id: pSel.value 
+            })
+        });
+
+        mostrarToast(`✅ Turno #${data.id_turno} iniciado`, "success");
+
+        setTimeout(async () => {
+            await cargarTurnos();
+            await cargarConductoresEnTurnoCrear();
+            await cargarAutosDisponiblesSelect();
+            
+            if (typeof cargarAutosTabla === "function") {
+                await cargarAutosTabla();
+            }
+
+            if (puntoParaMantener) {
+                const pSelFinal = document.getElementById("nuevoPunto");
+                if (pSelFinal) pSelFinal.value = puntoParaMantener;
+            }
+
+            document.getElementById("nuevoConductor").value = "";
+            document.getElementById("nuevoAuto").value = "";
+
+            btn.style.pointerEvents = "auto";
+            btn.style.opacity = "1";
+        }, 600);
+
+    } catch (err) {
+        btn.style.pointerEvents = "auto";
+        btn.style.opacity = "1";
+        
+        let mensajeError = "📍 Error al iniciar el turno.";
+        const textoOriginal = err.message || "";
+
+        if (textoOriginal.includes('{"error":')) {
+            const partes = textoOriginal.split('"error":"');
+            if (partes.length > 1) {
+                mensajeError = partes[1].split('"}')[0].replace(/\\"/g, '"').trim();
+            }
+        } else if (textoOriginal.includes("Error 403:")) {
+            mensajeError = textoOriginal.replace("Error 403:", "").trim();
+        } else {
+            mensajeError = textoOriginal;
+        }
+
+        mostrarToast(`🚫 ${mensajeError}`, "error");
+    }
+}
+
+
+// ==========================================
+// 2. PUNTO DE ENTRADA ÚNICO (DOMContentLoaded)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- A. AUTENTICACIÓN Y ROLES ---
+    const token = localStorage.getItem('token');
+    const rol = (localStorage.getItem('rol') || "").toLowerCase().trim();
+
+    if (!token) {
+        window.location.href = '/index.html';
+        return;
+    }
+
+    const roleSpan = document.getElementById('userRole');
+    if (roleSpan) roleSpan.textContent = `Rol: ${rol}`;
+
+    if (rol !== 'admin') {
+        console.log("🔒 Modo restringido activado para:", rol);
+        document.querySelectorAll('.menu-admin').forEach(el => {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        });
+        
+        if (rol === 'operador') {
+            console.log("🚀 Redirigiendo operador a sección Despachos...");
+            setTimeout(() => {
+                if (typeof mostrarSeccion === 'function') {
+                    mostrarSeccion('despachos');
+                }
+            }, 100);
+        }
+    } else {
+        console.log("🔓 Modo administrador activo.");
+    }
+
+    // --- B. VALIDACIÓN DE TELÉFONOS ---
+    if (typeof validarTelefono === 'function') {
+        ['cliTelefonoNuevo', 'cliTelefonoEdit', 'desTelefono', 'conTelefono'].forEach(id => {
+            validarTelefono(id);
+        });
+    }
+
+    // --- C. ESCUCHADORES Y NAVEGACIÓN PARA EL NUEVO DESPACHO ---
+    const camposDespacho = [
+        'desTelefono',
+        'desNombre',
+        'desOrigen',
+        'desDestino',
+        'tarifaClienteUnico',
+        'selectConductorUnico'
+    ];
+
+    // C.1 Activar habilitación dinámica del botón "Despachar"
+    camposDespacho.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', verificarDespachoListo);
+            el.addEventListener('change', verificarDespachoListo);
+        }
     });
 
+    // C.2 Flujo de navegación por teclado (Enter / Change)
+    const inputDes = document.getElementById("desDestino");
+    const inputTarifa = document.getElementById("tarifaClienteUnico");
+    const selectConductor = document.getElementById("selectConductorUnico");
+    const btnEnviar = document.getElementById("btnEnviarDespacho");
 
+    // 1. Destino -> Tarifa
+    if (inputDes) {
+        inputDes.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                inputTarifa?.focus();
+                inputTarifa?.select();
+            }
+        });
+    }
 
+    // 2. Tarifa -> Conductor
+    if (inputTarifa) {
+        inputTarifa.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                selectConductor?.focus();
+            }
+        });
+    }
 
+    // 3. Conductor -> Botón Despachar (Al seleccionar unidad)
+    if (selectConductor) {
+        selectConductor.addEventListener("change", () => {
+            if (selectConductor.value && btnEnviar) {
+                btnEnviar.focus();
+            }
+        });
+    }
 
-  // 2. AHORA SÍ, LA LÓGICA DE INICIO (Esto sí va en el DOMContentLoaded)
-  document.addEventListener('DOMContentLoaded', () => {
-      const token = localStorage.getItem('token');
-      const rol = (localStorage.getItem('rol') || "").toLowerCase().trim();
+    // --- D. ENGANCHE DE BOTONES DE ACCIÓN (Turnos) ---
+    const btnTurno = document.getElementById("btnIniciarTurno");
+    if (btnTurno) {
+        btnTurno.addEventListener('click', manejarInicioTurno);
+    }
 
-      if (!token) {
-          window.location.href = '/index.html';
-          return;
-      }
+    console.log("✅ Sistema de seguridad, validadores y secuencia de navegación por teclado inicializados.");
+});
 
-      const roleSpan = document.getElementById('userRole');
-      if (roleSpan) roleSpan.textContent = `Rol: ${rol}`;
-
-      // CAMBIO AQUÍ: Si el rol NO es 'admin', ocultamos todo lo que tenga menu-admin
-      if (rol !== 'admin') {
-          console.log("🔒 Modo restringido activado para:", rol);
-          document.querySelectorAll('.menu-admin').forEach(el => {
-              el.style.display = 'none';
-          });
-      } else {
-          console.log("🔓 Modo administrador activo.");
-      }
-      
-      console.log("✅ Sistema de seguridad y apiFetch inicializados.");
-  });
+//==================================================================
+  
   async function cargarPuntos() {
     const resp = await fetch("/api/puntos_espera");
     const puntos = await resp.json();
@@ -1272,39 +1571,48 @@
   }
  
    
-
-  
+ 
   ////////// Función para poblar select de conductores disponibles al crear turno //////////
 async function cargarConductoresEnTurnoCrear() {
   try {
-    const data = await apiFetch('/conductores/disponibles_conductores');
+    // ⚡ Apuntamos a la ruta que valida turnos activos y disponibilidad real
+    const data = await apiFetch('/conductores/en_turno_disponibles');
     const sel = document.getElementById('nuevoConductor');
-    sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
-    console.log("--- RESPUESTA DE CONDUCTORES DESDE BACKEND ---", data);
-    if (Array.isArray(data) && data.length > 0) {
-      console.log("--- EJEMPLO DE CONDUCTOR RECIBIDO ---", data[0]);
-      data.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.id_conductor;
-        
-        // 🔑 GUARDAMOS EL CÓDIGO
-        opt.dataset.codigo = c.codigo; 
-        
-        // 🔑 NUEVOS ATRIBUTOS: Guardamos saldo y permiso de excepción
-        opt.setAttribute("data-saldo", c.saldo || 0);
-        opt.setAttribute("data-excepcion", c.permitir_deudor ? "1" : "0");
 
-        opt.textContent = `${c.codigo} - ${c.nombre}`;
-        sel.appendChild(opt);
-      });
+    if (sel) {
+      sel.innerHTML = '<option value="" disabled selected>Seleccione conductor</option>';
+    }
+
+    console.log("--- CONDUCTORES EN TURNO RECIBIDOS ---", data);
+
+    if (Array.isArray(data) && data.length > 0) {
+      // Pasa el listado al select unificado si existe la función global
+      if (typeof window.llenarSelectConductoresUnico === "function") {
+        window.llenarSelectConductoresUnico(data);
+      }
+
+      if (sel) {
+        data.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id_conductor;
+          opt.dataset.codigo = c.codigo; 
+          opt.setAttribute("data-saldo", c.saldo || 0);
+          opt.setAttribute("data-excepcion", c.permitir_deudor ? "1" : "0");
+
+          opt.textContent = `${c.codigo} - ${c.nombre}`;
+          sel.appendChild(opt);
+        });
+      }
     } else {
-      sel.innerHTML = '<option disabled>No hay conductores disponibles</option>';
+      if (sel) {
+        sel.innerHTML = '<option disabled>No hay conductores disponibles en turno</option>';
+      }
     }
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Error al cargar conductores en turno:", err);
   }
 }
-  //Para auto-seleccionar el auto al elegir un conductor//////
+ //Para auto-seleccionar el auto al elegir un conductor//////
     document.getElementById('nuevoConductor').addEventListener('change', function() {
       // 1. Obtener el código del conductor desde el data-attribute (ej: "b10")
       const selectedOption = this.options[this.selectedIndex];
@@ -1498,6 +1806,11 @@ async function cargarConductoresEnTurnoCrear() {
                   case 'despachosActivos':
                       cargarDespachosActivos();
                       break;
+                  case 'despachos':
+                      console.log("🚖 Cargando sección de Despachos y Cola de Espera...");
+                      if (typeof cargarColaClientes === "function") cargarColaClientes();
+                      if (typeof refrescarSelectConductorUnico === "function") refrescarSelectConductorUnico();
+                      break;    
               }
           } else {
               console.error(`⚠️ Sección ${idLimpio} no encontrada en el HTML`);
@@ -1530,31 +1843,17 @@ async function cargarConductoresEnTurnoCrear() {
     }
 
     // Activar/desactivar campos del despacho
-    function activarCamposDespacho(estado) {
-      const nombre = document.getElementById('desNombre');
-      if (nombre) nombre.disabled = !estado;
+   // function activarCamposDespacho(estado) {
+   //   const nombre = document.getElementById('desNombre');
+   //   if (nombre) nombre.disabled = !estado;
 
-      const origen = document.getElementById('desOrigen');
-      if (origen) origen.disabled = !estado;
+   //   const origen = document.getElementById('desOrigen');
+   //   if (origen) origen.disabled = !estado;
 
-      const enviarBtn = document.getElementById('btnEnviarDespacho');
-      if (enviarBtn) enviarBtn.disabled = !estado;
-    }
+    //  const enviarBtn = document.getElementById('btnEnviarDespacho');
+    //  if (enviarBtn) enviarBtn.disabled = !estado;
+    //}
 
-   
-   
-    //document.getElementById('desCliente').addEventListener('change', verificarDespachoListo);
-    //document.getElementById('desConductor').addEventListener('change', verificarDespachoListo);
-    //document.getElementById('desAuto').addEventListener('change', verificarDespachoListo);
-    //document.getElementById('desDestino').addEventListener('input', verificarDespachoListo);
-    //document.getElementById('desTarifa').addEventListener('input', verificarDespachoListo);
-    document.addEventListener('DOMContentLoaded', () => {
-      validarTelefono('cliTelefonoNuevo'); // formulario de cliente nuevo
-      validarTelefono('cliTelefonoEdit');  // formulario de edición de cliente
-      validarTelefono('desTelefono');      // formulario de despacho
-      validarTelefono('conTelefono');      // formulario de conductor
-    });
-    
     
 
  
@@ -1986,18 +2285,24 @@ async function cargarDespachosActivos() {
           const modal = document.getElementById("modalCrearDespacho");
           if (modal) modal.classList.add("hidden");
 
-          // 2. Usar Toast en lugar de Alert (es menos intrusivo y no detiene el código)
+          // 2. Notificación Toast
           if (typeof mostrarToast === 'function') {
               mostrarToast("✅ Despacho finalizado correctamente", "success");
           } else {
               mostrarToast("✅ Despacho finalizado correctamente");
           }
 
-          // 3. Refrescar tablas
-          cargarDespachosActivos(); 
-          //if (typeof cargarTurnos === 'function') await cargarTurnos();
+          // 3. Refrescar tablas y liberar conductor en el selector
+          if (typeof cargarDespachosActivos === 'function') {
+              cargarDespachosActivos(); 
+          }
+
+          // ⚡ RECARGAR CONDUCTORES DISPONIBLES EN EL FORMULARIO DE DESPACHO
+          if (typeof cargarConductoresEnTurnoCrear === 'function') {
+              await cargarConductoresEnTurnoCrear(); 
+          }
           
-          // 4. Log de seguridad corregido (usando lo que realmente devuelva tu API)
+          // 4. Log de seguridad
           console.log("Despacho finalizado con éxito:", data);
 
         } else {
@@ -2011,24 +2316,24 @@ async function cargarDespachosActivos() {
 
    
     // Cancelar despacho 
+    // --- EN CANCELAR DESPACHO CORREGIDO ---
     async function cancelarDespacho(id) {
       try {
-        // 1. Ejecutamos la petición. 
-        // Si el servidor responde con error (400, 500, etc), saltará directamente al catch.
         const data = await apiFetch(`/despachos/${id}/cancelar`, { method: 'PUT' });
 
-        // 2. Si el código llega aquí, es porque fue EXITOSO (Status 200)
         console.log("✅ Despacho cancelado:", data);
         mostrarToast("⚠️ Despacho cancelado correctamente");
 
-        // 3. Refrescar la tabla
+        // 1. Refrescar la tabla de despachos activos
         await cargarDespachosActivos(); 
-        await refrescarConductoresDisponibles();
+        
+        // 2. ⚡ Usar la misma función estándar para refrescar el select
+        if (typeof cargarConductoresEnTurnoCrear === 'function') {
+            await cargarConductoresEnTurnoCrear();
+        }
       } catch (err) {
-        // 4. MANEJO DE PÁNICO: Aquí capturamos el mensaje real del servidor
         console.error("❌ Error al cancelar:", err.message);
 
-        // Intentamos limpiar el mensaje para mostrar solo el texto humano
         let mensajeLimpio = err.message;
         if (err.message.includes('{')) {
           try {
@@ -2071,13 +2376,7 @@ async function cargarDespachosActivos() {
         login(username, password);
       });
     }
-    document.addEventListener("DOMContentLoaded", () => {
-      //cargarTurnos(); 
-      //cargarConductoresActivosSelect();
-      //cargarAutosActivosSelect();
-      //cargarListaEspera();
-      //cargarConductoresDisponiblesDespacho();
-    }); 
+   
    const selConductor = document.getElementById("desConductor");
     if (selConductor) {
       selConductor.addEventListener("change", verificarDespachoListo);
@@ -2128,146 +2427,6 @@ async function cargarDespachosActivos() {
     
 
 
-//Lógica para iniciar turno con validación de solvencia /////////
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("btnIniciarTurno");
-    if (btn) {
-        btn.onclick = async (e) => {
-          e.preventDefault();
-
-          // 1. Referencias a los elementos
-          const cSel = document.getElementById("nuevoConductor");
-          const aSel = document.getElementById("nuevoAuto");
-          const pSel = document.getElementById("nuevoPunto");
-
-          // 2. Validación de campos vacíos
-          if (!cSel.value || !aSel.value || !pSel.value) {
-            mostrarToast("⚠️ Selecciona conductor, auto y punto de espera.", "error");
-            return;
-          }
-
-          // === NUEVA VALIDACIÓN: Bloqueo por Deuda con Rol de Usuario ===
-          const optConductor = cSel.options[cSel.selectedIndex];
-          const excepcion = optConductor.getAttribute("data-excepcion") === "1";
-          
-          // Extraemos el rol guardado en el login
-          const rolUsuario = localStorage.getItem("rol"); 
-          
-          // 🔍 EXTRAPOLACIÓN DIRECTA DESDE LA GRILLA VISUAL:
-          // Obtenemos el texto seleccionado del select (Ej: "B10 - Yeison Suarez") y extraemos el código "B10"
-          const codigoConductor = optConductor.text.split("-")[0].trim(); 
-
-          // Buscamos en todo el documento el texto de la grilla que corresponda a este conductor
-          const celdasDeudor = Array.from(document.querySelectorAll("td, span, div")).find(el => 
-              el.textContent.includes(codigoConductor) && el.textContent.includes("DEUDOR")
-          );
-
-          // Si el texto en la grilla dice DEUDOR, asumimos que tiene saldo pendiente real
-          const tieneDeudaReal = !!celdasDeudor;
-
-          console.log(`Conductor: ${codigoConductor} | ¿Deudor en Grilla?:`, tieneDeudaReal, "Es excepción:", excepcion, "Rol actual:", rolUsuario);
-
-          // Si el conductor tiene deuda real según la grilla y NO es una excepción:
-          if (tieneDeudaReal && !excepcion) {
-            // Verificamos si es "administrador" o "admin"
-            if (rolUsuario !== "administrador" && rolUsuario !== "admin") {
-              console.log("El usuario NO es Administrador. Se bloquea por deuda real verificada en grilla.");
-              mostrarToast(`🚫 Bloqueado: El conductor presenta deuda activa en el sistema y usted no tiene permisos para autorizarlo.`, "error");
-              return; // Detiene la ejecución aquí mismo y NO envía el POST
-            }
-
-            console.log("El usuario es Administrador. Se permite ignorar el saldo deudor en el frontend.");
-          }
-          // =============================================================
-          
-          // 3. Guardamos el punto ACTUAL antes de enviar nada
-          const puntoParaMantener = pSel.value;
-
-          try {
-              // Desactivamos el botón para evitar ráfagas accidentales
-              btn.style.pointerEvents = "none";
-              btn.style.opacity = "0.5";
-
-              const data = await apiFetch("/turnos", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ 
-                      conductor_id: cSel.value, 
-                      auto_id: aSel.value, 
-                      punto_id: pSel.value 
-                  })
-              });
-
-              mostrarToast(`✅ Turno #${data.id_turno} iniciado`, "success");
-
-              // 4. El "Respiro" para la base de datos
-              setTimeout(async () => {
-                // 1. Refrescamos los datos básicos primero
-                await cargarTurnos();
-                
-                // 2. Refrescamos los conductores
-                await cargarConductoresEnTurnoCrear();
-                
-                // 3. Refrescamos los autos
-                await cargarAutosDisponiblesSelect();
-                
-                // 4. Si existe la tabla general, la actualizamos
-                if (typeof cargarAutosTabla === "function") {
-                    await cargarAutosTabla();
-                }
-
-                // 5. AHORA SÍ: Restauramos el punto de espera
-                if (puntoParaMantener) {
-                    const pSelFinal = document.getElementById("nuevoPunto");
-                    pSelFinal.value = puntoParaMantener;
-                }
-
-                // 6. Limpiamos solo los campos de identidad
-                document.getElementById("nuevoConductor").value = "";
-                document.getElementById("nuevoAuto").value = "";
-
-                // 7. Devolvemos el control al operador
-                btn.style.pointerEvents = "auto";
-                btn.style.opacity = "1";
-                
-                console.log("✅ Refresco secuencial completado");
-              }, 600);
-
-         } catch (err) {
-              btn.style.pointerEvents = "auto";
-              btn.style.opacity = "1";
-              
-              console.log("🔍 CONTENIDO EXACTO DE err.message:", typeof err.message, `"${err.message}"`);
-              console.error("❌ Error atrapado en el botón:", err.message);
-
-              let mensajeError = "📍 Error al iniciar el turno.";
-              const textoOriginal = err.message || "";
-
-              // 🎯 EXTRACCIÓN POR FUERZA BRUTA (Sin importar saltos de línea ni JSON)
-              if (textoOriginal.includes('{"error":')) {
-                  // Buscamos lo que está entre '"error":"' y '."}' o '"}'
-                  // Esto corta directamente el texto humano
-                  const partes = textoOriginal.split('"error":"');
-                  if (partes.length > 1) {
-                      // Agarramos la segunda parte y la picamos donde cierran las comillas del JSON
-                      mensajeError = partes[1].split('"}')[0];
-                      // Limpiamos comillas dobles residuales por si acaso
-                      mensajeError = mensajeError.replace(/\\"/g, '"').trim();
-                  }
-              } else if (textoOriginal.includes("Error 403:")) {
-                  // Si no viene con formato JSON claro, limpiamos el prefijo 403
-                  mensajeError = textoOriginal.replace("Error 403:", "").trim();
-              } else {
-                  mensajeError = textoOriginal;
-              }
-
-              // 🚀 Alerta directa a la pantalla del operador
-              console.log("📢 Enviando al Toast:", mensajeError);
-              mostrarToast(`🚫 ${mensajeError}`, "error");
-          }
-        };
-    }
-});
 ////Lógica modal conductores en punto de espera///////
   // Capturar Ctrl+P y abrir modal
   document.addEventListener("keydown", (e) => {
@@ -2297,30 +2456,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error cargando conductores en espera:", err);
     }
   }
-  document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    // Normalizamos a minúsculas para que no falle por "Operador" vs "operador"
-    const rol = (localStorage.getItem('rol') || "").toLowerCase(); 
-
-    if (!token) {
-        window.location.href = '/index.html';
-        return;
-    }
-
-    // 2. Filtros de menú: Ocultar lo que el operador no debe ver
-    if (rol === 'operador') {
-        document.querySelectorAll('.menu-admin').forEach(el => el.classList.add('hidden'));
-        
-        // 🚀 EL GATILLO: Si es operador, forzamos la vista de despachos al entrar
-        console.log(`🚀 Iniciando sistema para: ${rol}. Redirigiendo a Despachos...`);
-        
-        // IMPORTANTE: Asegúrate que el ID en tu HTML sea 'despachos' 
-        // o ajusta este nombre al que usas en mostrarSeccion
-        setTimeout(() => {
-            mostrarSeccion('despachos'); 
-        }, 100); // Un pequeño delay de 100ms para asegurar que el DOM esté listo
-    }
-  });
+  
   // Función para abrir WhatsApp Web en ventana optimizada
     function abrirWhatsAppWeb() {
         // Calcular posición: a la derecha de la pantalla
@@ -2879,10 +3015,26 @@ document.addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script>
-    const MATRIZ_TARIFAS = {{ destinos|tojson }};
-    console.log("✅ Matriz cargada:", MATRIZ_TARIFAS);
-</script>
+    window.MATRIZ_TARIFAS = {{ destinos|tojson }};
+    console.log("✅ Matriz inyectada en window:", window.MATRIZ_TARIFAS.length);
 
+    (function poblarDatalistFirefox() {
+        const datalist = document.getElementById("listaTarifasMatriz");
+        if (!datalist || !Array.isArray(window.MATRIZ_TARIFAS)) return;
+
+        let html = "";
+        window.MATRIZ_TARIFAS.forEach(t => {
+            const dest = t.destino || "";
+            if (dest) {
+                // 🚀 SIN TEXTO INTERNO: obliga a Firefox a renderizar el campo 'destino'
+                html += `<option value="${dest}"></option>`;
+            }
+        });
+
+        datalist.innerHTML = html;
+        console.log(`✅ ¡Éxito! ${datalist.children.length} destinos insertados correctamente.`);
+    })();
+</script>
 <datalist id="listaTarifasMatriz">
     {% for t in destinos %}
         <option value="{{ t.destino }}">

@@ -99,9 +99,50 @@ async function validarClientePorTelefono() {
             }
             
         } else {
+            // Cliente no encontrado -> Flujo ultra rápido sin modales
             if (btnModificar) btnModificar.disabled = true;
-            if (window.activarCamposDespacho) activarCamposDespacho(false);
-            abrirModalCliente(telefono, null); 
+            
+            // Mostrar el toast informativo
+            if (typeof mostrarToast === 'function') {
+                mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
+            }
+
+            // Habilitar campos de despacho para escribir directo
+            const inputNombre = document.getElementById('desNombre');
+            const inputOrigen = document.getElementById('desOrigen');
+            const inputDestino = document.getElementById('desDestino');
+            const btnEnviar = document.getElementById('btnEnviarDespacho');
+
+            if (inputNombre) {
+                inputNombre.value = "";
+                inputNombre.readOnly = false;
+                inputNombre.style.backgroundColor = "#ffffff";
+            }
+
+            if (inputOrigen) {
+                inputOrigen.value = "";
+                inputOrigen.readOnly = false;
+                inputOrigen.style.backgroundColor = "#ffffff";
+            }
+
+            if (inputDestino) {
+                inputDestino.disabled = false;
+                inputDestino.readOnly = false;
+            }
+
+            if (btnEnviar) {
+                btnEnviar.disabled = false;
+            }
+
+            // Forzar el foco directo al campo de nombres con un pequeño respiro
+            setTimeout(() => {
+                if (inputNombre) {
+                    inputNombre.focus();
+                    inputNombre.select();
+                }
+            }, 80);
+
+            window.clienteIdActual = null; 
         }
     } catch (err) {
         console.error("Error al buscar cliente:", err);

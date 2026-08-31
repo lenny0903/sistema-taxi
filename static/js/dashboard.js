@@ -1127,6 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const vista = document.getElementById(idReal);
 
         // 4. Lógica de activación
+        // 4. Lógica de activación
         if (vista) {
             // Ocultar todas las secciones antes de mostrar la seleccionada
             document.querySelectorAll('.seccion').forEach(s => s.classList.add('hidden'));
@@ -1139,7 +1140,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.vistaActual = idReal;
             }
 
-            // Carga de datos condicional
+            // 🚀 DISPARAR CARGA DE DATOS SEGÚN LA VISTA ACTIVA
+            if (idReal === 'despachos') {
+                if (typeof window.cargarColaClientes === "function") {
+                    window.cargarColaClientes();
+                }
+            }
+
+            // Carga de datos condicional para pagos
             if (idReal === 'pagos') {
                 if (window.cargarConductoresSelect) window.cargarConductoresSelect();
                 if (window.cargarHistorialPagos) window.cargarHistorialPagos();

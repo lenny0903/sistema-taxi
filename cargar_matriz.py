@@ -18,22 +18,23 @@ def cargar_datos():
         cursor.execute("DELETE FROM matriz_tarifas")
         
         with open(nombre_csv, newline='', encoding='utf-8') as f:
-            # Usamos DictReader para mapear las columnas del CSV
             reader = csv.DictReader(f)
             
             datos = []
             for fila in reader:
-                # Mapeamos: El CSV tiene 'combinacion' pero tu tabla tiene 'es_combinacion'
+                # Obtenemos el precio (sea que en el CSV se llame 'precio_bs' o 'precio_cop')
+                precio_val = fila.get('precio_cop') or fila.get('precio_bs') or 0
+                
                 datos.append((
                     fila['destino'],
-                    float(fila['precio_bs']),
+                    float(precio_val),
                     fila['municipio'],
-                    fila['combinacion'] 
+                    fila.get('combinacion', 'no') 
                 ))
 
-            # El orden debe coincidir con los (?) : destino, precio_bs, municipio, es_combinacion
+            # 📌 Insertamos en la columna precio_cop
             cursor.executemany("""
-                INSERT INTO matriz_tarifas (destino, precio_bs, municipio, es_combinacion)
+                INSERT INTO matriz_tarifas (destino, precio_cop, municipio, es_combinacion)
                 VALUES (?, ?, ?, ?)
             """, datos)
 

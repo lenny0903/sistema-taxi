@@ -1,7 +1,20 @@
-/// utils.js
+/// utils.js - Motor Core de Utilidades y Comunicación API
 
-const BASE_URL = "http://127.0.0.1:5000";
+const BASE_URL = window.location.origin.includes('127.0.0.1') || window.location.origin.includes('localhost')
+  ? "http://127.0.0.1:5000"
+  : ""; // Permite rutas relativas en producción o locales según el entorno
 
+const DEBUG_MODE = true;
+
+// 1. Logger Centralizado
+function log(mensaje, tipo = 'info') {
+    if (!DEBUG_MODE) return;
+    if (tipo === 'error') console.error("❌ " + mensaje);
+    else if (tipo === 'success') console.log("✅ " + mensaje);
+    else console.log("🔹 " + mensaje);
+}
+
+// 2. Cliente HTTP Centralizado con Manejo Inteligente de Errores y Auth
 async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem("token");
   const headers = {
@@ -10,22 +23,26 @@ async function apiFetch(endpoint, options = {}) {
     ...options.headers
   };
 
-  try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+  // Ajusta la URL si viene con barra o relativa
+  const urlFinal = endpoint.startsWith("http") ? endpoint : `${BASE_URL}${endpoint}`;
 
-    // --- MANEJO INTELIGENTE DEL ERROR 401 ---
+  try {
+    const res = await fetch(urlFinal, { ...options, headers });
+
+    // Manejo de Expiración de Sesión
     if (res.status === 401) {
-      console.warn("⚠️ Sesión expirada. Redirigiendo a login...");
-      // Opcional: localStorage.removeItem('token');
-      window.location.href = '/login'; // O tu ruta de login
-      throw new Error("Token expirado");
+      console.warn("⚠️ Sesión expirada o no autorizada. Redirigiendo a login...");
+      localStorage.removeItem("token");
+      window.location.href = "/index.html";
+      throw new Error("Token expirado o inválido");
     }
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Error ${res.status}: ${text}`);
+      const errorText = await res.text();
+      throw new Error(errorText || `Error ${res.status}`);
     }
 
+    // Devuelve el JSON parseado directamente
     return await res.json();
   } catch (err) {
     console.error(`❌ Error en ${endpoint}:`, err);
@@ -33,33 +50,26 @@ async function apiFetch(endpoint, options = {}) {
   }
 }
 
-// Hacemos que sea global para usarla en todo tu sistema
+// Globalizamos apiFetch
 window.apiFetch = apiFetch;
 
-
+// 3. Validadores Sanitizados
 function validarNombre(nombre) {
   return nombre && nombre.trim().length >= 2;
 }
-// ==================== Fetch defensivo ====================
+
+// 4. Fetch Defensivo para Colecciones o Respuestas Variables
 async function fetchDefensivo(url, options = {}) {
   try {
-    // 1. Confiamos en que apiFetch ya devuelve el JSON parseado
     const data = await apiFetch(url, options);
 
-    // 2. Si apiFetch falló catastróficamente, vendrá null/undefined
     if (!data) return [];
-
-    // 3. Manejo de errores que vienen dentro del JSON
     if (data.error) {
-      console.error("❌ Error en respuesta:", data.error);
+      console.error("❌ Error devuelto en JSON:", data.error);
       return [];
     }
 
-    console.log("📡 Datos recibidos:", data);
-
-    // 4. Mapeo inteligente de datos
     if (Array.isArray(data)) return data;
-    
     if (typeof data === "object") {
       if (data.cliente) return [data.cliente];
       if (data.clientes) return data.clientes;
@@ -74,18 +84,17 @@ async function fetchDefensivo(url, options = {}) {
   }
 }
 
-// Asegura que sea global asignándola a window
+// 5. Refresco de Estado de Conductores para Despachos
 window.refrescarConductoresDisponibles = async function() {
     try {
         const data = await apiFetch("/conductores/en_turno_disponibles");
         window.conductoresGlobales = data; 
         
-        // Verificación de seguridad para no romper el código
         if (typeof actualizarContadorConductores === 'function') {
             actualizarContadorConductores(data.length);
         }
 
-        console.log("🔄 Lista de conductores actualizada:", data);
+        log(`Listado de conductores actualizado (${data.length} disponibles)`, 'success');
         return data;
     } catch (error) {
         console.error("Error al refrescar conductores:", error);
@@ -93,87 +102,58 @@ window.refrescarConductoresDisponibles = async function() {
     }
 };
 
-document.getElementById('buscadorRapido')?.addEventListener('input', function() {
-    const destinoBusqueda = this.value;
-    const resultadoDiv = document.getElementById('resultadoPrecioRapido');
-    
-    // Buscamos en la matriz global que ya cargamos desde Flask
-    const tarifa = MATRIZ_TARIFAS.find(t => t.destino === destinoBusqueda);
-    
-    if (tarifa) {
-        // Formateamos el número para que se vea profesional (ej: 5.000)
-        const precioFormateado = new Intl.NumberFormat('es-CO').format(tarifa.precio_cop);
-        resultadoDiv.innerText = `$ ${precioFormateado}`;
-        resultadoDiv.classList.replace('bg-light', 'bg-warning-subtle'); // Resalte visual
-    } else {
-        resultadoDiv.innerText = "$ 0";
-        resultadoDiv.classList.replace('bg-warning-subtle', 'bg-light');
-    }
-});
-
-const DEBUG_MODE = true; // Cámbialo a false antes del estrés o producción
-
-function log(mensaje, tipo = 'info') {
-    if (!DEBUG_MODE) return;
-    
-    if (tipo === 'error') console.error("❌ " + mensaje);
-    else if (tipo === 'success') console.log("✅ " + mensaje);
-    else console.log("🔹 " + mensaje);
-}
-
-// Ejemplo de uso:
-log("Dashboard sincronizado", 'success');
-
-window.apiFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('token');
-  const baseHeaders = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': 'Bearer ' + token } : {})
-  };
-
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers: { ...baseHeaders, ...(options.headers || {}) }
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Error ${res.status}: ${errorText}`);
-    }
-
-    // Retornamos el JSON de una vez para simplificar el resto del sistema
-    return await res.json(); 
-  } catch (err) {
-    console.error("❌ Error en apiFetch:", err);
-    throw err;
-  }
-};
-
+// 6. Diagnóstico Clínico / Técnico de Conductor
 function consultarDiagnosticoWeb(codigoConductor) {
     if (!codigoConductor) {
-        alert("Por favor ingresa un código de conductor válido.");
+        if (typeof mostrarToast === 'function') mostrarToast("⚠️ Ingresa un código de conductor.", "error");
         return;
     }
 
-    let url = '/conductores/diagnostico-texto/' + encodeURIComponent(codigoConductor.trim());
+    const url = `/conductores/diagnostico-texto/${encodeURIComponent(codigoConductor.trim())}`;
 
-    fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Conductor no encontrado en el sistema.");
-            }
-            return response.text();
-        })
+    apiFetch(url)
         .then(textoReporte => {
-            let contenedor = document.getElementById('resultadoDiagnostico');
+            const contenedor = document.getElementById('resultadoDiagnostico');
             if (contenedor) {
-                contenedor.innerText = textoReporte;
-                contenedor.classList.remove('hidden'); // ¡Muestra el cuadro con el resultado!
+                contenedor.innerText = typeof textoReporte === 'string' ? textoReporte : JSON.stringify(textoReporte, null, 2);
+                contenedor.classList.remove('hidden');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert("❌ " + error.message);
+            console.error('Error al consultar diagnóstico:', error);
         });
+}
+
+// 7. Inicializador de Eventos Rápidos UI
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById('buscadorRapido')?.addEventListener('input', function() {
+        const destinoBusqueda = this.value;
+        const resultadoDiv = document.getElementById('resultadoPrecioRapido');
+        
+        if (!resultadoDiv || typeof MATRIZ_TARIFAS === 'undefined') return;
+
+        const tarifa = MATRIZ_TARIFAS.find(t => t.destino.toLowerCase() === destinoBusqueda.toLowerCase());
+        
+        if (tarifa) {
+            const precioFormateado = new Intl.NumberFormat('es-CO').format(tarifa.precio_cop);
+            resultadoDiv.innerText = `$ ${precioFormateado}`;
+            resultadoDiv.classList.replace('bg-light', 'bg-warning-subtle');
+        } else {
+            resultadoDiv.innerText = "$ 0";
+            resultadoDiv.classList.replace('bg-warning-subtle', 'bg-light');
+        }
+    });
+});
+function toggleMenu() {
+    const menu = document.getElementById("menuLateral");
+    if (!menu) return;
+
+    // Alternamos clases de ancho o visibilidad
+    if (menu.classList.contains("w-64")) {
+        menu.classList.remove("w-64");
+        menu.classList.add("w-0", "p-0", "opacity-0"); // Oculta el menú por completo o colapsa su ancho
+    } else {
+        menu.classList.remove("w-0", "p-0", "opacity-0");
+        menu.classList.add("w-64");
+    }
 }
