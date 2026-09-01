@@ -18,6 +18,7 @@ load_dotenv()
 telegram_bp = Blueprint('telegram_bp', __name__)
 
 usuarios_reportando = {}
+ULTIMOS_AVISOS_SIN_TURNO = {}
 def emitir_al_panel(evento, datos=None):
     try:
         # 🟢 Usar la instancia de socketio importada de extensions
@@ -275,7 +276,7 @@ def webhook():
 
         # 🛑 4. VALIDACIÓN ESTRICTA: ¿El conductor registrado tiene un turno activo creado en la BD?
        # Diccionario global para llevar el control del antispam (guarda el timestamp del último aviso por conductor)
-        ULTIMOS_AVISOS_SIN_TURNO = {}
+        #ULTIMOS_AVISOS_SIN_TURNO = {}
 
         # Dentro de tu ruta del bot donde recibes el mensaje:
         if "location" in msg:
@@ -361,7 +362,7 @@ def webhook():
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
-            
+            conductor.aviso_enviado = 0
             # 🟢 ACTUALIZAR RED TAMBIÉN AQUÍ: Cada ping de GPS confirma que hay conexión de red activa
             if hasattr(conductor, 'estado_red'):
                 conductor.estado_red = 'conectado' # O el valor que manejes para red activa

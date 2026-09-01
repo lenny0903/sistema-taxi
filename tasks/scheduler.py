@@ -231,12 +231,21 @@ def job_verificar_gps_conductores():
                 opcion_actual = str(getattr(c, 'opcion_gps', '') or '').strip()
                 es_valido_por_estado = opcion_actual not in ["Expirado", "Finalizado", ""]
 
-                # 🛑 REGLA ESTRICTA: Solo se mantiene conectado SI está dentro del tiempo Y el webhook acaba de recibir datos frescos.
-                # De lo contrario, el scheduler lo baja a desconectado.
+               # 🟢 REGLA CORREGIDA: Si está dentro del tiempo y con coordenadas válidas
                 if ult_act >= limite_inactividad and c.latitud is not None and c.longitud is not None and es_valido_por_estado:
-                    # Si cumple, solo limpiamos el aviso si estaba pendiente, pero NO tocamos el estado_red aquí.
+                    cambios = False
+                    
+                    # 1. Si estaba pendiente de aviso, lo reseteamos
                     if getattr(c, 'aviso_enviado', 0) == 1:
                         c.aviso_enviado = 0
+                        cambios = True
+                        
+                    # 2. 🔑 CLAVE: Si por alguna razón estaba en 'desconectado', lo devolvemos a 'conectado' porque ya respondió
+                    if getattr(c, 'estado_red', 'conectado') != 'conectado':
+                        c.estado_red = 'conectado'
+                        cambios = True
+                        
+                    if cambios:
                         db.session.commit()
                     continue
                 else:
