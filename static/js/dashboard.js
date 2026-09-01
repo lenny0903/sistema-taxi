@@ -4,25 +4,35 @@
 // ===============================
 // --- GUARDIA DE SEGURIDAD GLOBAL ---
 window.socket = io();
+
+// Configuración inicial de seguridad / Variables globales
 (function() {
     const rol = (localStorage.getItem("rol") || "").trim().toLowerCase();
     
-    // Si el rol es operador, hackeamos el historial y la carga inicial
-    if (rol === 'operador') {
-        const observer = new MutationObserver(() => {
-            const clientesSec = document.getElementById('clientesSection');
-            if (clientesSec && !clientesSec.classList.contains('hidden')) {
-                console.warn("🚫 Intento de carga ilegal detectado. Bloqueando...");
-                clientesSec.classList.add('hidden');
-                clientesSec.style.display = 'none';
-                mostrarSeccion('despachos'); // Redirección forzada
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
+    // Asignamos una función de protección global si fuera necesaria
+    window.esOperador = (rol === 'operador');
 })();
 document.addEventListener("DOMContentLoaded", () => {
-    // --- AQUÍ PEGAS TU CÓDIGO NUEVO ---
+   // 1. Verificación de Autenticación
+    const token = localStorage.getItem('token');
+    const rol = (localStorage.getItem('rol') || "").trim().toLowerCase();
+
+    if (!token) {
+        window.location.href = '/index.html';
+        return;
+    }
+
+    const roleSpan = document.getElementById('userRole');
+    if (roleSpan) {
+        roleSpan.textContent = `Rol: ${rol}`;
+    }
+
+    // Ocultar elementos exclusivos de administrador si es operador
+    if (rol !== 'admin') {
+        document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+    }
+
+    // 2. Control Switch Global WhatsApp
     const switchGlobal = document.getElementById("switchGlobalWhatsApp");
     const textGlobal = document.getElementById("textGlobalWhatsApp");
     const bgGlobal = document.getElementById("bgGlobalWhatsApp");
@@ -56,44 +66,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-  const token = localStorage.getItem('token');
-  const rol = localStorage.getItem('rol');
+   
 
-  if (!token) {
-    window.location.href = '/index.html';
-    return;
-  }
-
-  const roleSpan = document.getElementById('userRole');
-  if (roleSpan) {
-    roleSpan.textContent = `Rol: ${rol}`;
-  }
-
-    if (rol && rol.toLowerCase() === 'admin') {
-        abrirVista('despachos'); 
-    } else {
-        // CAMBIO: Abre 'despachos' o cualquier vista pública para el operador
-        abrirVista('despachos'); 
-        
-        // Ocultar elementos admin
-        document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
-    }
-  // Modifica tu listener de teclado para que cargue los datos
-  document.addEventListener("keydown", (e) => {
-      // ... otros atajos ...
-      if (e.key === "F6") { 
-        e.preventDefault(); 
-        abrirVista("pagos"); 
-        
-        // 1. Cargamos el select de conductores
-        cargarConductoresSelect(); 
-        
-        // 2. Cargamos el historial de pagos (la tabla de la derecha)
-        if (window.cargarHistorialPagos) {
-            cargarHistorialPagos();
-        }
-      }
-  });
+    // 4. Arranque de la Vista Inicial
+    // Abre la última vista guardada en sesión o 'despachos' por defecto al recargar
+    const vistaGuardada = window.vistaActual || 'despachos';
+    abrirVista(vistaGuardada);
   // -------------------------------
   // 📌 Sección: Reportes Generales
   // -------------------------------
@@ -433,16 +411,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   // 📌 Sección: Atajos de Teclado F1–F7
   // -------------------------------
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "F1") { e.preventDefault(); abrirVista("despachos"); }
-    if (e.key === "F2") { e.preventDefault(); abrirVista("despachosActivos"); }
-    if (e.key === "F3") { e.preventDefault(); abrirVista("turnosActivos"); }
-    if (e.key === "F4") { e.preventDefault(); abrirVista("autos"); }
-    //if (e.key === "F5") { e.preventDefault(); abrirVista("clientes"); }
-    if (e.key === "F6") { e.preventDefault(); abrirVista("pagos"); }
-    if (e.key === "F7") { e.preventDefault(); abrirVista("conductores"); }
-  });
-  let ventanaWhatsApp = null;
+  // --- Control Unificado de Atajos de Teclado ---
+   // --- Control de Atajos de Teclado Unificado ---
+    document.addEventListener("keydown", (e) => {
+        // Si estás escribiendo en un input, textarea o select, ignorar atajos
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+        const mapaAtajos = {
+            "F1": "despachos",
+            "F2": "despachosActivos",
+            "F3": "turnosActivos",
+            "F4": "autos",
+            "F6": "pagos",
+            "F7": "conductores",
+            "F8": "pagos"
+        };
+
+        const seccion = mapaAtajos[e.key];
+
+        if (seccion) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Llamamos directamente a la función robusta definida en dashboard.html
+            if (typeof window.mostrarSeccion === "function") {
+                window.mostrarSeccion(seccion);
+            }
+        }
+    });  
+    let ventanaWhatsApp = null;
  // --- Motor de Pagos ---
  // --- MOTOR DE PAGOS (Control Interno vs Referencia) ---
   // --- LÓGICA DE INTERFAZ PARA EXONERACIONES ---
@@ -697,49 +694,49 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   
  function generarTablaGeneral(data) {
-    return `
-      <div class="tabla-dinamica mb-4">
-        <table class="border-collapse border w-full min-w-max">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">#</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
-              <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
-              
-            </tr>
-          </thead>
-          <tbody>
-           ${data.map((r, index) => `
-              <tr>
-                <td class="border px-2 py-1">${r.id_despacho}</td>
-                <td class="border px-2 py-1 font-bold text-center">${index + 1}</td>
-                <td class="border px-2 py-1 text-sm">
-                    <div class="font-semibold text-gray-900">${r.cliente_nombre}</div>
-                    <div class="text-xs text-gray-500">${r.cliente_telefono}</div> 
-                </td>
-                <td class="border px-2 py-1 text-xs">
-                    ${r.conductor_codigo} - ${r.conductor_nombre} <br>
-                    <span class="text-[10px] font-mono bg-gray-200 px-1 rounded">${r.auto_placa}</span>
-                </td>
+        return `
+        <div class="tabla-dinamica mb-4">
+            <table class="border-collapse border w-full min-w-max">
+            <thead class="bg-gray-100">
+                <tr>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">#</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
+                
+                </tr>
+            </thead>
+            <tbody>
+            ${data.map((r, index) => `
+                <tr>
+                    <td class="border px-2 py-1">${r.id_despacho}</td>
+                    <td class="border px-2 py-1 font-bold text-center">${index + 1}</td>
+                    <td class="border px-2 py-1 text-sm">
+                        <div class="font-semibold text-gray-900">${r.cliente_nombre}</div>
+                        <div class="text-xs text-gray-500">${r.cliente_telefono}</div> 
+                    </td>
+                    <td class="border px-2 py-1 text-xs">
+                        ${r.conductor_codigo} - ${r.conductor_nombre} <br>
+                        <span class="text-[10px] font-mono bg-gray-200 px-1 rounded">${r.auto_placa}</span>
+                    </td>
 
-                <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
-                    ${r.origen}
-                </td>
-                <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
-                    ${r.destino}
-                </td>
-                <td class="border px-2 py-1 text-[10px] leading-tight">${r.fecha}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
+                    <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
+                        ${r.origen}
+                    </td>
+                    <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
+                        ${r.destino}
+                    </td>
+                    <td class="border px-2 py-1 text-[10px] leading-tight">${r.fecha}</td>
+                </tr>
+                `).join("")}
+            </tbody>
+            </table>
+        </div>
+        `;
+    }
 
     function generarTablaConductores(data) {
       let totalServicios = 0;
@@ -800,65 +797,65 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCliente = document.getElementById("btnReporteCliente");
 
   if (btnCliente) {
-    btnCliente.addEventListener("click", async () => {
-      const telefonoInput = document.getElementById("telefonoCliente");
-      if (!telefonoInput) return;
+        btnCliente.addEventListener("click", async () => {
+        const telefonoInput = document.getElementById("telefonoCliente");
+        if (!telefonoInput) return;
 
-      const telefono = telefonoInput.value.trim();
-      const token = localStorage.getItem("token");
+        const telefono = telefonoInput.value.trim();
+        const token = localStorage.getItem("token");
 
-      // VALIDACIONES (Alineadas correctamente)
-      if (!token) {
-        alert("Sesión expirada. Por favor, vuelve a iniciar sesión.");
-        window.location.href = "/login";
-        return;
-      }
-
-      if (!telefono) {
-        alert("Debes ingresar un número de teléfono");
-        return;
-      }
-
-      try {
-        const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
-
-        if (response.status === 401) {
-          throw new Error("No autorizado: Tu sesión ha caducado.");
+        // VALIDACIONES (Alineadas correctamente)
+        if (!token) {
+            alert("Sesión expirada. Por favor, vuelve a iniciar sesión.");
+            window.location.href = "/login";
+            return;
         }
 
-        if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
+        if (!telefono) {
+            alert("Debes ingresar un número de teléfono");
+            return;
         }
 
-        const data = await response.json();
-        const tbody = document.getElementById("tabla-reporte-cliente");
-        let filas = ""; 
+        try {
+            const response = await fetch(`/reportes/cliente?telefono=${telefono}`, {
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+            });
 
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(item => {
-            filas += `
-              <tr>
-                <td>${item.nombre_conductor}</td>
-                <td>${item.origen}</td>
-                <td>${item.destino}</td>
-                <td>${item.ultima_fecha}</td>
-              </tr>`;
-          });
-          tbody.innerHTML = filas;
-        } else {
-          tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+            if (response.status === 401) {
+            throw new Error("No autorizado: Tu sesión ha caducado.");
+            }
+
+            if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const tbody = document.getElementById("tabla-reporte-cliente");
+            let filas = ""; 
+
+            if (Array.isArray(data) && data.length > 0) {
+            data.forEach(item => {
+                filas += `
+                <tr>
+                    <td>${item.nombre_conductor}</td>
+                    <td>${item.origen}</td>
+                    <td>${item.destino}</td>
+                    <td>${item.ultima_fecha}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = filas;
+            } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+            }
+        } catch (err) {
+            console.error("❌ Error:", err);
+            alert(err.message);
         }
-      } catch (err) {
-        console.error("❌ Error:", err);
-        alert(err.message);
-      }
-    }); // Cierre del listener
-  } // Cierre del if  
+        }); // Cierre del listener
+     } // Cierre del if  
     // -------------------------------
     // 📌 Atajo de teclado Alt+T (solo admins)
     document.addEventListener("keydown", (e) => {
@@ -903,9 +900,9 @@ document.addEventListener("DOMContentLoaded", () => {
           
           // Mostrar los controles (por si estaban ocultos)
           document.getElementById("controlesPaginacion").style.display = "flex";
-      } catch (err) {
-          console.error("❌ Error:", err);
-      }
+        } catch (err) {
+            console.error("❌ Error:", err);
+        }
     }
 
   
@@ -916,7 +913,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (query.length === 0) {
           cargarClientesTel(1); 
           return;
-      }
+        }
 
       if (query.length < 3) return;
 
@@ -930,246 +927,276 @@ document.addEventListener("DOMContentLoaded", () => {
           // Ahora pasamos 'filtrados' directamente a la tabla
           renderTablaClientesTel(filtrados);
           
-      } catch (err) {
-          console.error("❌ Error en búsqueda:", err);
-      }
+        } catch (err) {
+            console.error("❌ Error en búsqueda:", err);
+        }
    });
   
 
   function renderTablaClientesTel(clientes) {
-    const tbody = document.querySelector('#tablaClientesTel tbody');
-    if (!tbody) return;
-    tbody.innerHTML = ""; 
+        const tbody = document.querySelector('#tablaClientesTel tbody');
+        if (!tbody) return;
+        tbody.innerHTML = ""; 
 
-    clientes.forEach((cliente, index) => {
-      const tr = document.createElement("tr");
-      // Añadimos una transición suave para el hover
-      tr.className = "cursor-pointer hover:bg-gray-100 border-b transition-colors";
+        clientes.forEach((cliente, index) => {
+        const tr = document.createElement("tr");
+        // Añadimos una transición suave para el hover
+        tr.className = "cursor-pointer hover:bg-gray-100 border-b transition-colors";
 
-      // 1. Numeración correlativa real
-      const num = ((paginaActual - 1) * 50) + (index + 1);
+        // 1. Numeración correlativa real
+        const num = ((paginaActual - 1) * 50) + (index + 1);
 
-      // 2. Construcción limpia con Template Literals
-      tr.innerHTML = `
-        <td class="p-2 text-center text-gray-500">${num}</td>
-        <td class="p-2 font-medium">${cliente.nombre}</td>
-        <td class="p-2 font-mono">${cliente.nro_telefono || cliente.telefono || 'S/N'}</td>
-        <td class="p-2 truncate max-w-xs cursor-help" title="${cliente.direccion || 'Sin dirección'}">
-          ${cliente.direccion || "Sin dirección"}
-        </td>
-      `;
+        // 2. Construcción limpia con Template Literals
+        tr.innerHTML = `
+            <td class="p-2 text-center text-gray-500">${num}</td>
+            <td class="p-2 font-medium">${cliente.nombre}</td>
+            <td class="p-2 font-mono">${cliente.nro_telefono || cliente.telefono || 'S/N'}</td>
+            <td class="p-2 truncate max-w-xs cursor-help" title="${cliente.direccion || 'Sin dirección'}">
+            ${cliente.direccion || "Sin dirección"}
+            </td>
+        `;
 
-      // 3. Evento de selección con feedback visual
-      tr.addEventListener("click", () => {
-        seleccionarClienteTel(cliente);
-        // Limpiamos selección previa y marcamos la nueva
-        tbody.querySelectorAll("tr").forEach(r => r.classList.remove("bg-blue-100", "font-bold"));
-        tr.classList.add("bg-blue-100", "font-bold");
-      });
+        // 3. Evento de selección con feedback visual
+        tr.addEventListener("click", () => {
+            seleccionarClienteTel(cliente);
+            // Limpiamos selección previa y marcamos la nueva
+            tbody.querySelectorAll("tr").forEach(r => r.classList.remove("bg-blue-100", "font-bold"));
+            tr.classList.add("bg-blue-100", "font-bold");
+        });
 
-      tbody.appendChild(tr);
-    });
-  }
+        tbody.appendChild(tr);
+        });
+     }
 
   // En dashboard.js, dentro del evento input del buscador:
   // 📌 Búsqueda remota 
 
 
- function seleccionarClienteTel(cliente) {
-    const inputId = document.querySelector("#cliIdTel");
-    const inputNombre = document.querySelector("#cliNombreTel");
-    const inputTelActual = document.querySelector("#cliTelefonoActualTel");
-    const inputNuevo = document.querySelector("#cliTelefonoNuevoTel");
+    function seleccionarClienteTel(cliente) {
+        const inputId = document.querySelector("#cliIdTel");
+        const inputNombre = document.querySelector("#cliNombreTel");
+        const inputTelActual = document.querySelector("#cliTelefonoActualTel");
+        const inputNuevo = document.querySelector("#cliTelefonoNuevoTel");
 
-    if (inputId) inputId.value = cliente.id_cliente || cliente.id;
-    if (inputNombre) inputNombre.value = cliente.nombre;
-    if (inputTelActual) inputTelActual.value = cliente.nro_telefono || cliente.telefono;
-    if (inputNuevo) {
-      inputNuevo.value = "";
-      inputNuevo.focus();
+        if (inputId) inputId.value = cliente.id_cliente || cliente.id;
+        if (inputNombre) inputNombre.value = cliente.nombre;
+        if (inputTelActual) inputTelActual.value = cliente.nro_telefono || cliente.telefono;
+        if (inputNuevo) {
+        inputNuevo.value = "";
+        inputNuevo.focus();
+        }
     }
-  }
   window.seleccionarClienteTel = seleccionarClienteTel;
   
 
- function abrirModalTelefonosClientes() {
-    document.getElementById("modalTelefonosClientes").classList.add("active");
-    document.getElementById("modalTelefonosClientes").classList.remove("hidden");
-    cargarClientesTel();
-  }
+    function abrirModalTelefonosClientes() {
+        document.getElementById("modalTelefonosClientes").classList.add("active");
+        document.getElementById("modalTelefonosClientes").classList.remove("hidden");
+        cargarClientesTel();
+    }
   window.abrirModalTelefonosClientes = abrirModalTelefonosClientes;
   function cerrarModalTelefonosClientes() {
-    document.getElementById("modalTelefonosClientes").classList.remove("active");
-    document.getElementById("modalTelefonosClientes").classList.add("hidden");
+        document.getElementById("modalTelefonosClientes").classList.remove("active");
+        document.getElementById("modalTelefonosClientes").classList.add("hidden");
 
-  }
+     }
   window.cerrarModalTelefonosClientes = cerrarModalTelefonosClientes;
 
- document.getElementById("formEditarTelefono").addEventListener("submit", async e => {
-    e.preventDefault();
-    const idCliente = document.querySelector("#cliIdTel").value;
-    const nombre = document.querySelector("#cliNombreTel").value;
-    const nuevoTel = document.querySelector("#cliTelefonoNuevoTel").value;
-    if (!idCliente) {
-        alert("⚠️ Por favor, seleccione un cliente de la tabla primero.");
-        return;
-    }
-    try {
-        const res = await apiFetch(`/clientes/updateTelefono`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                id_cliente: idCliente, // Para la base de datos
-                nombre: nombre,        // 👈 Para que la validación de Python no falle
-                telefono: nuevoTel 
-            })
-        });
-        
-        alert("✅ Teléfono actualizado correctamente");
-        cargarClientesTel();
-    } catch (err) {
-        console.error("❌ Error detectado:", err);
-        
-        let mensajeLimpio = "No se pudo actualizar el teléfono.";
+    document.getElementById("formEditarTelefono").addEventListener("submit", async e => {
+        e.preventDefault();
+        const idCliente = document.querySelector("#cliIdTel").value;
+        const nombre = document.querySelector("#cliNombreTel").value;
+        const nuevoTel = document.querySelector("#cliTelefonoNuevoTel").value;
+        if (!idCliente) {
+            alert("⚠️ Por favor, seleccione un cliente de la tabla primero.");
+            return;
+        }
+        try {
+            const res = await apiFetch(`/clientes/updateTelefono`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    id_cliente: idCliente, // Para la base de datos
+                    nombre: nombre,        // 👈 Para que la validación de Python no falle
+                    telefono: nuevoTel 
+                })
+            });
+            
+            alert("✅ Teléfono actualizado correctamente");
+            cargarClientesTel();
+        } catch (err) {
+            console.error("❌ Error detectado:", err);
+            
+            let mensajeLimpio = "No se pudo actualizar el teléfono.";
 
-        // Convertimos el error a string para analizarlo
-        const errorStr = String(err);
+            // Convertimos el error a string para analizarlo
+            const errorStr = String(err);
 
-        // Si el error contiene un JSON (buscamos la llave { )
-        if (errorStr.includes('{')) {
-            try {
-                // Extraemos solo la parte que es JSON
-                const inicioJson = errorStr.indexOf('{');
-                const finJson = errorStr.lastIndexOf('}') + 1;
-                const jsonRaw = errorStr.substring(inicioJson, finJson);
-                
-                const errorObj = JSON.parse(jsonRaw);
-                
-                // Usamos el mensaje que definiste en Python
-                mensajeLimpio = errorObj.error || mensajeLimpio;
-            } catch (e) {
-                // Si falla el parseo, al menos quitamos el prefijo "Error: Error 400:"
+            // Si el error contiene un JSON (buscamos la llave { )
+            if (errorStr.includes('{')) {
+                try {
+                    // Extraemos solo la parte que es JSON
+                    const inicioJson = errorStr.indexOf('{');
+                    const finJson = errorStr.lastIndexOf('}') + 1;
+                    const jsonRaw = errorStr.substring(inicioJson, finJson);
+                    
+                    const errorObj = JSON.parse(jsonRaw);
+                    
+                    // Usamos el mensaje que definiste en Python
+                    mensajeLimpio = errorObj.error || mensajeLimpio;
+                } catch (e) {
+                    // Si falla el parseo, al menos quitamos el prefijo "Error: Error 400:"
+                    mensajeLimpio = errorStr.replace(/^Error: Error \d+: /g, "");
+                }
+            } else {
                 mensajeLimpio = errorStr.replace(/^Error: Error \d+: /g, "");
             }
-        } else {
-            mensajeLimpio = errorStr.replace(/^Error: Error \d+: /g, "");
-        }
 
-        // El alert ahora será profesional y limpio
-        alert(`⚠️ Atención:\n${mensajeLimpio}`);
-    }
+            // El alert ahora será profesional y limpio
+            alert(`⚠️ Atención:\n${mensajeLimpio}`);
+        }
   });
 
   async function eliminarClienteTel() {
-    const idCliente = document.querySelector("#cliIdTel").value; 
-    const nombre = document.querySelector("#cliNombreTel").value;
+        const idCliente = document.querySelector("#cliIdTel").value; 
+        const nombre = document.querySelector("#cliNombreTel").value;
 
-    if (!idCliente) {
-      alert("⚠️ Selecciona un cliente de la tabla primero.");
-      return;
-    }
+        if (!idCliente) {
+        alert("⚠️ Selecciona un cliente de la tabla primero.");
+        return;
+        }
 
-    if (!confirm(`¿Estás seguro de que deseas eliminar/desactivar a "${nombre}"?`)) {
-      return;
-    }
+        if (!confirm(`¿Estás seguro de que deseas eliminar/desactivar a "${nombre}"?`)) {
+        return;
+        }
 
-    try {
-      const response = await apiFetch(`/clientes/${idCliente}`, {
-          method: "DELETE"
-      });
-      
-      // Informamos según la lógica de historial que hicimos
-      alert(response.mensaje || "✅ Operación realizada con éxito.");
+        try {
+        const response = await apiFetch(`/clientes/${idCliente}`, {
+            method: "DELETE"
+        });
+        
+        // Informamos según la lógica de historial que hicimos
+        alert(response.mensaje || "✅ Operación realizada con éxito.");
 
-      // LIMPIEZA CORRECTA SEGÚN TU HTML:
-      document.querySelector("#cliIdTel").value = "";
-      document.querySelector("#cliNombreTel").value = "";
-      document.querySelector("#cliTelefonoActualTel").value = "";
-      document.querySelector("#cliTelefonoNuevoTel").value = "";
-      
-      // Opcional: Limpiar también el buscador de arriba
-      if (document.querySelector("#buscarNombreTel")) {
-          document.querySelector("#buscarNombreTel").value = "";
-      }
+        // LIMPIEZA CORRECTA SEGÚN TU HTML:
+        document.querySelector("#cliIdTel").value = "";
+        document.querySelector("#cliNombreTel").value = "";
+        document.querySelector("#cliTelefonoActualTel").value = "";
+        document.querySelector("#cliTelefonoNuevoTel").value = "";
+        
+        // Opcional: Limpiar también el buscador de arriba
+        if (document.querySelector("#buscarNombreTel")) {
+            document.querySelector("#buscarNombreTel").value = "";
+        }
 
-      // Recargar la tabla para que el cliente desaparezca de la lista
-      if (typeof cargarClientesTel === 'function') {
-          cargarClientesTel(); 
-      }
-      
-    } catch (err) {
-      console.error("❌ Error al procesar:", err);
-      alert("No se pudo completar la operación.");
-    }
-  }
+        // Recargar la tabla para que el cliente desaparezca de la lista
+        if (typeof cargarClientesTel === 'function') {
+            cargarClientesTel(); 
+        }
+        
+        } catch (err) {
+        console.error("❌ Error al procesar:", err);
+        alert("No se pudo completar la operación.");
+        }
+     }
   window.eliminarClienteTel = eliminarClienteTel;
    
 
-   function abrirVista(idVista) {
-        //console.trace("DEBUG: ¿Quién llamó a abrirVista?:", idVista);
+    function abrirVista(idVista) {
         const rolRaw = localStorage.getItem("rol");
         const rol = (rolRaw || "").trim().toLowerCase();
         
-        // AGREGA ESTO PARA DEPURAR
-        console.log("DEBUG: Rol detectado en localStorage:", rolRaw, "Procesado:", rol);
-        
-              
-        // 1. Normalizar ID
         let idReal = (idVista === 'clientes' || idVista === 'clientesSection') ? 'clientesSection' : idVista;
         
-        // 2. Control de seguridad
         if (idReal === 'clientesSection' && rol !== 'admin') {
-            console.warn("⚠️ Acceso denegado: Vista de clientes requiere rol admin.");
+            if (typeof window.mostrarToast === 'function') window.mostrarToast("Acceso denegado: Requiere Administrador", "error");
             idReal = 'despachos'; 
         }
 
-        // 3. OBTENER EL ELEMENTO REAL (Aquí estaba el fallo)
-        const vista = document.getElementById(idReal);
+        const vistaTarget = document.getElementById(idReal);
 
-        // 4. Lógica de activación
-        // 4. Lógica de activación
-        if (vista) {
-            // Ocultar todas las secciones antes de mostrar la seleccionada
-            document.querySelectorAll('.seccion').forEach(s => s.classList.add('hidden'));
+        if (vistaTarget) {
+            // 1. Ocultar todas las secciones
+            document.querySelectorAll('.seccion').forEach(s => {
+                s.classList.add('hidden');
+                s.style.display = 'none';
+            });
             
-            vista.classList.remove("hidden");
-            vista.style.display = 'block';
-            
-            if (window.vistaActual !== idReal) {
-                console.log(`✅ Vista activa: ${idReal}`);
-                window.vistaActual = idReal;
+            // 2. Mostrar la sección seleccionada
+            vistaTarget.classList.remove("hidden");
+            vistaTarget.style.display = 'block';
+            window.vistaActual = idReal;
+
+            // 3. Resaltar visualmente el botón activo en el menú lateral
+            document.querySelectorAll('aside nav button, ul button').forEach(btn => {
+                btn.classList.remove('text-blue-700', 'bg-blue-50');
+                btn.classList.add('text-gray-700');
+            });
+
+            const botonActivo = document.querySelector(`[onclick*="'${idReal}'"]`) || document.querySelector(`[onclick*='"${idReal}"']`);
+            if (botonActivo) {
+                botonActivo.classList.remove('text-gray-700');
+                botonActivo.classList.add('text-blue-700', 'bg-blue-50');
             }
 
-            // 🚀 DISPARAR CARGA DE DATOS SEGÚN LA VISTA ACTIVA
-            if (idReal === 'despachos') {
-                if (typeof window.cargarColaClientes === "function") {
-                    window.cargarColaClientes();
-                }
-            }
+            // 4. Cargar datos en el DOM según la vista seleccionada
+            switch (idReal) {
+                case 'despachos':
+                    if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
+                    break;
 
-            // Carga de datos condicional para pagos
-            if (idReal === 'pagos') {
-                if (window.cargarConductoresSelect) window.cargarConductoresSelect();
-                if (window.cargarHistorialPagos) window.cargarHistorialPagos();
-                if (window.cargarEstadoSemana) window.cargarEstadoSemana();
+                case 'despachosActivos':
+                    if (typeof window.cargarDespachosActivos === "function") window.cargarDespachosActivos();
+                    break;
+
+                case 'conductores':
+                    if (typeof window.cargarConductores === "function") window.cargarConductores();
+                    break;
+
+                case 'autos':
+                    if (typeof window.cargarAutos === "function") window.cargarAutos();
+                    break;
+
+                case 'turnosActivos':
+                    if (typeof window.cargarConductoresSelect === "function") window.cargarConductoresSelect();
+                    if (typeof window.cargarAutosSelect === "function") window.cargarAutosSelect();
+                    if (typeof window.cargarPuntosSelect === "function") window.cargarPuntosSelect();
+                    if (typeof window.cargarTurnosActivos === "function") window.cargarTurnosActivos();
+                    break;
+
+                case 'pagos':
+                    if (typeof window.cargarConductoresSelect === "function") window.cargarConductoresSelect();
+                    if (typeof window.cargarHistorialPagos === "function") window.cargarHistorialPagos();
+                    if (typeof window.cargarEstadoSemana === "function") window.cargarEstadoSemana();
+                    break;
+
+                case 'reportes':
+                    if (typeof window.cargarReportes === "function") window.cargarReportes();
+                    break;
             }
-        } else if (idReal !== 'despachos') {
-            // Fallback si la vista no existe
-            abrirVista('despachos');
+        } else {
+            console.error(`❌ La sección '${idReal}' no existe en el DOM.`);
         }
     }
     window.abrirVista = abrirVista;
+
+    window.abrirVista = abrirVista;
+
+    //function mostrarSeccion(nombreSeccion) {
+    //    abrirVista(nombreSeccion);
+   // }
+    window.mostrarSeccion = mostrarSeccion;
    async function registrarAuditoriaAcceso(evento) {
-    const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
-    try {
-      await apiFetch('/usuarios/log-acceso', {
-        method: 'POST',
-        body: JSON.stringify({ usuario: usuarioActivo, evento: evento })
-      });
-    } catch (error) {
-      console.error("Error de auditoría:", error);
+        const usuarioActivo = localStorage.getItem('usuario_nombre') || 'admin'; 
+        try {
+        await apiFetch('/usuarios/log-acceso', {
+            method: 'POST',
+            body: JSON.stringify({ usuario: usuarioActivo, evento: evento })
+        });
+        } catch (error) {
+        console.error("Error de auditoría:", error);
+        }
     }
-  }
   window.registrarAuditoriaAcceso = registrarAuditoriaAcceso;
   window.cargarConductoresSelect = async function() {
         const select = document.getElementById('pago_conductor_id');
@@ -1198,42 +1225,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
   window.cargarHistorialPagos = async function() {
-    const tbody = document.getElementById('tabla_historial_pagos');
-    
-    if (!tbody) {
-        console.error("❌ ERROR: No existe el ID 'tabla_historial_pagos' en el HTML.");
-        return;
-    }
-
-    try {
-        console.log("📡 Intentando conectar con /pagos/recientes...");
-        const pagos = await apiFetch('/pagos/recientes');
+        const tbody = document.getElementById('tabla_historial_pagos');
         
-        console.log("📦 Datos recibidos del servidor:", pagos);
-
-        if (!pagos || pagos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">No hay pagos en la base de datos.</td></tr>';
+        if (!tbody) {
+            console.error("❌ ERROR: No existe el ID 'tabla_historial_pagos' en el HTML.");
             return;
         }
 
-        tbody.innerHTML = pagos.map(p => `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="px-4 py-2 text-sm">${p.fecha}</td>
-                <td class="px-4 py-2 font-medium">${p.conductor}</td>
-                <td class="px-4 py-2 text-blue-600">${p.semana}</td>
-                <td class="p-2 text-right font-bold text-green-700">
-                    ${(Number(p.monto) || 0).toLocaleString('es-VE')} COP
-                </td>
-                <td class="px-4 py-2 text-gray-500 text-xs">${p.ref || 's/r'}</td>
-            </tr>
-        `).join('');
-       
-        console.log("✅ Tabla renderizada con éxito.");
-    } catch (err) {
-        console.error("❌ ERROR en la petición:", err);
-        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error de conexión.</td></tr>';
-    }
- };
+        try {
+            console.log("📡 Intentando conectar con /pagos/recientes...");
+            const pagos = await apiFetch('/pagos/recientes');
+            
+            console.log("📦 Datos recibidos del servidor:", pagos);
+
+            if (!pagos || pagos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">No hay pagos en la base de datos.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pagos.map(p => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-2 text-sm">${p.fecha}</td>
+                    <td class="px-4 py-2 font-medium">${p.conductor}</td>
+                    <td class="px-4 py-2 text-blue-600">${p.semana}</td>
+                    <td class="p-2 text-right font-bold text-green-700">
+                        ${(Number(p.monto) || 0).toLocaleString('es-VE')} COP
+                    </td>
+                    <td class="px-4 py-2 text-gray-500 text-xs">${p.ref || 's/r'}</td>
+                </tr>
+            `).join('');
+        
+            console.log("✅ Tabla renderizada con éxito.");
+        } catch (err) {
+            console.error("❌ ERROR en la petición:", err);
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error de conexión.</td></tr>';
+        }
+    };
  
 // ================================================================
 // SECCIÓN: CONTROL DE ESTADO SEMANAL Y SALDOS (VERSIÓN ÚNICA)

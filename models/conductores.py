@@ -14,7 +14,7 @@ class Conductor(db.Model):
     # Campos para geolocalización
     latitud = db.Column(db.Float, nullable=True)
     longitud = db.Column(db.Float, nullable=True)
-    ultima_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    ultima_actualizacion = db.Column(db.DateTime, nullable=True)
     tolerancia_dinamica_minutos = db.Column(db.Integer, default=5)  # Ajustado a 5 min por defecto
     aviso_enviado = db.Column(db.Integer, default=0)  # Para rastrear si se envió un aviso de tolerancia
     nivel_bateria = db.Column(db.Integer, nullable=True)        # Porcentaje (0 - 100)

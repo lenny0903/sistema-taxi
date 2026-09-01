@@ -87,7 +87,24 @@ window.refrescarSelectConductorUnico = refrescarSelectConductorUnico;
  * 🚀 Función centralizada reutilizable para procesar Despachos Directos
  * Maneja validación de afinidad, API POST /despachos/ y creación del banner flotante.
  */
-async function ejecutarDespachoDirecto({ clienteId, conductorId, autoId, origen, destino, tarifa, idCola = null, optionCondText = "" }) {
+window.isDespachandoFlag = false;
+
+async function ejecutarDespachoDirecto({ 
+    clienteId, 
+    conductorId, 
+    autoId, 
+    origen, 
+    destino, 
+    tarifa, 
+    idCola = null, 
+    optionCondText = "",
+    nroControl = null // 👈 Si lo tienes disponible, puedes pasarlo; si no, se deduce abajo
+}) {
+    if (window.isDespachandoFlag) {
+        console.warn("⚠️ Ejecución de despacho ya en curso. Ignorando evento duplicado.");
+        return false;
+    }
+
     if (!origen || !tarifa) {
         mostrarToast("⚠️ El origen y la tarifa son obligatorios", "error");
         return false;
@@ -97,6 +114,8 @@ async function ejecutarDespachoDirecto({ clienteId, conductorId, autoId, origen,
         mostrarToast("⚠️ Datos de cliente o conductor incompletos", "error");
         return false;
     }
+
+    window.isDespachandoFlag = true;
 
     try {
         // 🚨 1. Validar exclusión mutua / afinidad
@@ -110,7 +129,8 @@ async function ejecutarDespachoDirecto({ clienteId, conductorId, autoId, origen,
 
         if (checkAfinidad && checkAfinidad.permitido === false) {
             mostrarToast(checkAfinidad.mensaje, "error");
-            return false; // Bloqueado por incompatibilidad
+            window.isDespachandoFlag = false;
+            return false; 
         }
 
         // 🚀 2. Enviar payload a la API
@@ -136,139 +156,310 @@ async function ejecutarDespachoDirecto({ clienteId, conductorId, autoId, origen,
         if (result && !result.error) {
             mostrarToast(`✅ Despacho creado con éxito`, "success");
 
-            // 📲 3. GENERAR BANNER FLOTANTE (WHATSAPP & COPYS)
-            const inputNombre = document.getElementById("desNombre") || document.getElementById("modalNombreCliente");
-            const inputTelefono = document.getElementById("desTelefono") || document.getElementById("modalTelefonoCliente");
-            
-            const nombreCliente = window.nombreClienteGlobal || (inputNombre ? inputNombre.value.trim() : "Cliente");
-            const telefonoCliente = result.cliente_telefono || (inputTelefono ? inputTelefono.value.trim() : "") || "";
+            // 📲 3. GENERAR BANNER FLOTANTE (Protegido en bloque independiente)
+            try {
+                const inputNombre = document.getElementById("desNombre") || document.getElementById("modalNombreCliente");
+                const inputTelefono = document.getElementById("desTelefono") || document.getElementById("modalTelefonoCliente");
+                
+                const nombreCliente = window.nombreClienteGlobal || (inputNombre ? inputNombre.value.trim() : "Cliente");
+                const telefonoCliente = result.cliente_telefono || (inputTelefono ? inputTelefono.value.trim() : "") || "";
 
-            let telClienteLimpiado = telefonoCliente.replace(/\D/g, '');
-            if (telClienteLimpiado.startsWith('0') && telClienteLimpiado.length === 11) {
-                telClienteLimpiado = '58' + telClienteLimpiado.substring(1);
+                // 🎯 Resolver nroControl de forma segura si no vino por parámetro
+                const matchDigitos = optionCondText.match(/\d+/);
+                const numClean = matchDigitos ? matchDigitos[0] : "1";
+                const numFormateado = numClean.padStart(2, '0');
+                const nroControlCalculado = nroControl || `B${numClean}`;
+
+                const nombreArchivoFlayer = `B${numFormateado}.png`;
+                const rutaFlayerLocal = `/static/img/flayers/${nombreArchivoFlayer}`;
+                
+                const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
+                const botTelegram = "@Lospatriotastest_bot";
+                
+                const msgCliente = 
+                    `¡Hola! 🚖 Su unidad va en camino.\n\n` +
+                    `🚗 *UNIDAD ASIGNADA: #${nroControlCalculado}*\n` +
+                    `• Conductor: *${nombreCond}*\n` +
+                    `• Vehículo: *Vehículo*\n` +
+                    `• Placa: **\n\n` +
+                    `📍 Para ver el mapa y rastreo en tiempo real, abra su Telegram, busque el bot *${botTelegram}* y envíe la palabra: *UBI*`;
+
+                const nroControlConductor = nroControlCalculado !== "B1" ? nroControlCalculado : optionCondText;
+
+                const msgConductor = 
+                    `🚖 *NUEVO DESPACHO ASIGNADO* (#${result.id_despacho})\n\n` +
+                    `📍 *Origen:* ${origen}\n` +
+                    `🏁 *Destino:* ${destino}\n` +
+                    `👤 *Cliente:* ${nombreCliente}\n` +
+                    `📞 *Teléfono:* ${telefonoCliente}\n\n` +
+                    `¡Buen viaje! 🚀`;
+
+                // Crear el Banner Flotante
+                const bannerAnterior = document.getElementById('bannerDespachoFlotante');
+                if (bannerAnterior) bannerAnterior.remove();
+
+                const bannerDiv = document.createElement('div');
+                bannerDiv.id = 'bannerDespachoFlotante';
+                bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
+                
+                bannerDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #25d366; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
+                        <span style="font-weight: bold;">Despacho #${result.id_despacho}</span>
+                    </div>
+                    <button id="btnCli" type="button" tabindex="-1" style="background: #25d366; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia la imagen del flayer">
+                        🖼️ ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Flayer ${nombreArchivoFlayer}) 📲
+                    </button>
+                    <button id="btnTextoCli" type="button" tabindex="-1" style="background: #0088cc; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia el mensaje de texto para el cliente">
+                        💬 ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Texto) 📋
+                    </button>
+                    <button id="btnCond" type="button" tabindex="-1" style="background: #128c7e; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia mensaje para el conductor">
+                        🚗 ${nroControlConductor} (Copiar Conductor) 📋
+                    </button>
+                    <button id="btnCerrarBanner" type="button" tabindex="-1" style="background: #555; color: white; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer;" title="Cerrar">✕</button>
+                `;
+                
+                document.body.appendChild(bannerDiv);
+
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+
+                const btnCli = bannerDiv.querySelector('#btnCli');
+                btnCli.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+
+                btnCli.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    try {
+                        const response = await fetch(rutaFlayerLocal);
+                        if (response.status === 404) {
+                            mostrarToast(`ℹ️ La imagen ${nombreArchivoFlayer} no existe en /static/img/flayers/`, "warning");
+                            return;
+                        }
+                        if (!response.ok) throw new Error(`Error en el servidor: ${response.status}`);
+
+                        const rawBlob = await response.blob();
+                        let finalPngBlob = rawBlob;
+
+                        if (rawBlob.type !== "image/png") {
+                            const img = new Image();
+                            img.crossOrigin = "anonymous";
+                            await new Promise((resolve, reject) => {
+                                img.onload = resolve;
+                                img.onerror = () => reject(new Error("No se pudo procesar la imagen"));
+                                img.src = URL.createObjectURL(rawBlob);
+                            });
+
+                            const canvas = document.createElement("canvas");
+                            canvas.width = img.naturalWidth || img.width;
+                            canvas.height = img.naturalHeight || img.height;
+                            const ctx = canvas.getContext("2d");
+                            ctx.drawImage(img, 0, 0);
+
+                            finalPngBlob = await new Promise(res => canvas.toBlob(res, "image/png"));
+                        }
+
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ "image/png": finalPngBlob })
+                        ]);
+
+                        mostrarToast(`🖼️ Flayer ${nombreArchivoFlayer} copiado`, "success");
+
+                    } catch (err) {
+                        mostrarToast(`⚠️ Error al copiar: ${err.message || err}`, "error");
+                    }
+                });
+
+                bannerDiv.querySelector('#btnTextoCli').addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        await navigator.clipboard.writeText(msgCliente);
+                        mostrarToast("📋 Mensaje cliente copiado", "success");
+                    } catch (err) {
+                        mostrarToast("⚠️ No se pudo copiar el texto", "error");
+                    }
+                });
+
+                bannerDiv.querySelector('#btnCond').addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        await navigator.clipboard.writeText(msgConductor);
+                        mostrarToast("📋 Mensaje conductor copiado", "success");
+                    } catch (err) {
+                        mostrarToast("⚠️ No se pudo copiar", "error");
+                    }
+                });
+
+                bannerDiv.querySelector('#btnCerrarBanner').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    bannerDiv.remove();
+                });
+
+            } catch (bannerErr) {
+                console.error("⚠️ Error manipulando el banner flotante:", bannerErr);
             }
 
-            const matchControl = optionCondText.match(/(B\d+)/i);
-            const nroControl = matchControl ? matchControl[1].trim().toUpperCase() : "B1";
-            const rutaFlayerLocal = `/static/flayers/${nroControl}.png`;
-            const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
-            
-            const botTelegram = "@Taxilospatriotastest_bot";
-            
-            const msgCliente = 
-                `¡Hola! 🚖 Su unidad va en camino.\n\n` +
-                `🚗 *UNIDAD ASIGNADA: #${nroControl}*\n` +
-                `• Conductor: *${nombreCond}*\n` +
-                `• Vehículo: *Vehículo*\n` +
-                `• Placa: **\n\n` +
-                `📍 Para ver el mapa y rastreo en tiempo real, abra su Telegram, busque el bot *${botTelegram}* y envíe la palabra: *UBI*`;
-
-            const nroControlConductor = nroControl !== "B1" ? nroControl : optionCondText;
-
-            const msgConductor = 
-                `🚖 *NUEVO DESPACHO ASIGNADO* (#${result.id_despacho})\n\n` +
-                `📍 *Origen:* ${origen}\n` +
-                `🏁 *Destino:* ${destino}\n` +
-                `👤 *Cliente:* ${nombreCliente}\n` +
-                `📞 *Teléfono:* ${telefonoCliente}\n\n` +
-                `¡Buen viaje! 🚀`;
-
-            // Crear el Banner Flotante
-            const bannerAnterior = document.getElementById('bannerDespachoFlotante');
-            if (bannerAnterior) bannerAnterior.remove();
-
-            const bannerDiv = document.createElement('div');
-            bannerDiv.id = 'bannerDespachoFlotante';
-            bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
-            
-            bannerDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #25d366; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
-                    <span style="font-weight: bold;">Despacho #${result.id_despacho}</span>
-                </div>
-                <button id="btnCli" style="background: #25d366; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia la imagen del flayer">
-                    🖼️ ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Flayer) 📲
-                </button>
-                <button id="btnTextoCli" style="background: #0088cc; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia el mensaje de texto para el cliente">
-                    💬 ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Texto) 📋
-                </button>
-                <button id="btnCond" style="background: #128c7e; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia mensaje para el conductor">
-                    🚗 ${nroControlConductor} (Copiar Conductor) 📋
-                </button>
-                <button id="btnCerrarBanner" style="background: #555; color: white; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer;" title="Cerrar">✕</button>
-            `;
-            
-            document.body.appendChild(bannerDiv);
-
-            // Listeners de los botones del banner
-            bannerDiv.querySelector('#btnCli').addEventListener('click', async () => {
-                try {
-                    const response = await fetch(rutaFlayerLocal);
-                    if (!response.ok) throw new Error("No se encontró la imagen");
-                    const blob = await response.blob();
-                    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-                    mostrarToast("🖼️ Flayer copiado. Pégalo en WhatsApp con Ctrl+V", "success");
-                } catch (err) {
-                    mostrarToast("⚠️ No se pudo cargar la imagen del flayer", "error");
-                }
-            });
-
-            bannerDiv.querySelector('#btnTextoCli').addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(msgCliente);
-                    mostrarToast("📋 Mensaje para el cliente copiado al portapapeles", "success");
-                } catch (err) {
-                    mostrarToast("⚠️ No se pudo copiar el texto", "error");
-                }
-            });
-
-            bannerDiv.querySelector('#btnCond').addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(msgConductor);
-                    mostrarToast("📋 Mensaje de conductor copiado", "success");
-                } catch (err) {
-                    mostrarToast("⚠️ No se pudo copiar", "error");
-                }
-            });
-
-            bannerDiv.querySelector('#btnCerrarBanner').addEventListener('click', () => bannerDiv.remove());
-
-            // 🔄 4. Refresco en paralelo del sistema
-            Promise.all([
-                cargarColaClientes(),
-                typeof refrescarSelectConductorUnico === 'function' ? refrescarSelectConductorUnico() : Promise.resolve(),
-                typeof refrescarConductoresDisponibles === 'function' ? refrescarConductoresDisponibles() : Promise.resolve()
-            ]);
+            // 🔄 4. Refresco asíncrono no bloqueante
+            setTimeout(() => {
+                Promise.allSettled([
+                    typeof cargarColaClientes === 'function' ? cargarColaClientes() : Promise.resolve(),
+                    typeof refrescarSelectConductorUnico === 'function' ? refrescarSelectConductorUnico() : Promise.resolve(),
+                    typeof refrescarConductoresDisponibles === 'function' ? refrescarConductoresDisponibles() : Promise.resolve()
+                ]).finally(() => {
+                    window.isDespachandoFlag = false;
+                });
+            }, 50);
 
             return true;
         } else {
             mostrarToast("❌ Error: " + (result.error || "No se pudo crear el despacho"), "error");
+            window.isDespachandoFlag = false;
             return false;
         }
     } catch (err) {
         console.error("❌ Error en Despacho:", err);
         mostrarToast("❌ Error de conexión o del servidor", "error");
+        window.isDespachandoFlag = false;
         return false;
     }
 }
-
 document.addEventListener("DOMContentLoaded", () => {
+    // --------------------------------------------------------------------------
+    // 1. REFERENCIAS AL DOM
+    // --------------------------------------------------------------------------
     const formDespacho = document.getElementById("formDespacho");
     const telefonoInput = document.getElementById("desTelefono");
+    const nomInput = document.getElementById("desNombre");
+    const oriInput = document.getElementById("desOrigen");
+    const desInput = document.getElementById("desDestino");
+    const tarifaInput = document.getElementById("tarifaClienteUnico");
     const btnEnviar = document.getElementById("btnEnviarDespacho");
-
-    if (btnEnviar) btnEnviar.disabled = true;
-
-    // Carga inicial del select express de conductores
-    refrescarSelectConductorUnico();
+    const selectConductor = document.getElementById("selectConductorUnico") || document.getElementById("nuevoConductor");
 
     let clienteListoParaEnviar = null; 
 
+    if (btnEnviar) btnEnviar.disabled = true;
+
+    // Carga inicial de datos
+    if (typeof refrescarSelectConductorUnico === "function") {
+        refrescarSelectConductorUnico();
+    }
+    
+    setTimeout(() => {
+        if (typeof cargarColaClientes === "function") {
+            cargarColaClientes();
+        }
+    }, 100);
+
+    // --------------------------------------------------------------------------
+    // 2. MATRIZ DE TARIFAS AUTOMÁTICA (Al escribir en Destino)
+    // --------------------------------------------------------------------------
+    if (desInput) {
+        desInput.addEventListener("input", (e) => {
+            const val = e.target.value.trim().toLowerCase();
+            if (!val || !window.MATRIZ_TARIFAS) return;
+
+            const encontrado = window.MATRIZ_TARIFAS.find(
+                t => (t.destino || "").toLowerCase() === val
+            );
+
+            if (encontrado && tarifaInput) {
+                const precioFinal = parseInt(encontrado.precio_cop || encontrado.precio_bs || encontrado.precio || 0);
+                tarifaInput.value = precioFinal;
+
+                if (typeof mostrarToast === "function") {
+                    mostrarToast(`💡 Tarifa: ${precioFinal} COP`, "info");
+                }
+            }
+        });
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. NAVEGACIÓN Y FLUJO POR TECLADO (ENTER Y TAB)
+    // --------------------------------------------------------------------------
+    
+    // De Nombre -> Origen
+    nomInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            oriInput?.focus();
+            oriInput?.select();
+        }
+    });
+
+    // De Origen -> Destino
+    oriInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.keyCode === 13) {
+            e.preventDefault();
+            if (desInput) {
+                desInput.disabled = false;
+                desInput.readOnly = false;
+                desInput.focus();
+                desInput.select();
+            }
+        }
+    });
+
+    // De Destino -> Tarifa
+    desInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            tarifaInput?.focus();
+            tarifaInput?.select();
+        }
+    });
+
+    // De Tarifa -> Select Conductor
+    tarifaInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            if (selectConductor && selectConductor.options.length > 1) {
+                selectConductor.focus();
+            } else if (btnEnviar) {
+                // Si no hay conductores en la lista, ir directo a Enviar
+                activarBotonEnviar(btnEnviar);
+                btnEnviar.focus();
+            }
+        }
+    });
+
+    // 🛡️ CONTROL TOTAL EN SELECT CONDUCTOR (Bloquea el salto al botón Limpiar)
+    if (selectConductor) {
+        selectConductor.addEventListener("keydown", (e) => {
+            // Manejar tanto TAB como ENTER para que salte al botón Enviar
+            if (e.key === "Tab" || e.key === "Enter" || e.keyCode === 13) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (btnEnviar) {
+                    activarBotonEnviar(btnEnviar);
+                    btnEnviar.focus();
+
+                    // Si presionó Enter dentro del select, de una vez presiona el botón
+                    if (e.key === "Enter" || e.keyCode === 13) {
+                        btnEnviar.click();
+                    }
+                }
+            }
+        });
+    }
+
+    // Función auxiliar para habilitar visual y funcionalmente el botón
+    function activarBotonEnviar(btn) {
+        btn.disabled = false;
+        btn.removeAttribute("disabled");
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. VALIDACIÓN ASÍNCRONA DEL TELÉFONO
+    // --------------------------------------------------------------------------
     telefonoInput?.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
             const telActual = telefonoInput.value.trim();
             if (telActual === "") {
-                console.log("🚫 Enter ignorado: Campo vacío.");
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 return;
@@ -277,50 +468,39 @@ document.addEventListener("DOMContentLoaded", () => {
             event.stopImmediatePropagation();
 
             if (!telefonoInput.checkValidity()) {
-                mostrarToast("⚠️ " + telefonoInput.validationMessage, "error");
+                if (typeof mostrarToast === "function") mostrarToast("⚠️ " + telefonoInput.validationMessage, "error");
                 telefonoInput.reportValidity();
                 return; 
             }
 
-            const inputNom = document.getElementById("desNombre");
-            const inputOri = document.getElementById("desOrigen");
-            const inputDes = document.getElementById("desDestino");
-            const btnEnv = document.getElementById("btnEnviarDespacho");
-
-            // 1. Si el cliente ya fue validado y presiona Enter de nuevo sobre el teléfono, avanza o envía
-            if (clienteListoParaEnviar === telActual && inputNom && inputNom.value.trim() !== "") {
-                console.log("🚀 SEMÁFORO VERDE: Saltando al destino / listo...");
-                if (inputDes) inputDes.focus();
+            if (clienteListoParaEnviar === telActual && nomInput && nomInput.value.trim() !== "") {
+                if (desInput) desInput.focus();
                 return;
             }
 
-            console.log("⌨️ SEMÁFORO ROJO: Ejecutando validación asíncrona...");
+            if (nomInput) nomInput.value = "Buscando..."; 
+            if (oriInput) oriInput.value = "Buscando..."; 
+            if (desInput) desInput.value = ""; 
 
-            if (inputNom) inputNom.value = "Buscando..."; 
-            if (inputOri) inputOri.value = "Buscando..."; 
-            if (inputDes) inputDes.value = ""; 
-
-            // Cargar conductores en turno
             if (typeof refrescarSelectConductorUnico === "function") {
                 refrescarSelectConductorUnico();
             }
 
-            // AWAIT estricto: la ejecución de UI se detiene aquí hasta que el backend responda
             const resultado = await validarClienteExpreso();
             
             if (resultado && resultado.valido === true && resultado.cliente) {
                 const c = resultado.cliente;
                 
-                if (inputNom) {
-                    inputNom.value = c.nombre || "";
-                    inputNom.readOnly = true;
-                    inputNom.style.backgroundColor = "#f3f4f6"; 
+                if (nomInput) {
+                    nomInput.value = c.nombre || "";
+                    nomInput.readOnly = true;
+                    nomInput.style.backgroundColor = "#f3f4f6"; 
                 }
-                if (inputOri) {
-                    inputOri.value = c.direccion || "";
-                    inputOri.disabled = false;
-                    inputOri.readOnly = false;
-                    inputOri.style.backgroundColor = "#f3f4f6";
+                if (oriInput) {
+                    oriInput.value = c.direccion || "";
+                    oriInput.disabled = false;
+                    oriInput.readOnly = false;
+                    oriInput.style.backgroundColor = "#f3f4f6";
                 }
 
                 const btnMod = document.getElementById("btnModificarCliente"); 
@@ -333,124 +513,86 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 }
                
-                if (inputDes) {
-                    inputDes.disabled = false;
-                    inputDes.readOnly = false;
-                    inputDes.style.backgroundColor = "#ffffff";
-                    inputDes.value = ""; 
-                    inputDes.focus(); // 🎯 Foco automático al destino al terminar validación
+                if (desInput) {
+                    desInput.disabled = false;
+                    desInput.readOnly = false;
+                    desInput.style.backgroundColor = "#ffffff";
+                    desInput.value = ""; 
+                    desInput.focus(); 
                 }
 
                 clienteListoParaEnviar = telActual; 
-                if (btnEnv) btnEnv.disabled = false;
+                if (btnEnviar) activarBotonEnviar(btnEnviar);
 
             } else {
-                console.log("🆕 Cliente no encontrado.");
                 if (typeof mostrarToast === 'function') {
                     mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
                 }
 
-                if (inputNom) {
-                    inputNom.disabled = false;     
-                    inputNom.readOnly = false;     
-                    inputNom.value = "";
-                    inputNom.style.backgroundColor = "#ffffff";
+                if (nomInput) {
+                    nomInput.disabled = false;     
+                    nomInput.readOnly = false;     
+                    nomInput.value = "";
+                    nomInput.style.backgroundColor = "#ffffff";
                 }
 
-                if (inputOri) {
-                    inputOri.disabled = false;     
-                    inputOri.readOnly = false;
-                    inputOri.value = "";
-                    inputOri.style.backgroundColor = "#ffffff";
+                if (oriInput) {
+                    oriInput.disabled = false;     
+                    oriInput.readOnly = false;
+                    oriInput.value = "";
+                    oriInput.style.backgroundColor = "#ffffff";
                 }
 
-                if (inputDes) {
-                    inputDes.disabled = false;
-                    inputDes.readOnly = false;
+                if (desInput) {
+                    desInput.disabled = false;
+                    desInput.readOnly = false;
                 }
 
                 window.clienteIdActual = null;
                 clienteListoParaEnviar = telActual; 
-                if (btnEnv) btnEnv.disabled = false;
+                if (btnEnviar) activarBotonEnviar(btnEnviar);
 
                 telefonoInput.blur();
                 setTimeout(() => {
-                    if (inputNom) {
-                        inputNom.focus();
-                        inputNom.select();
+                    if (nomInput) {
+                        nomInput.focus();
+                        nomInput.select();
                     }
                 }, 50);
             }
         }
     });
 
-    /**
-     * 🔀 Submit BIFURCADO de formDespacho:
-     * - Si HAY conductor en selectConductorUnico -> Despacho Directo (ejecutarDespachoDirecto)
-     * - Si NO HAY conductor -> Enviar a Cola de Espera (crearCola)
-     */
+    // --------------------------------------------------------------------------
+    // 5. ENVÍO DEL FORMULARIO (SUBMIT A BASE DE DATOS O COLA)
+    // --------------------------------------------------------------------------
     formDespacho?.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        const elementoActivo = document.activeElement;
-
-        // 🛡️ Si el usuario presiona Enter estando en un INPUT o en un SELECT (excepto en el botón Enviar)
-        if (elementoActivo && elementoActivo.id !== "btnEnviarDespacho") {
-            if (elementoActivo.id === "desTelefono") {
-                // Manejado por el listener keydown de desTelefono
-                return;
-            } else if (elementoActivo.id === "desNombre") {
-                document.getElementById("desOrigen")?.focus();
-                document.getElementById("desOrigen")?.select();
-            } else if (elementoActivo.id === "desOrigen") {
-                const des = document.getElementById("desDestino");
-                if (des) {
-                    des.disabled = false;
-                    des.readOnly = false;
-                    des.focus();
-                    des.select();
-                }
-            } else if (elementoActivo.id === "desDestino") {
-                document.getElementById("tarifaClienteUnico")?.focus();
-                document.getElementById("tarifaClienteUnico")?.select();
-            } else if (elementoActivo.id === "tarifaClienteUnico") {
-                document.getElementById("selectConductorUnico")?.focus();
-            } else if (elementoActivo.id === "selectConductorUnico") {
-                document.getElementById("btnEnviarDespacho")?.focus();
-            }
-            return; // 🛑 Detiene el Submit automático hasta llegar formalmente al botón
-        }
-        // ----------------------------------------------------------------------
-        // 2️⃣ VALIDACIÓN DE SEGURIDAD (Solo se ejecuta al presionar "Enviar Despacho")
-        // ----------------------------------------------------------------------
         if (window.semaforoRojo) {
-            mostrarToast("🚫 Operación bloqueada por Veto General del cliente", "error");
+            if (typeof mostrarToast === "function") mostrarToast("🚫 Operación bloqueada por Veto General del cliente", "error");
             return;
         }
 
         if (btnEnviar && btnEnviar.disabled) {
-            mostrarToast("⚠️ Complete la información del cliente antes de enviar.", "error");
+            if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete la información del cliente antes de enviar.", "error");
             return;
         }
 
-        // --------------------------------------------------------------------------
-        // 1️⃣ DETERMINAR O REGISTRAR EL CLIENTE (TRANSPARENTE PARA EL OPERADOR)
-        // --------------------------------------------------------------------------
+        // Registrar o verificar cliente
         let clienteIdFinal = window.clienteIdActual;
 
-        // Si la bandera está en NULL (cliente nuevo)
         if (!clienteIdFinal) {
-            const telNuevo = document.getElementById("desTelefono")?.value.trim();
-            const nomNuevo = document.getElementById("desNombre")?.value.trim();
-            const oriNuevo = document.getElementById("desOrigen")?.value.trim();
+            const telNuevo = telefonoInput?.value.trim();
+            const nomNuevo = nomInput?.value.trim();
+            const oriNuevo = oriInput?.value.trim();
 
             if (!telNuevo || !nomNuevo || !oriNuevo) {
-                mostrarToast("⚠️ Complete Teléfono, Nombre y Origen para continuar", "error");
+                if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete Teléfono, Nombre y Origen para continuar", "error");
                 return;
             }
 
             try {
-                console.log("🆕 Registrando cliente nuevo en la BD antes del despacho...");
                 const resCliente = await apiFetch("/clientes/", {
                     method: "POST",
                     body: JSON.stringify({
@@ -462,7 +604,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 clienteIdFinal = resCliente?.id_cliente || resCliente?.cliente_id || resCliente?.id;
 
-                // Búsqueda de respaldo si el backend responde que ya existía
                 if (!clienteIdFinal) {
                     const clienteBuscado = await apiFetch(`/clientes/buscar?telefono=${encodeURIComponent(telNuevo)}`);
                     clienteIdFinal = clienteBuscado?.id_cliente || clienteBuscado?.id;
@@ -471,29 +612,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (clienteIdFinal) {
                     clienteIdFinal = parseInt(clienteIdFinal);
                     window.clienteIdActual = clienteIdFinal;
-                    console.log("✅ Cliente guardado con éxito. ID asignado:", clienteIdFinal);
                 } else {
                     throw new Error("No se pudo obtener un ID válido para el cliente.");
                 }
 
             } catch (err) {
-                console.error("❌ Error registrando el cliente nuevo:", err);
-                mostrarToast("❌ No se pudo guardar la información del cliente nuevo", "error");
+                console.error("❌ Error registrando cliente nuevo:", err);
+                if (typeof mostrarToast === "function") mostrarToast("❌ No se pudo guardar la información del cliente", "error");
                 return;
             }
         }
 
-        // --------------------------------------------------------------------------
-        // 2️⃣ PROCESAR EL DESPACHO O LA COLA DE ESPERA
-        // --------------------------------------------------------------------------
-        const selectUnico = document.getElementById("selectConductorUnico");
-        const idConductor = selectUnico?.value.trim();
+        // Ejecutar despacho activo o mandar a Cola
+        const idConductor = selectConductor?.value.trim();
 
         if (idConductor) {
-            // 🟢 CASO A: TIENE CONDUCTOR -> ENVIAR A DESPACHOS ACTIVOS
-            console.log("🚀 Despachando a la tabla de despachos activos...");
-            
-            const optionSel = selectUnico.options[selectUnico.selectedIndex];
+            const optionSel = selectConductor.options[selectConductor.selectedIndex];
             const idAuto = optionSel.dataset.autoId || idConductor;
             
             btnEnviar.disabled = true;
@@ -503,58 +637,44 @@ document.addEventListener("DOMContentLoaded", () => {
                 clienteId: parseInt(clienteIdFinal),
                 conductorId: parseInt(idConductor),
                 autoId: parseInt(idAuto),
-                origen: document.getElementById("desOrigen")?.value.trim(),
-                destino: document.getElementById("desDestino")?.value.trim(),
-                tarifa: parseFloat(document.getElementById("tarifaClienteUnico")?.value || 0),
-                idCola: window.idColaEnEdicion || null, // 👈 Se vincula la cola si venía de edición
+                origen: oriInput?.value.trim(),
+                destino: desInput?.value.trim(),
+                tarifa: parseFloat(tarifaInput?.value || 0),
+                idCola: window.idColaEnEdicion || null,
                 optionCondText: optionSel.text
             });
 
             if (exito) {
-                // Si el despacho se procesó desde la cola, eliminamos el registro de la cola
                 if (window.idColaEnEdicion) {
                     try {
                         await apiFetch(`/cola_despachos/${window.idColaEnEdicion}`, { method: "DELETE" });
-                    } catch (e) { 
-                        console.error("Error al eliminar de cola:", e); 
-                    }
+                    } catch (e) { console.error("Error al eliminar de cola:", e); }
                     window.idColaEnEdicion = null;
                 }
 
-                // Reset de formulario y estados
-                document.getElementById("formDespacho").reset();
+                formDespacho.reset();
                 window.clienteIdActual = null;
-                if (typeof clienteListoParaEnviar !== "undefined") {
-                    clienteListoParaEnviar = null;
-                }
+                clienteListoParaEnviar = null;
 
-                if (typeof activarCamposDespacho === "function") {
-                    activarCamposDespacho(false);
-                }
+                if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                if (typeof cargarDespachosActivos === "function") cargarDespachosActivos();
 
-                // Recargar despacho activo
-                if (typeof cargarDespachosActivos === "function") {
-                    cargarDespachosActivos();
-                }
-
-                document.getElementById("desTelefono")?.focus();
+                telefonoInput?.focus();
             }
 
             btnEnviar.disabled = false;
             btnEnviar.innerText = "Enviar Despacho";
 
         } else {
-            // 🟡 CASO B: SIN CONDUCTOR -> ENVIAR A COLA DE ESPERA
-            console.log("📋 Enviando a la cola de espera...");
-
+            // Guardar en cola de espera
             try {
                 const payloadCola = {
                     cliente_id: parseInt(clienteIdFinal),
-                    telefono: document.getElementById("desTelefono")?.value.trim(),
-                    nombre: document.getElementById("desNombre")?.value.trim(),
-                    origen: document.getElementById("desOrigen")?.value.trim(),
-                    destino: document.getElementById("desDestino")?.value.trim(),
-                    tarifa: parseFloat(document.getElementById("tarifaClienteUnico")?.value || 0)
+                    telefono: telefonoInput?.value.trim(),
+                    nombre: nomInput?.value.trim(),
+                    origen: oriInput?.value.trim(),
+                    destino: desInput?.value.trim(),
+                    tarifa: parseFloat(tarifaInput?.value || 0)
                 };
 
                 const resCola = await apiFetch("/cola_despachos/", {
@@ -563,62 +683,53 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 if (resCola && (resCola.id_cola || resCola.id)) {
-                    mostrarToast("📋 Cliente en cola de espera", "success");
+                    if (typeof mostrarToast === "function") mostrarToast("📋 Cliente en cola de espera", "success");
 
-                    document.getElementById("formDespacho")?.reset();
+                    formDespacho?.reset();
                     window.clienteIdActual = null;
-                    if (typeof clienteListoParaEnviar !== "undefined") {
-                        clienteListoParaEnviar = null;
-                    }
+                    clienteListoParaEnviar = null;
 
-                    if (typeof activarCamposDespacho === "function") {
-                        activarCamposDespacho(false);
-                    }
+                    if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                    if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
 
-                    if (typeof window.cargarColaClientes === "function") {
-                        window.cargarColaClientes();
-                    }
-
-                    document.getElementById("desTelefono")?.focus();
+                    telefonoInput?.focus();
                 } else {
-                    mostrarToast("❌ Error al enviar a la cola: " + (resCola?.error || "Error indeterminado"), "error");
+                    if (typeof mostrarToast === "function") mostrarToast("❌ Error al enviar a la cola", "error");
                 }
             } catch (err) {
                 console.error("❌ Error de red en la cola:", err);
-                mostrarToast("❌ Error al enviar a la cola", "error");
+                if (typeof mostrarToast === "function") mostrarToast("❌ Error al enviar a la cola", "error");
             }
         }
     });
-    // Botón cancelar sección despacho
+
+    // --------------------------------------------------------------------------
+    // 6. BOTONES DE CANCELAR
+    // --------------------------------------------------------------------------
     document.getElementById("btnCancelarPrincipal")?.addEventListener("click", () => {
-        document.getElementById("formDespacho").reset();
+        formDespacho.reset();
         memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; 
         clienteListoParaEnviar = null; 
-        activarCamposDespacho(false);
-        
-        const inputNom = document.getElementById("desNombre");
-        if (inputNom) {
-            inputNom.readOnly = false;
-            inputNom.style.backgroundColor = "#ffffff";
+        if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+
+        if (nomInput) {
+            nomInput.readOnly = false;
+            nomInput.style.backgroundColor = "#ffffff";
         }
 
-        document.getElementById("desTelefono").focus();
-        mostrarToast("🧹 Sistema reseteado para nueva llamada", "info");
+        telefonoInput?.focus();
+        if (typeof mostrarToast === "function") mostrarToast("🧹 Sistema reseteado para nueva llamada", "info");
     });
 
-    // Botón cancelar modal despacho
     const modal = document.getElementById("modalCrearDespacho");
     const btnCancelar = document.getElementById("btnCancelarDespacho");
 
     if (btnCancelar) {
         btnCancelar.onclick = () => {
             if (modal) modal.classList.add("hidden");
-            console.log("🚫 Despacho cancelado por el usuario");
         };
     }
 });
-
-
 const btnCerrarCola = document.getElementById("btnCerrarCola");
 if (btnCerrarCola) {
   btnCerrarCola.addEventListener("click", cerrarModalCola);
@@ -1133,111 +1244,6 @@ function actualizarPrecio(input, idFila) {
 
 // 🚀 INICIALIZACIÓN ÚNICA Y SECUENCIAL DE TODO EL FORMULARIO DE DESPACHO
 // 🚀 INICIALIZACIÓN ÚNICA Y SECUENCIAL DE TODO EL FORMULARIO DE DESPACHO
-document.addEventListener("DOMContentLoaded", () => {
-    // 1. Generar datalist de tarifas e inicializar la cola de clientes
-    const inputDestino = document.getElementById("desDestino");
-    
-    if (inputDestino) {
-        inputDestino.addEventListener("input", (e) => {
-            const val = e.target.value.trim().toLowerCase();
-            if (!val || !window.MATRIZ_TARIFAS) return;
-
-            const encontrado = window.MATRIZ_TARIFAS.find(
-                t => (t.destino || "").toLowerCase() === val
-            );
-
-            if (encontrado) {
-                const inputTarifa = document.getElementById("tarifaClienteUnico");
-                if (inputTarifa) {
-                    const precioFinal = parseInt(encontrado.precio_cop || encontrado.precio_bs || encontrado.precio || 0);
-                    inputTarifa.value = precioFinal;
-
-                    if (typeof mostrarToast === "function") {
-                        mostrarToast(`💡 Tarifa: ${precioFinal} COP`, "info");
-                    }
-                }
-            }
-        });
-    }
-
-    setTimeout(() => {
-        if (typeof cargarColaClientes === "function") {
-            cargarColaClientes();
-        }
-    }, 100);
-
-    const tel = document.getElementById("desTelefono");
-    const nom = document.getElementById("desNombre");
-    const ori = document.getElementById("desOrigen");
-    const des = document.getElementById("desDestino");
-    const tarifa = document.getElementById("tarifaClienteUnico");
-    
-    // 🚀 Variable unificada para el selector de conductores
-    const selectConductor = document.getElementById("selectConductorUnico") || document.getElementById("nuevoConductor");
-
-    nom?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            ori?.focus();
-            ori?.select();
-        }
-    });
-
-    // 🛡️ Salto universal de Origen a Destino
-    ori?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.keyCode === 13) {
-            e.preventDefault();
-            
-            const inputDestino = document.getElementById("desDestino");
-            if (inputDestino) {
-                inputDestino.disabled = false;
-                inputDestino.readOnly = false;
-                inputDestino.focus();
-                inputDestino.select();
-                console.log("➡️ Salto exitoso de Origen a Destino.");
-            }
-        }
-    });
-
-    des?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            tarifa?.focus();
-            tarifa?.select();
-        }
-    });
-
-    // 🎯 Salto de Tarifa al Select de Conductores
-    tarifa?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            if (selectConductor) {
-                selectConductor.focus();
-            }
-        }
-    });
-
-    // 🎯 Salto del Select de Conductores al Botón de Enviar
-    if (selectConductor) {
-        selectConductor.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.keyCode === 13) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const btnEnviar = document.getElementById("btnEnviarDespacho");
-                if (btnEnviar) {
-                    btnEnviar.disabled = false;
-                    btnEnviar.focus();
-                    console.log("👉 Foco saltó del select de conductores al botón Enviar Despacho");
-                } else {
-                    console.warn("⚠️ No se encontró el botón con ID 'btnEnviarDespacho'.");
-                }
-            }
-        });
-    } else {
-        console.warn("⚠️ No se encontró el selector de conductores en el DOM.");
-    }
-});
 // 🛡️ Regla de Oro: Normalizador de Teléfono para Integridad de BD
 function normalizarTelefonoVenezolano(textoRaw) {
     if (!textoRaw) return { valido: false, numero: "" };
@@ -1297,3 +1303,25 @@ document.addEventListener("paste", function(e) {
         }
     }
 }, true);
+
+// ⚡ Evaluador de estado del formulario Express
+function verificarEstadoFormularioExpress() {
+    const btnEnviar = document.getElementById("btnEnviarDespacho");
+    const tel = document.getElementById("desTelefono")?.value.trim();
+    const nom = document.getElementById("desNombre")?.value.trim();
+    const ori = document.getElementById("desOrigen")?.value.trim();
+
+    if (!btnEnviar) return;
+
+    // Condición mínima para enviar (sea a despacho directo o a cola):
+    // Debe haber un teléfono válido, nombre (distinto de "Buscando...") y dirección de origen.
+    const listo = Boolean(tel && nom && nom !== "Buscando..." && ori && ori !== "Buscando...");
+
+    btnEnviar.disabled = !listo;
+    if (listo) {
+        btnEnviar.classList.remove("opacity-50", "cursor-not-allowed");
+    } else {
+        btnEnviar.classList.add("opacity-50", "cursor-not-allowed");
+    }
+}
+window.verificarEstadoFormularioExpress = verificarEstadoFormularioExpress;

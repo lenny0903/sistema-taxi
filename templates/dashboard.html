@@ -89,7 +89,7 @@
         </li>
         <li>
         <li class="menu-admin">
-          <button onclick="mostrarSeccion('pagos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-semibold text-blue-700">
+          <button onclick="mostrarSeccion('pagos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-semibold text-gray-700">
             Pagos Semanales(F8)
           </button>
         </li>
@@ -596,16 +596,14 @@
                 <select id="selectAutoUnico" class="hidden"></select>
               </div>
 
-              <!-- Botones de Acción: PRIMERO Despachar (Enviar), LUEGO Limpiar -->
-              <div class="md:col-span-3 flex gap-2 justify-end">
-                <button type="submit" id="btnEnviarDespacho" tabindex="8" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded text-sm w-1/2" disabled>
-                  Despachar
-                </button>
-                <button type="button" id="btnCancelarPrincipal" tabindex="9" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm w-1/2">
-                  Limpiar
-                </button>
-              </div>
-
+             <!-- Botones de Acción: PRIMERO Despachar (Enviar), LUEGO Limpiar -->
+            <div class="md:col-span-3 flex gap-2 justify-end">
+              <button type="submit" id="btnEnviarDespacho" tabindex="8" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded text-sm w-1/2" disabled>
+                Despachar
+              </button>
+              <button type="button" id="btnCancelarPrincipal" tabindex="-1" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm w-1/2">
+                Limpiar
+              </button>
             </div>
 
           </form>
@@ -1232,6 +1230,7 @@
 // ==========================================
 
 // Validador de formulario para habilitar el botón Despachar
+// Validador de formulario para habilitar el botón Despachar (ÚNICA INSTANCIA)
 function verificarDespachoListo() {
     const cliente   = document.getElementById('desNombre')?.value.trim();
     const conductor = document.getElementById('selectConductorUnico')?.value.trim();
@@ -1256,24 +1255,7 @@ function verificarDespachoListo() {
 // 1. FUNCIONES AUXILIARES (Fuera del listener)
 // ==========================================
 
-// Validador de formulario para habilitar el botón Despachar
-function verificarDespachoListo() {
-    const cliente   = document.getElementById('desNombre')?.value.trim();
-    const conductor = document.getElementById('selectConductorUnico')?.value.trim();
-    const origen    = document.getElementById('desOrigen')?.value.trim();
-    const btnEnviar = document.getElementById('btnEnviarDespacho');
 
-    const listo = Boolean(cliente && cliente !== "Buscando..." && origen && conductor);
-
-    if (btnEnviar) {
-        btnEnviar.disabled = !listo;
-        if (listo) {
-            btnEnviar.classList.remove('opacity-50', 'cursor-not-allowed');
-        } else {
-            btnEnviar.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-    }
-}
 
 // Manejador aislado para el inicio de turno (Validación de deuda + API POST)
 async function manejarInicioTurno(e) {
@@ -1769,20 +1751,21 @@ document.addEventListener('DOMContentLoaded', () => {
           if (id === 'clientesSection') {
               console.trace("🚨 ¡Atrapado! La función mostrarSeccion('clientesSection') fue llamada por:");
           }
-          // 1. Variables de seguridad
+         // 1. Variables de seguridad
           const rol = (localStorage.getItem("rol") || "").trim().toLowerCase();
           const idLimpio = id.trim();
           const seccionesAdmin = ['usuarios', 'autos', 'conductores', 'reportes'];
           const seccionesProhibidas = [...seccionesAdmin, 'clientes', 'clientesSection'];
 
           // 2. BLOQUEO Y REDIRECCIÓN CORREGIDO
-          if (seccionesProhibidas.includes(idLimpio)) {
-              // Si es Operador Y la vista está en la lista de prohibidas, mándalo a despachos
-              if (rol === "operador") {
-                  console.warn(`🚫 Acceso denegado a ${idLimpio} para Operador. Redirigiendo...`);
-                  return mostrarSeccion('despachos'); 
+          if (rol === "operador" && seccionesProhibidas.includes(idLimpio)) {
+              console.warn(`🚫 Acceso denegado a ${idLimpio} para Operador. Redirigiendo a despachos...`);
+              
+              // Si ya estamos intentando ir a 'despachos', evitamos la recursión infinita
+              if (idLimpio !== 'despachos') {
+                  mostrarSeccion('despachos');
               }
-              // Si llega aquí, es porque es ADMIN o una sección permitida, continúa normal.
+              return; // Detiene la carga de la sección prohibida
           }
 
           // 3. SEGURIDAD ADICIONAL (Operadores)
@@ -1791,19 +1774,39 @@ document.addEventListener('DOMContentLoaded', () => {
               return;
           }
 
-          // 4. LÓGICA DE VISUALIZACIÓN (Limpiamos todo)
-          document.querySelectorAll('.seccion, #pagos, #despachos, #turnosActivos, #reportes, #usuarios').forEach(sec => {
+          // 4. LÓGICA DE VISUALIZACIÓN (Ocultamos absolutamente TODAS las secciones/módulos)
+          // Selecciona cualquier elemento que empiece con la clase .seccion o esté dentro del área principal
+          document.querySelectorAll('.seccion, [id^="vista-"], [id^="seccion-"], #pagos, #autos, #conductores, #turnosActivos, #despachos, #despachosActivos, #reportes, #usuarios, main > div').forEach(sec => {
               sec.classList.add('hidden');
               sec.style.display = 'none';
           });
+          // 4.5. ACTUALIZACIÓN VISUAL DE BOTONES EN EL MENÚ LATERAL
+          document.querySelectorAll('aside button, nav button, ul button').forEach(btn => {
+              btn.classList.remove('text-blue-700', 'bg-blue-50', 'font-bold');
+              btn.classList.add('text-gray-700', 'font-normal');
+          });
 
-          // 5. MOSTRAR LA SECCIÓN CORRECTA
-          const target = document.getElementById(idLimpio); 
+          // Resaltar el botón que fue presionado o activado por atajo
+          const botonActivo = document.querySelector(`[onclick*="'${idLimpio}'"]`) || 
+                              document.querySelector(`[onclick*='"${idLimpio}"']`);
+          if (botonActivo) {
+              botonActivo.classList.remove('text-gray-700', 'font-normal');
+              botonActivo.classList.add('text-blue-700', 'bg-blue-50', 'font-bold');
+          }
+          // 5. MOSTRAR ÚNICAMENTE LA SECCIÓN SOLICITADA
+          // Busca el ID exacto, o con prefijo "vista-", o con prefijo "seccion-"
+          const target = document.getElementById(idLimpio) || 
+                         document.getElementById(`vista-${idLimpio}`) || 
+                         document.getElementById(`seccion-${idLimpio}`);
+
           if (target) {
               target.classList.remove('hidden');
               target.style.display = 'block';
-              console.log("✅ VISTA MOSTRADA:", idLimpio);
+              
+              // 💡 EXTRA VITAL: Forzar el scroll arriba de la página al cambiar de pestaña
+              window.scrollTo({ top: 0, behavior: 'instant' });
 
+              console.log("✅ VISTA MOSTRADA LIMPIAMENTE:", target.id);
               // 6. CARGA DE DATOS SEGÚN LA SECCIÓN
               switch (idLimpio) {
                   case 'usuarios': cargarUsuarios(); break;
@@ -1855,32 +1858,6 @@ document.addEventListener('DOMContentLoaded', () => {
         : '<option disabled>No hay autos disponibles</option>';
     }
   
-
-
-    // Habilitación automática del botón al completar selects
-    function verificarDespachoListo() {
-      const cliente   = document.getElementById('desCliente').value.trim();
-      const conductor = document.getElementById('desConductor').value.trim();
-      const auto      = document.getElementById('desAuto').value.trim();
-      const destino   = document.getElementById('desDestino').value.trim();
-      const tarifa    = document.getElementById('desTarifa').value.trim();
-
-      const listo = cliente && conductor && auto && destino && tarifa;
-      document.getElementById('btnCrearDespacho').disabled = !listo;
-    }
-
-    // Activar/desactivar campos del despacho
-   // function activarCamposDespacho(estado) {
-   //   const nombre = document.getElementById('desNombre');
-   //   if (nombre) nombre.disabled = !estado;
-
-   //   const origen = document.getElementById('desOrigen');
-   //   if (origen) origen.disabled = !estado;
-
-    //  const enviarBtn = document.getElementById('btnEnviarDespacho');
-    //  if (enviarBtn) enviarBtn.disabled = !estado;
-    //}
-
     
 
  
