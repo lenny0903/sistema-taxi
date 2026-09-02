@@ -251,11 +251,27 @@ async function ejecutarDespachoDirecto({
                     e.stopPropagation();
                     
                     try {
-                        const response = await fetch(rutaFlayerLocal);
+                        // Intentamos cargar la ruta principal
+                        let response = await fetch(rutaFlayerLocal);
+                        
+                        // Si da 404, intentamos buscar si el archivo existe con otra extensión común (.jpeg o .jpg)
+                        if (response.status === 404) {
+                            // Reemplazamos .png por .jpeg o .jpg según corresponda
+                            let rutaAlternativa = rutaFlayerLocal.replace(/\.png$/i, '.jpeg');
+                            response = await fetch(rutaAlternativa);
+                            
+                            if (response.status === 404) {
+                                rutaAlternativa = rutaFlayerLocal.replace(/\.png$/i, '.jpg');
+                                response = await fetch(rutaAlternativa);
+                            }
+                        }
+
+                        // Si después de buscar alternativas sigue dando 404, mostramos el aviso original
                         if (response.status === 404) {
                             mostrarToast(`ℹ️ La imagen ${nombreArchivoFlayer} no existe en /static/img/flayers/`, "warning");
                             return;
                         }
+
                         if (!response.ok) throw new Error(`Error en el servidor: ${response.status}`);
 
                         const rawBlob = await response.blob();

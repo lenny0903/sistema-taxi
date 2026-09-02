@@ -84,10 +84,6 @@
         <li class="menu-admin">
           <button onclick="mostrarSeccion('autos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Autos(F4)</button>
         </li>
-        <li> 
-          <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
-        </li>
-        <li>
         <li class="menu-admin">
           <button onclick="mostrarSeccion('pagos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 font-semibold text-gray-700">
             Pagos Semanales(F8)
@@ -102,6 +98,9 @@
         </li>
         <li>
           <button onclick="mostrarSeccion('despachosActivos')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Despachos Activos(F2)</button>
+        </li>
+        <li> 
+          <button onclick="mostrarSeccion('reportes')" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Reportes</button>
         </li>
         <li>
           <button onclick="generarRespaldo()" class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100">Respaldo</button>
@@ -128,29 +127,31 @@
             📡 Monitoreo en Tiempo Real (F9)
           </button>
         </li>
+         <!-- Bloque inferior de WhatsApp fijo -->
+        <div class="border-t border-gray-200 bg-gray-50 p-2.5 rounded mt-2">
+            <div class="flex items-center justify-between">
+                <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                    🤖 API: AUTOMÁTICA
+                </span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
+                    <div id="bgGlobalWhatsApp" class="w-8 h-4 bg-green-600 rounded-full transition-colors relative">
+                        <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3 w-3 transition-transform translate-x-4"></div>
+                    </div>
+                </label>
+            </div>
+        </div>
+         <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
+        <li class="mt-2 pt-2 border-t border-gray-200">
+            <button onclick="abrirWhatsAppWeb()" 
+                    class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-green-600 font-bold flex items-center gap-2">
+                <span>📱</span> WhatsApp Web (Win/Super + →)
+            </button>
+        </li>
       </ul>
       
-      <!-- Bloque inferior de WhatsApp fijo -->
-      <div class="border-t border-gray-200 bg-gray-50 p-2.5 rounded mt-2">
-          <div class="flex items-center justify-between">
-              <span id="textGlobalWhatsApp" class="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  🤖 API: AUTOMÁTICA
-              </span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="switchGlobalWhatsApp" class="sr-only" checked>
-                  <div id="bgGlobalWhatsApp" class="w-8 h-4 bg-green-600 rounded-full transition-colors relative">
-                      <div id="circleGlobalWhatsApp" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3 w-3 transition-transform translate-x-4"></div>
-                  </div>
-              </label>
-          </div>
-      </div>
-      <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
-      <li class="mt-2 pt-2 border-t border-gray-200">
-          <button onclick="abrirWhatsAppWeb()" 
-                  class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-green-600 font-bold flex items-center gap-2">
-              <span>📱</span> WhatsApp Web (Win/Super + →)
-          </button>
-      </li>
+     
+     
     </nav>
 
     

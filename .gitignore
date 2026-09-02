@@ -27,3 +27,4 @@ test_bot.py
 
 app.log
 __pycache__/
+static/img/flayers/
