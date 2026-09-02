@@ -174,7 +174,7 @@ async function ejecutarDespachoDirecto({
                 const rutaFlayerLocal = `/static/img/flayers/${nombreArchivoFlayer}`;
                 
                 const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
-                const botTelegram = "@Lospatriotastest_bot";
+                const botTelegram = "@Lospatriotas_bot";
                 
                 const msgCliente = 
                     `¡Hola! 🚖 Su unidad va en camino.\n\n` +
@@ -202,21 +202,37 @@ async function ejecutarDespachoDirecto({
                 bannerDiv.id = 'bannerDespachoFlotante';
                 bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
                 
-                bannerDiv.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #25d366; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
-                        <span style="font-weight: bold;">Despacho #${result.id_despacho}</span>
+               bannerDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; flex-wrap: wrap;">
+                        
+                        <!-- 📌 BLOQUE DE INFORMACIÓN (Referencia visual clara para el operador) -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #25d366; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
+                            <div>
+                                <div style="font-weight: bold; font-size: 13px; color: #fff;">
+                                    Despacho #${result.id_despacho} <span style="font-weight: normal; color: #25d366; font-size: 12px;">(Unidad #${nroControlConductor})</span>
+                                </div>
+                                <div style="font-size: 11px; color: #bbb;">
+                                    👤 ${nombreCliente} &nbsp;|&nbsp; 📱 ${window.telefonoClienteGlobal || telefonoCliente}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 🕹️ BOTONES DE ACCIÓN COMPACTOS -->
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button id="btnCli" type="button" tabindex="-1" style="background: #25d366; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar imagen del flayer">
+                                🖼️ Flayer
+                            </button>
+                            <button id="btnTextoCli" type="button" tabindex="-1" style="background: #0088cc; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar texto para el cliente">
+                                💬 Texto Cliente
+                            </button>
+                            <button id="btnCond" type="button" tabindex="-1" style="background: #128c7e; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar mensaje para el conductor">
+                                🚗 Conductor
+                            </button>
+                            <button id="btnCerrarBanner" type="button" tabindex="-1" style="background: transparent; color: #aaa; border: none; padding: 4px 6px; cursor: pointer; font-size: 16px;" title="Cerrar banner">✕</button>
+                        </div>
+
                     </div>
-                    <button id="btnCli" type="button" tabindex="-1" style="background: #25d366; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia la imagen del flayer">
-                        🖼️ ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Flayer ${nombreArchivoFlayer}) 📲
-                    </button>
-                    <button id="btnTextoCli" type="button" tabindex="-1" style="background: #0088cc; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia el mensaje de texto para el cliente">
-                        💬 ${nombreCliente} - ${window.telefonoClienteGlobal || telefonoCliente} (Copiar Texto) 📋
-                    </button>
-                    <button id="btnCond" type="button" tabindex="-1" style="background: #128c7e; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Copia mensaje para el conductor">
-                        🚗 ${nroControlConductor} (Copiar Conductor) 📋
-                    </button>
-                    <button id="btnCerrarBanner" type="button" tabindex="-1" style="background: #555; color: white; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer;" title="Cerrar">✕</button>
                 `;
                 
                 document.body.appendChild(bannerDiv);
