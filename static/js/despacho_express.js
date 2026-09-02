@@ -202,7 +202,7 @@ async function ejecutarDespachoDirecto({
                 bannerDiv.id = 'bannerDespachoFlotante';
                 bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
                 
-               bannerDiv.innerHTML = `
+                bannerDiv.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; flex-wrap: wrap;">
                         
                         <!-- 📌 BLOQUE DE INFORMACIÓN (Referencia visual clara para el operador) -->
@@ -214,6 +214,9 @@ async function ejecutarDespachoDirecto({
                                 </div>
                                 <div style="font-size: 11px; color: #bbb;">
                                     👤 ${nombreCliente} &nbsp;|&nbsp; 📱 ${window.telefonoClienteGlobal || telefonoCliente}
+                                </div>
+                                <div style="font-size: 11px; color: #fbbf24; margin-top: 2px; max-width: 450px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="Origen: ${document.getElementById('desOrigen')?.value || 'N/A'} | Destino: ${document.getElementById('desDestino')?.value || 'N/A'}">
+                                    📍 <b>Org:</b> ${document.getElementById('desOrigen')?.value || 'N/A'} &nbsp;|&nbsp; 🏁 <b>Dst:</b> ${document.getElementById('desDestino')?.value || 'N/A'}
                                 </div>
                             </div>
                         </div>
@@ -234,7 +237,6 @@ async function ejecutarDespachoDirecto({
 
                     </div>
                 `;
-                
                 document.body.appendChild(bannerDiv);
 
                 if (document.activeElement) {
