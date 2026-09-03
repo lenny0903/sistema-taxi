@@ -212,7 +212,9 @@
                 } else if (precision > 50) {
                     colorIcono = "#e67e22"; // Naranja
                 }
-
+                // Si hay un despacho activo, sabemos que es la vista del cliente (podemos ponerlo más grande)
+                const esVistaCliente = (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '');
+                const tamañoTaxi = esVistaCliente ? '38px' : '24px';
                 return L.divIcon({
                     className: 'etiqueta-vehiculo-custom',
                     html: `
