@@ -52,7 +52,36 @@ def webhook():
             data = callback.get('data') # Ej: 'cal_123_5'
             chat_id = str(callback['from']['id'])
             callback_id = callback['id']
-            
+            # 📍 NUEVO: Manejo del botón "Ver mi viaje en curso" desde el menú del bot
+            if data == 'menu_ver_viaje':
+                confirmar_clic(callback_id)
+                despacho_reciente = Despacho.query.filter_by(telegram_id_cliente=chat_id).order_by(Despacho.id_despacho.desc()).first()
+                
+                if despacho_reciente:
+                    url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=despacho_reciente.id_despacho, _external=True)
+                    teclado_mapa = {
+                        "inline_keyboard": [
+                            [{"text": "🗺️ Abrir Mapa en Vivo", "url": url_mapa}]
+                        ]
+                    }
+                    enviar_mensaje_con_teclado_inline(
+                        chat_id, 
+                        f"📍 Aquí tienes el acceso directo al rastreo de tu servicio activo (Despacho #{despacho_reciente.id_despacho}):", 
+                        teclado_mapa
+                    )
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No encontramos ningún servicio activo vinculado a tu cuenta en este momento.")
+                return jsonify({"status": "menu_viaje_procesado"}), 200
+
+            # ℹ️ NUEVO: Manejo del botón "Ayuda / Soporte"
+            if data == 'menu_ayuda':
+                confirmar_clic(callback_id)
+                enviar_mensaje(
+                    chat_id, 
+                    "ℹ️ *Centro de Soporte*\n\n"
+                    "Si tienes algún inconveniente con tu servicio, puedes escribirnos directamente por este chat o reportarlo al finalizar tu viaje con la calificación de 1 estrella."
+                )
+                return jsonify({"status": "menu_ayuda_procesado"}), 200
             if data and data.startswith('cal_'):
                 try:
                     _, id_despacho_str, calificacion_str = data.split('_')
@@ -174,16 +203,13 @@ def webhook():
                     
                     return jsonify({"status": "menu_client_enviado"}), 200
                 else:
-                    # 🟢 BUSCAR AL CONDUCTOR POR SU TELEGRAM_ID O POR TURNO ACTIVO
+                    # 🟢 VERIFICAR SI EL QUE ESCRIBE ES UN CONDUCTOR O UN CLIENTE
                     try:
                         from models.conductores import Conductor
-                        from models.turnos import Turno
-                        
-                        # Buscamos primero por telegram_id exacto
                         conductor_activo = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
                         
-                        # Si no lo encuentra por telegram_id pero hay un turno activo reciente sin amarrar, intentamos enlazarlo o buscarlo
                         if conductor_activo:
+                            # ES CONDUCTOR: Mantiene su lógica de red
                             conductor_activo.estado_red = 'conectado'
                             if hasattr(conductor_activo, 'ultima_actualizacion_red'):
                                 conductor_activo.ultima_actualizacion_red = hora_local() 
@@ -195,9 +221,25 @@ def webhook():
                             except Exception as e:
                                 print(f"⚠️ No se pudo emitir por socket: {e}")
                             
-                            print(f"🟢 [TELEGRAM] Conductor {conductor_activo.codigo} envió /start. Red marcada como conectada.")
+                            enviar_menu_botones(chat_id)
+                        else:
+                            # 👤 ES UN CLIENTE: Mostrar el menú limpio acordado (Viaje en curso y Ayuda)
+                            teclado_cliente_menu = {
+                                "inline_keyboard": [
+                                    [{"text": "📍 Ver mi viaje en curso", "callback_data": "menu_ver_viaje"}],
+                                    [{"text": "ℹ️ Ayuda / Soporte", "callback_data": "menu_ayuda"}]
+                                ]
+                            }
+                            enviar_mensaje_con_teclado_inline(
+                                chat_id, 
+                                "¡Hola! Bienvenido a nuestro servicio de transporte 🚗\n\nSelecciona una opción:", 
+                                teclado_cliente_menu
+                            )
                     except Exception as err:
-                        print(f"⚠️ Error actualizando estado de red en /start: {err}")
+                        print(f"⚠️ Error procesando /start: {err}")
+                        enviar_menu_botones(chat_id)
+
+                    return jsonify({"status": "menu_enviado"}), 200
 
                     enviar_menu_botones(chat_id)
                     return jsonify({"status": "menu_enviado"}), 200
@@ -274,41 +316,8 @@ def webhook():
             enviar_menu_botones(chat_id)
             return jsonify({"status": "conductor_no_encontrado"}), 200
 
-        # 🛑 4. VALIDACIÓN ESTRICTA: ¿El conductor registrado tiene un turno activo creado en la BD?
-       # Diccionario global para llevar el control del antispam (guarda el timestamp del último aviso por conductor)
-        #ULTIMOS_AVISOS_SIN_TURNO = {}
-
-        # Dentro de tu ruta del bot donde recibes el mensaje:
-        if "location" in msg:
-            turno_activo = Turno.query.filter_by(
-                conductor_id=conductor.id_conductor, 
-                estado="activo"
-            ).first()
-
-            if not turno_activo:
-                print(f"🚫 [BLOQUEO] Conductor {conductor.codigo} intentó enviar ubicación sin turno activo en la BD.")
-                
-                tiempo_actual = time.time()
-                ultimo_aviso = ULTIMOS_AVISOS_SIN_TURNO.get(conductor.id_conductor, 0)
-                
-                # 🕒 INTERVALO DE COOLDOWN: 300 segundos = 5 minutos
-                # Solo le mandamos mensaje de texto y botones si han pasado más de 5 minutos desde el último aviso
-                if tiempo_actual - ultimo_aviso > 300:
-                    enviar_mensaje(
-                        chat_id, 
-                        "⚠️ *Turno no autorizado*\n\n"
-                        "La central aún no ha creado o autorizado tu turno de trabajo. "
-                        "No puedes transmitir ubicación hasta que el operador inicie tu turno."
-                    )
-                    enviar_menu_botones(chat_id)
-                    
-                    # Actualizamos la hora del último aviso para este conductor
-                    ULTIMOS_AVISOS_SIN_TURNO[conductor.id_conductor] = tiempo_actual
-
-                # El servidor procesa el rechazo en silencio para los pings repetitivos y evita el spam
-                return jsonify({"status": "ubicacion_rechazada_sin_turno"}), 200
-
-        # 5. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
+       
+        # 4. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
         
         # 🛑 DETECCIÓN DE CIERRE MANUAL: 
         # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)

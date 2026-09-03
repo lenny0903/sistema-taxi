@@ -21,6 +21,7 @@
             flex-shrink: 0;
             transition: transform 0.3s ease;
             z-index: 10;
+            
         }
 
         #panel.oculto {
@@ -103,6 +104,25 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 🛡️ Ocultar la barra lateral y el botón sólo si es vista de cliente (hay un despacho activo)
+            if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
+                const panel = document.getElementById('panel');
+                const btnToggle = document.getElementById('btnToggle');
+                
+                if (panel) panel.style.display = 'none';
+                if (btnToggle) btnToggle.style.display = 'none';
+                
+                // Ajustar el mapa para que ocupe toda la pantalla limpia
+                const mapDiv = document.getElementById('map');
+                if (mapDiv) {
+                    mapDiv.style.position = 'absolute';
+                    mapDiv.style.left = '0';
+                    mapDiv.style.top = '0';
+                    mapDiv.style.width = '100vw';
+                    mapDiv.style.height = '100vh';
+                }
+                setTimeout(() => map.invalidateSize(), 200);
+            }
             const capaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19

@@ -54,12 +54,7 @@ window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
         }
     });
 
-    // Preseleccionar el primer conductor disponible si existe
-    if (contador > 0) {
-        selectCond.selectedIndex = 1;
-    } else {
-        selectCond.selectedIndex = 0;
-    }
+   selectCond.selectedIndex = 0;
 
     // 🚀 Actualiza dinámicamente el badge en la interfaz
     if (contadorSpan) {
@@ -174,26 +169,23 @@ async function ejecutarDespachoDirecto({
                 const rutaFlayerLocal = `/static/img/flayers/${nombreArchivoFlayer}`;
                 
                 const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
-                const botTelegram = "@Lospatriotas_bot";
-                
-                const msgCliente = 
-                    `¡Hola! 🚖 Su unidad va en camino.\n\n` +
-                    `🚗 *UNIDAD ASIGNADA: #${nroControlCalculado}*\n` +
-                    `• Conductor: *${nombreCond}*\n` +
-                    `• Vehículo: *Vehículo*\n` +
-                    `• Placa: **\n\n` +
-                    `📍 Para ver el mapa y rastreo en tiempo real, abra su Telegram, busque el bot *${botTelegram}* y envíe la palabra: *UBI*`;
+                const enlaceBotTelegram = `https://t.me/Lospatriotas_bot?text=UBI`;
 
+                const msgCliente = 
+                    `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
+                    `📍 *Para ver el mapa y rastrear su unidad en tiempo real, haga clic aquí:*\n` +
+                    `${enlaceBotTelegram}\n\n` +
+                    `*(O busque el bot @Lospatriotas_bot en Telegram y envíe la palabra UBI)*`;
                 const nroControlConductor = nroControlCalculado !== "B1" ? nroControlCalculado : optionCondText;
 
                 const msgConductor = 
                     `🚖 *NUEVO DESPACHO ASIGNADO* (#${result.id_despacho})\n\n` +
                     `📍 *Origen:* ${origen}\n` +
                     `🏁 *Destino:* ${destino}\n` +
+                    `💰 *Tarifa:* ${tarifa ? tarifa + ' COP' : 'A convenir'}\n` +
                     `👤 *Cliente:* ${nombreCliente}\n` +
                     `📞 *Teléfono:* ${telefonoCliente}\n\n` +
                     `¡Buen viaje! 🚀`;
-
                 // Crear el Banner Flotante
                 const bannerAnterior = document.getElementById('bannerDespachoFlotante');
                 if (bannerAnterior) bannerAnterior.remove();
