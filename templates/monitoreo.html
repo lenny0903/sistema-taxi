@@ -273,6 +273,12 @@
                 });
 
                 data.forEach(c => {
+                    // 🛑 FILTRO PARA CLIENTES: Si hay un despacho activo, ignorar cualquier otro conductor
+                    if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
+                        if (parseInt(c.id_despacho) !== parseInt(ID_DESPACHO_ACTIVO)) {
+                            return; // Salta este carro y no lo dibuja en el mapa
+                        }
+                    }
                     console.log(`🔍 ${c.codigo}: estado="${c.estado}", opcion_gps="${c.opcion_gps}", lat=${c.latitud}, lon=${c.longitud}`);
                     let tr = tbody.querySelector(`tr[data-codigo="${c.codigo}"]`);
                     
