@@ -169,20 +169,45 @@ async function ejecutarDespachoDirecto({
                 const rutaFlayerLocal = `/static/img/flayers/${nombreArchivoFlayer}`;
                 
                 const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
-                const enlaceBotTelegram = `https://t.me/Lospatriotas_bot?text=UBI`;
+                const nroControlConductor = nroControlCalculado !== "B1" ? nroControlCalculado : optionCondText;
+
+                // 🚀 Obtenemos el ID de forma segura desde la respuesta del servidor y apuntamos al bot real (@Lospatriotas_bot)
+                const idDespachoActual = result.id_despacho || window.despachoIdCreado; 
+               // Genera un enlace corto limpio apuntando a tu propio servidor Flask
+                const dominioPublico = "https://powerseller-garden-photo-therefore.trycloudflare.com"; 
+                const enlaceCorto = `${dominioPublico}/s/${idDespachoActual}`;
 
                 const msgCliente = 
                     `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
-                    `📍 *Para ver el mapa y rastrear su unidad en tiempo real, haga clic aquí:*\n` +
-                    `${enlaceBotTelegram}\n\n` +
-                    `*(O busque el bot @Lospatriotas_bot en Telegram y envíe la palabra UBI)*`;
-                const nroControlConductor = nroControlCalculado !== "B1" ? nroControlCalculado : optionCondText;
+                    `🚗 Unidad asignada: *#${nroControlConductor}*\n` +
+                    `👤 Conductor: *${nombreCond}*\n\n` +
+                    `📍 Sigue tu unidad en tiempo real aquí:\n` +
+                    `${enlaceCorto}`;
+                const origenTexto = typeof origen !== 'undefined' ? origen : (document.getElementById('desOrigen')?.value || 'N/A');
+                const destinoTexto = typeof destino !== 'undefined' ? destino : (document.getElementById('desDestino')?.value || 'N/A');
+
+                // Capturamos la tarifa en pesos del input que me mostraste
+                const tarifaInput = document.getElementById('tarifaClienteUnico');
+                const pesosTarifa = tarifaInput ? parseFloat(tarifaInput.value) || 0 : 0;
+
+                // 💱 Realizamos el cálculo en Bolívares usando la tasa global del servidor (window.tasaCopVes)
+                const tasaActual = window.tasaCopVes || 3.2; // Respaldo por seguridad
+                let bolivaresTexto = 'A convenir';
+
+                if (pesosTarifa > 0 && tasaActual > 0) {
+                    // Tu fórmula exacta: Pesos / Tasa, redondeado a entero sin decimales
+                    const calculoBs = pesosTarifa / tasaActual;
+                    const bolivaresRedondeados = Math.round(calculoBs);
+                    
+                    // Formato con separadores de miles (ej: 4.688)
+                    bolivaresTexto = bolivaresRedondeados.toLocaleString('es-VE') + ' Bs';
+                }
 
                 const msgConductor = 
                     `🚖 *NUEVO DESPACHO ASIGNADO* (#${result.id_despacho})\n\n` +
-                    `📍 *Origen:* ${origen}\n` +
-                    `🏁 *Destino:* ${destino}\n` +
-                    `💰 *Tarifa:* ${tarifa ? tarifa + ' COP' : 'A convenir'}\n` +
+                    `📍 *Origen:* ${origenTexto}\n` +
+                    `🏁 *Destino:* ${destinoTexto}\n` +
+                    `💰 *Tarifa:* ${pesosTarifa ? pesosTarifa.toLocaleString('es-VE') + ' COP (' + bolivaresTexto + ')' : 'A convenir'}\n` +
                     `👤 *Cliente:* ${nombreCliente}\n` +
                     `📞 *Teléfono:* ${telefonoCliente}\n\n` +
                     `¡Buen viaje! 🚀`;

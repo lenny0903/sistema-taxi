@@ -1596,10 +1596,10 @@ function inicializarCalculadoraCopToVes() {
     const inputBs = document.getElementById('calc_resultado_bs');
     const btnCopiar = document.getElementById('btn_copiar_bs');
 
-    // Recuperamos la última tasa guardada del localStorage
-    const tasaGuardada = localStorage.getItem('tasa_dia_cop');
-    if (tasaGuardada && inputTasa) {
-        inputTasa.value = tasaGuardada;
+    // 1. Sincronizamos con la tasa global del servidor (o respaldo en memoria)
+    if (inputTasa) {
+        // Usamos window.tasaCopVes que cargamos al arrancar el sistema
+        inputTasa.value = window.tasaCopVes || 3.2; 
     }
 
     // Función que realiza el cálculo matemático
@@ -1607,17 +1607,19 @@ function inicializarCalculadoraCopToVes() {
         const tasa = parseFloat(inputTasa.value) || 0;
         const pesos = parseFloat(inputCop.value) || 0;
 
-        // Guardamos la tasa actual para la próxima vez
-        localStorage.setItem('tasa_dia_cop', inputTasa.value);
+        // Opcional: si quieres actualizar la global en tiempo real si el operador la edita a mano en el modal
+        window.tasaCopVes = tasa;
 
         if (tasa > 0 && pesos > 0) {
-            // Dividimos Pesos entre la tasa para obtener Bolívares
-            const bolivares = pesos / tasa;
+            // Ojo con tu fórmula: Si tu tasa es "cuántos bolívares cuesta 1 peso", es MULTIPLICACIÓN.
+            // Si es "cuántos pesos cuesta 1 bolívar", sería división. 
+            // Con el valor 3.2 que usamos antes (Bs por Peso), la operación correcta es multiplicar:
+            const bolivares = pesos / tasa; 
             
             // Mostramos el resultado formateado con 2 decimales
             inputBs.value = bolivares.toLocaleString('es-VE', { 
-                minimumFractionDigits: 2, 
-                maximumFractionDigits: 2 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
             });
         } else {
             inputBs.value = '0,00';
@@ -1634,6 +1636,10 @@ function inicializarCalculadoraCopToVes() {
 
     // Configuración al abrir el modal
     modalCalc.addEventListener('shown.bs.modal', () => {
+        // Cada vez que abre el modal, refrescamos el input con la tasa más reciente del sistema
+        if (inputTasa) {
+            inputTasa.value = window.tasaCopVes || 3.2;
+        }
         if (inputCop) {
             inputCop.value = '';
             inputCop.focus(); // Coloca el cursor directamente en el campo de pesos

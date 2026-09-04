@@ -15,11 +15,12 @@ import os
 import shutil
 import sqlite3
 from datetime import datetime, timedelta
+import json
 
-from flask import Flask, jsonify, render_template, url_for, redirect, request, send_from_directory
+from flask import Flask, jsonify, render_template, url_for, redirect, request, send_from_directory, jsonify
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
-from flask_apscheduler import APScheduler
+from flask_apscheduler import APScheduler, json
 from flask_socketio import SocketIO
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
@@ -82,7 +83,33 @@ def create_app():
     db.init_app(app)
     jwt = JWTManager(app)
     app.extensions['jwt'] = jwt
-    
+
+    @app.route('/api/tasa', methods=['GET', 'POST'])
+    def gestionar_tasa():
+        import json as json_nativo  # 👈 Forzamos el uso del json nativo de Python
+        ARCHIVO_TASA = 'tasa_actual.json'
+        
+        if request.method == 'POST':
+            try:
+                data = request.get_json(silent=True) or {}
+                datos_nuevos = {
+                    "tasa_usd_cop": float(data.get('tasa_usd_cop', 4100)),
+                    "tasa_cop_ves": float(data.get('tasa_cop_ves', 0.05))
+                }
+                with open(ARCHIVO_TASA, 'w', encoding='utf-8') as f:
+                    json_nativo.dump(datos_nuevos, f)  # 👈 Usamos json_nativo.dump
+                return jsonify({"status": "success", **datos_nuevos})
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 400
+        
+        if os.path.exists(ARCHIVO_TASA):
+            try:
+                with open(ARCHIVO_TASA, 'r', encoding='utf-8') as f:
+                    return jsonify(json_nativo.load(f))  # 👈 Usamos json_nativo.load
+            except:
+                pass
+                
+        return jsonify({"tasa_usd_cop": 4100, "tasa_cop_ves": 0.05})    
     with app.app_context():
         import models
         from models.lista_espera import ListaEspera
@@ -168,6 +195,7 @@ def create_app():
             } for t in tarifas
         ]
         return render_template("dashboard.html", destinos=destinos_lista)
+
     @app.route('/obtener_tarifas', methods=['GET'])
     def obtener_tarifas():
         try:
@@ -210,6 +238,47 @@ def create_app():
         except Exception as e:
             print("[ERROR] [TELEGRAM] No se pudo configurar el webhook:", e)
             return f"Error al configurar: {e}", 500
+
+    from flask import redirect
+
+    @app.route('/s/<int:id_despacho>')
+    def acortador_telegram(id_despacho):
+        # Formato nativo optimizado para abrir directo y sin conflictos de parámetros
+        url_tg_nativo = f"tg://resolve?domain=Taxilospatriotastest_bot&start=srv_{id_despacho}"
+        url_web_fallback = f"https://t.me/Taxilospatriotastest_bot?start=srv_{id_despacho}"
+        
+        return f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Rastrear Servicio - Taxi</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding: 60px 20px; background-color: #f4f4f9; color: #333; }}
+                .btn {{ display: inline-block; background-color: #2481cc; color: white; padding: 16px 32px; font-size: 18px; font-weight: bold; text-decoration: none; border-radius: 8px; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; border: none; }}
+                .btn:active {{ background-color: #1b65a0; }}
+                .fallback {{ margin-top: 30px; font-size: 14px; color: #666; }}
+                .fallback a {{ color: #2481cc; text-decoration: underline; }}
+            </style>
+            <script>
+                function abrirTelegram() {{
+                    window.location.href = "{url_tg_nativo}";
+                }}
+            </script>
+        </head>
+        <body>
+            <h2>🚖 ¡Tu servicio está listo!</h2>
+            <p>Haz clic en el botón para abrir el mapa en tiempo real:</p>
+            <button onclick="abrirTelegram()" class="btn">Abrir Telegram Ahora</button>
+            
+            <div class="fallback">
+                <p>¿No se abrió la app? <a href="{url_web_fallback}">Usa este enlace alternativo</a></p>
+            </div>
+        </body>
+        </html>
+        """
+    
 
     return app
 

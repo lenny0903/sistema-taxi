@@ -185,3 +185,100 @@ function toggleMenu() {
         menu.classList.add("w-64");
     }
 }
+
+// Variable global para usarla en todo el sistema de despachos
+window.tasaDolarActual = 4100; // Valor por defecto de respaldo
+
+// 1. Cargar la tasa al iniciar la página
+async function inicializarTasaCambio() {
+    try {
+        const response = await fetch('/api/tasa');
+        const data = await response.json();
+        if (data && data.tasa) {
+            window.tasaDolarActual = parseFloat(data.tasa);
+            document.getElementById('txtTasaActual').textContent = window.tasaDolarActual.toLocaleString('es-CO');
+        }
+    } catch (e) {
+        console.error("⚠️ Error cargando la tasa del servidor:", e);
+        document.getElementById('txtTasaActual').textContent = window.tasaDolarActual.toLocaleString('es-CO');
+    }
+}
+
+// ==========================================
+// 💱 GESTIÓN MULTIDIVISA (USD, COP, VES)
+// ==========================================
+
+// Variables globales de respaldo
+window.tasaUsdCop = 4100;
+window.tasaCopVes = 0.05; 
+
+// 1. Cargar las tasas al iniciar la página de forma unificada
+async function inicializarTasas() {
+    try {
+        const response = await fetch('/api/tasa');
+        const data = await response.json();
+        if (data) {
+            // Soportamos tanto el formato nuevo como el viejo por seguridad
+            window.tasaUsdCop = data.tasa_usd_cop || data.tasa || 4100;
+            window.tasaCopVes = data.tasa_cop_ves || 0.05;
+            
+            // Actualizar interfaz con seguridad si los elementos existen en el DOM actual
+            const txtUsd = document.getElementById('txtTasaUsd');
+            if (txtUsd) txtUsd.textContent = window.tasaUsdCop.toLocaleString('es-CO');
+
+            const txtVes = document.getElementById('txtTasaVes');
+            if (txtVes) txtVes.textContent = window.tasaCopVes;
+        }
+    } catch (e) {
+        console.error("⚠️ Error cargando tasas del servidor:", e);
+    }
+}
+
+// Ejecutar al cargar el DOM
+document.addEventListener('DOMContentLoaded', inicializarTasas);
+
+// 2. Evento del Botón para modificar ambas tasas dinámicamente
+document.addEventListener('DOMContentLoaded', () => {
+    const btnCambiarTasas = document.getElementById('btnCambiarTasas');
+    if (btnCambiarTasas) {
+        btnCambiarTasas.addEventListener('click', async () => {
+            const nuevaUsd = prompt("Ingrese la tasa del Dólar en COP (Ej: 4150):", window.tasaUsdCop);
+            if (nuevaUsd === null) return;
+            
+            const nuevaVes = prompt("Ingrese la tasa del Peso en Bolívares (Ej: 0.048):", window.tasaCopVes);
+            if (nuevaVes === null) return;
+
+            try {
+                const response = await fetch('/api/tasa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        tasa_usd_cop: parseFloat(nuevaUsd), 
+                        tasa_cop_ves: parseFloat(nuevaVes) 
+                    })
+                });
+                
+                const resultado = await response.json();
+                if (resultado.status === 'success') {
+                    window.tasaUsdCop = resultado.tasa_usd_cop;
+                    window.tasaCopVes = resultado.tasa_cop_ves;
+                    
+                    const txtUsd = document.getElementById('txtTasaUsd');
+                    if (txtUsd) txtUsd.textContent = window.tasaUsdCop.toLocaleString('es-CO');
+
+                    const txtVes = document.getElementById('txtTasaVes');
+                    if (txtVes) txtVes.textContent = window.tasaCopVes;
+
+                    if (typeof mostrarToast === 'function') {
+                        mostrarToast("✅ Tasas actualizadas correctamente", "success");
+                    } else {
+                        alert("✅ Tasas actualizadas correctamente");
+                    }
+                }
+            } catch (err) {
+                console.error("Error al guardar tasas:", err);
+                alert("❌ Error al guardar las tasas.");
+            }
+        });
+    }
+});
