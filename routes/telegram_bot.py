@@ -35,6 +35,11 @@ def confirmar_clic(callback_id):
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def webhook():
+     # 🔐 Verificación del secret_token
+    #secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    #if secret != os.getenv('TELEGRAM_WEBHOOK_SECRET'):
+    #    print(f"⚠️ Intento de acceso no autorizado con token: {secret}")
+    #    return jsonify({"status": "unauthorized"}), 403
     from models.conductores import Conductor
     from models.turnos import Turno
     from extensions import db
@@ -164,8 +169,8 @@ def webhook():
             # --- COMANDO START ---
             if texto.startswith('/start'):
                 partes = texto.split(' ')
-                if len(partes) > 1:
-                    servicio_id = partes[1].replace('srv-', '')
+                if len(partes) > 1 and ('srv-' in partes[1] or 'srv_' in partes[1]):
+                    servicio_id = partes[1].replace('srv-', '').replace('srv_', '')
                     try:
                         id_despacho = int(servicio_id)
                         despacho = Despacho.query.get(id_despacho)
@@ -241,35 +246,9 @@ def webhook():
 
                     return jsonify({"status": "menu_enviado"}), 200
 
-                    enviar_menu_botones(chat_id)
-                    return jsonify({"status": "menu_enviado"}), 200
+                    
             # 📍 Palabra clave "UBI"
-            if texto.strip().upper() == "UBI":
-                print("🎯 [WEBHOOK] ¡ATRAPÓ EL UBI!")
-                
-                despacho_reciente = Despacho.query.order_by(Despacho.id_despacho.desc()).first()
-                
-                if despacho_reciente:
-                    despacho_reciente.telegram_id_cliente = chat_id
-                    db.session.commit()
-                    conductor_asig = db.session.get(Conductor, despacho_reciente.conductor_id) if hasattr(despacho_reciente, 'conductor_id') and despacho_reciente.conductor_id else None
-                    nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
-                    nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"
-                    
-                    base_url = request.host_url.rstrip('/')
-                    enlace_mapa = f"{base_url}/monitoreo/{despacho_reciente.id_despacho}"
-                    
-                    mensaje_ubi = (
-                        f"📍 Rastreo activo (Despacho #{despacho_reciente.id_despacho})\n\n"
-                        f"🚗 Unidad: #{nro_ctrl}\n"
-                        f"👤 Conductor: {nombre_cond}\n\n"
-                        f"🗺️ Ver mapa en tiempo real:\n{enlace_mapa}"
-                    )
-                    enviar_mensaje(chat_id, mensaje_ubi, parse_mode=None)
-                else:
-                    enviar_mensaje(chat_id, "⚠️ No tienes ningún servicio activo registrado en este momento.", parse_mode=None)
-                return jsonify({"status": "ubi_procesado"}), 200
-
+            
             # --- BOTÓN ACTIVAR (Conductores) ---
             if texto == "🔗 Activar":
                 conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()

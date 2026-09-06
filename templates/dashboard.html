@@ -536,13 +536,17 @@
                 1. Seleccione Tipo / Modalidad de Despacho:
               </label>
               <select id="tipoDespacho" tabindex="1" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 bg-white font-semibold text-gray-800">
-                <option value="">Seleccione...</option>
                 <option value="1">1 Vehículo (Inmediato)</option>
                 <option value="reserva">📅 Reserva (Programado)</option>
-                <optgroup label="Despacho múltiple">
-                  <option value="2">2 vehículos</option>
-                  <option value="3">3 vehículos</option>
-                  <option value="4">4 vehículos</option>
+                <optgroup label="Mismo Destino (Caravana / Grupo)">
+                    <option value="2_mismo">2 Vehículos</option>
+                    <option value="3_mismo">3 Vehículos</option>
+                    <option value="4_mismo">4 Vehículos - Mismo Destino</option>
+                </optgroup>
+                <optgroup label="Diferentes Destinos (Independientes)">
+                    <option value="2_dif">2 Vehículos</option>
+                    <option value="3_dif">3 Vehículos</option>
+                    <option value="4_dif">4 Vehículos</option>
                 </optgroup>
               </select>
             </div>

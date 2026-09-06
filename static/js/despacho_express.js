@@ -171,18 +171,29 @@ async function ejecutarDespachoDirecto({
                 const nombreCond = optionCondText.includes(' - ') ? optionCondText.split(' - ')[1] : optionCondText || "Conductor";
                 const nroControlConductor = nroControlCalculado !== "B1" ? nroControlCalculado : optionCondText;
 
-                // 🚀 Obtenemos el ID de forma segura desde la respuesta del servidor y apuntamos al bot real (@Lospatriotas_bot)
+                // 🚀 Obtenemos el ID de forma segura desde la respuesta del servidor
+                // Dentro de tu función de despacho en el frontend de JavaScript:
                 const idDespachoActual = result.id_despacho || window.despachoIdCreado; 
-               // Genera un enlace corto limpio apuntando a tu propio servidor Flask
-                const dominioPublico = "https://powerseller-garden-photo-therefore.trycloudflare.com"; 
-                const enlaceCorto = `${dominioPublico}/s/${idDespachoActual}`;
+                console.log("ID actual:", idDespachoActual);
 
-                const msgCliente = 
+                // 🔗 Enlace limpio al canal oficial de la empresa en Telegram (Cero pantallas rojas en WhatsApp)
+                const enlaceCanalTelegram = "https://t.me/taxi_tariberosLosPatriotas";
+
+                // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
+                const conductorValido = result.enlace_generado !== false;
+
+                const msgCliente = conductorValido ? (
                     `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
-                    `🚗 Unidad asignada: *#${nroControlConductor}*\n` +
-                    `👤 Conductor: *${nombreCond}*\n\n` +
-                    `📍 Sigue tu unidad en tiempo real aquí:\n` +
-                    `${enlaceCorto}`;
+                    `🚗 Unidad asignada: #${nroControlConductor}\n` +
+                    `👤 Conductor: ${nombreCond}\n\n` +
+                    `📍 Toca el siguiente enlace para entrar a nuestro canal de Telegram y ver tu rastreo en vivo:\n` + 
+                    enlaceCanalTelegram
+                ) : "⚠️ [ENLACE NO DISPONIBLE: Conductor inactivo o GPS expirado]";
+
+                // Luego pasas este msgCliente a tu lógica para abrir el chat de WhatsApp con el cliente:
+                // const urlWhatsApp = `https://wa.me/${telefonoCliente}?text=${encodeURIComponent(msgCliente)}`;
+                // window.open(urlWhatsApp, '_blank');
+
                 const origenTexto = typeof origen !== 'undefined' ? origen : (document.getElementById('desOrigen')?.value || 'N/A');
                 const destinoTexto = typeof destino !== 'undefined' ? destino : (document.getElementById('desDestino')?.value || 'N/A');
 
@@ -195,11 +206,8 @@ async function ejecutarDespachoDirecto({
                 let bolivaresTexto = 'A convenir';
 
                 if (pesosTarifa > 0 && tasaActual > 0) {
-                    // Tu fórmula exacta: Pesos / Tasa, redondeado a entero sin decimales
                     const calculoBs = pesosTarifa / tasaActual;
                     const bolivaresRedondeados = Math.round(calculoBs);
-                    
-                    // Formato con separadores de miles (ej: 4.688)
                     bolivaresTexto = bolivaresRedondeados.toLocaleString('es-VE') + ' Bs';
                 }
 
@@ -211,6 +219,7 @@ async function ejecutarDespachoDirecto({
                     `👤 *Cliente:* ${nombreCliente}\n` +
                     `📞 *Teléfono:* ${telefonoCliente}\n\n` +
                     `¡Buen viaje! 🚀`;
+
                 // Crear el Banner Flotante
                 const bannerAnterior = document.getElementById('bannerDespachoFlotante');
                 if (bannerAnterior) bannerAnterior.remove();
@@ -219,15 +228,22 @@ async function ejecutarDespachoDirecto({
                 bannerDiv.id = 'bannerDespachoFlotante';
                 bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
                 
+                // Estilos dinámicos para los botones y alertas visuales si el conductor no es válido
+                const colorBordeAvatar = conductorValido ? '#25d366' : '#ef4444';
+                const etiquetaEstado = conductorValido ? '' : ' <span style="color: #ef4444; font-weight: bold;">⚠️ [INACTIVO]</span>';
+                const estiloBtnCliente = conductorValido ? 'background: #0088cc;' : 'background: #555; color: #aaa;';
+                const textoBtnCliente = conductorValido ? '💬 Texto Cliente' : '⚠️ Sin Enlace';
+                const tituloBtnCliente = conductorValido ? 'Copiar texto para el cliente' : '⚠️ Atención: Conductor inactivo o GPS expirado';
+
                 bannerDiv.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; flex-wrap: wrap;">
                         
                         <!-- 📌 BLOQUE DE INFORMACIÓN (Referencia visual clara para el operador) -->
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #25d366; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
+                            <img src="${rutaFlayerLocal}" alt="Flayer" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${colorBordeAvatar}; background: #444;" onerror="this.src='https://via.placeholder.com/40?text=🚗'">
                             <div>
                                 <div style="font-weight: bold; font-size: 13px; color: #fff;">
-                                    Despacho #${result.id_despacho} <span style="font-weight: normal; color: #25d366; font-size: 12px;">(Unidad #${nroControlConductor})</span>
+                                    Despacho #${result.id_despacho} <span style="font-weight: normal; color: ${colorBordeAvatar}; font-size: 12px;">(Unidad #${nroControlConductor})</span> ${etiquetaEstado}
                                 </div>
                                 <div style="font-size: 11px; color: #bbb;">
                                     👤 ${nombreCliente} &nbsp;|&nbsp; 📱 ${window.telefonoClienteGlobal || telefonoCliente}
@@ -243,8 +259,8 @@ async function ejecutarDespachoDirecto({
                             <button id="btnCli" type="button" tabindex="-1" style="background: #25d366; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar imagen del flayer">
                                 🖼️ Flayer
                             </button>
-                            <button id="btnTextoCli" type="button" tabindex="-1" style="background: #0088cc; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar texto para el cliente">
-                                💬 Texto Cliente
+                            <button id="btnTextoCli" type="button" tabindex="-1" style="${estiloBtnCliente} color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="${tituloBtnCliente}">
+                                ${textoBtnCliente}
                             </button>
                             <button id="btnCond" type="button" tabindex="-1" style="background: #128c7e; color: white; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;" title="Copiar mensaje para el conductor">
                                 🚗 Conductor
@@ -268,22 +284,16 @@ async function ejecutarDespachoDirecto({
                     e.stopPropagation();
                     
                     try {
-                        // Intentamos cargar la ruta principal
                         let response = await fetch(rutaFlayerLocal);
-                        
-                        // Si da 404, intentamos buscar si el archivo existe con otra extensión común (.jpeg o .jpg)
                         if (response.status === 404) {
-                            // Reemplazamos .png por .jpeg o .jpg según corresponda
                             let rutaAlternativa = rutaFlayerLocal.replace(/\.png$/i, '.jpeg');
                             response = await fetch(rutaAlternativa);
-                            
                             if (response.status === 404) {
                                 rutaAlternativa = rutaFlayerLocal.replace(/\.png$/i, '.jpg');
                                 response = await fetch(rutaAlternativa);
                             }
                         }
 
-                        // Si después de buscar alternativas sigue dando 404, mostramos el aviso original
                         if (response.status === 404) {
                             mostrarToast(`ℹ️ La imagen ${nombreArchivoFlayer} no existe en /static/img/flayers/`, "warning");
                             return;
@@ -323,8 +333,13 @@ async function ejecutarDespachoDirecto({
                     }
                 });
 
+                // 💬 Evento dinámico para el botón del cliente
                 bannerDiv.querySelector('#btnTextoCli').addEventListener('click', async (e) => {
                     e.preventDefault();
+                    if (!conductorValido) {
+                        alert("⚠️ ATENCIÓN: Este despacho se registró con una unidad inactiva o con el tiempo de GPS expirado. El enlace de rastreo no está disponible. Debe reasignar el servicio si desea enviar un seguimiento.");
+                        return;
+                    }
                     try {
                         await navigator.clipboard.writeText(msgCliente);
                         mostrarToast("📋 Mensaje cliente copiado", "success");
@@ -469,17 +484,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (selectConductor && selectConductor.options.length > 1) {
                 selectConductor.focus();
             } else if (btnEnviar) {
-                // Si no hay conductores en la lista, ir directo a Enviar
                 activarBotonEnviar(btnEnviar);
                 btnEnviar.focus();
             }
         }
     });
 
-    // 🛡️ CONTROL TOTAL EN SELECT CONDUCTOR (Bloquea el salto al botón Limpiar)
+    // 🛡️ CONTROL TOTAL EN SELECT CONDUCTOR
     if (selectConductor) {
         selectConductor.addEventListener("keydown", (e) => {
-            // Manejar tanto TAB como ENTER para que salte al botón Enviar
             if (e.key === "Tab" || e.key === "Enter" || e.keyCode === 13) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -488,7 +501,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     activarBotonEnviar(btnEnviar);
                     btnEnviar.focus();
 
-                    // Si presionó Enter dentro del select, de una vez presiona el botón
                     if (e.key === "Enter" || e.keyCode === 13) {
                         btnEnviar.click();
                     }
@@ -497,7 +509,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Función auxiliar para habilitar visual y funcionalmente el botón
     function activarBotonEnviar(btn) {
         btn.disabled = false;
         btn.removeAttribute("disabled");
@@ -614,8 +625,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --------------------------------------------------------------------------
-    // 5. ENVÍO DEL FORMULARIO (SUBMIT A BASE DE DATOS O COLA)
+   // --------------------------------------------------------------------------
+    // 5. ENVÍO DEL FORMULARIO (ÚNICO, MÚLTIPLE Y COLA INTEGRADOS)
     // --------------------------------------------------------------------------
     formDespacho?.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -630,7 +641,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Registrar o verificar cliente
+        const selectTipoDespacho = document.getElementById("tipoDespacho");
+        const tipoSeleccionado = selectTipoDespacho ? selectTipoDespacho.value : "1";
+
+        if (tipoSeleccionado === "reserva") return;
+
         let clienteIdFinal = window.clienteIdActual;
 
         if (!clienteIdFinal) {
@@ -674,13 +689,90 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Ejecutar despacho activo o mandar a Cola
+        // 🎯 DETECTAR SI ES UNA CREACIÓN MÚLTIPLE DESDE EL SELECTOR (2, 3, 4...)
+        // Ojo: Solo si NO estamos editando/asignando un elemento existente de la cola.
+        let cantidad = 1;
+        if (['2', '3', '4'].includes(tipoSeleccionado)) {
+            cantidad = parseInt(tipoSeleccionado);
+        } else if (tipoSeleccionado.includes("2") || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) {
+            cantidad = parseInt(tipoSeleccionado.charAt(0)) || 1;
+        }
+
+        // Si la cantidad es mayor a 1 Y NO venimos de darle al botón "Asignar" (es decir, no hay idColaEnEdicion activo)
+        if ((cantidad > 1 || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) && !window.idColaEnEdicion) {
+            const telefono = telefonoInput?.value.trim() || "";
+            const nombre   = nomInput?.value.trim() || "";
+            const origen   = oriInput?.value.trim() || "";
+            const esDiferentesDestinos = tipoSeleccionado.includes("_dif");
+
+            // Si es mismo destino, el destino y tarifa son obligatorios aquí; si es _dif, van pendientes
+            const destino  = esDiferentesDestinos ? "PENDIENTE (Diferente Destino)" : (desInput?.value.trim() || "");
+            const tarifa   = esDiferentesDestinos ? 0 : parseFloat(tarifaInput?.value || 0);
+
+            if (!origen) {
+                if (typeof mostrarToast === "function") mostrarToast("⚠️ Por favor ingresa el origen.", "warning");
+                return;
+            }
+
+            try {
+                let errores = 0;
+                for (let i = 0; i < cantidad; i++) {
+                    // Si es mismo destino, va el destino limpio sin coletillas; si es diferente, va vacío para la cola
+                    const destinoFinal = esDiferentesDestinos ? "" : destino;
+                    const tarifaFinal = esDiferentesDestinos ? 0 : tarifa;
+
+                    const payload = {
+                        cliente_id: parseInt(clienteIdFinal),
+                        telefono,
+                        nombre: `${nombre} [Unidad ${i + 1}/${cantidad}]`, // 👈 El desglose de unidad va en el nombre
+                        origen,
+                        destino: destinoFinal,                               // 👈 Destino 100% puro y limpio
+                        tarifa: tarifaFinal
+                    };
+
+                    const result = await apiFetch("/cola_despachos/", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!result || result.error) errores++;
+                }
+
+                if (errores > 0) {
+                    if (typeof mostrarToast === "function") mostrarToast(`❌ Hubo errores en ${errores} registros`, "error");
+                } else {
+                    if (typeof mostrarToast === "function") {
+                        mostrarToast(`✅ Cola múltiple de ${cantidad} unidades creada con éxito`, "success");
+                    }
+                }
+
+                formDespacho.reset();
+                window.clienteIdActual = null;
+                clienteListoParaEnviar = null;
+                window.idColaEnEdicion = null;
+                if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                telefonoInput?.focus();
+
+                if (typeof window.cargarColaClientes === "function") {
+                    await window.cargarColaClientes();
+                }
+
+            } catch (err) {
+                console.error("Error en envío múltiple:", err);
+                if (typeof mostrarToast === "function") mostrarToast("❌ Error de conexión", "error");
+            }
+            return;
+        }
+
+        // 🎯 DESPACHO DIRECTO O ASIGNACIÓN DESDE COLA (Único o Múltiple ya listo para despachar)
         const idConductor = selectConductor?.value.trim();
 
         if (idConductor) {
             const optionSel = selectConductor.options[selectConductor.selectedIndex];
             const idAuto = optionSel.dataset.autoId || idConductor;
-            
+            // 🧹 LIMPIEZA DE DESTINO PARA DESPACHOS MÚLTIPLES
+            let destinoLimpio = desInput?.value.trim() || "";
+            destinoLimpio = destinoLimpio.replace(/\s*\(Auto\s+\d+\s+de\s+\d+\)/gi, "").trim();
             btnEnviar.disabled = true;
             btnEnviar.innerText = "Procesando...";
 
@@ -717,7 +809,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btnEnviar.innerText = "Enviar Despacho";
 
         } else {
-            // Guardar en cola de espera
+            // Guardar en cola de espera individual (si no se seleccionó conductor)
             try {
                 const payloadCola = {
                     cliente_id: parseInt(clienteIdFinal),
@@ -739,6 +831,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     formDespacho?.reset();
                     window.clienteIdActual = null;
                     clienteListoParaEnviar = null;
+                    window.idColaEnEdicion = null;
 
                     if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
                     if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
@@ -755,11 +848,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --------------------------------------------------------------------------
-    // 6. BOTONES DE CANCELAR
+    // 6. BOTONES DE CANCELAR Y MODALES
     // --------------------------------------------------------------------------
     document.getElementById("btnCancelarPrincipal")?.addEventListener("click", () => {
         formDespacho.reset();
-        memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; 
+        window.memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; 
         clienteListoParaEnviar = null; 
         if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
 
@@ -857,6 +950,9 @@ async function cargarColaClientes() {
             const origen = c.origen || (c.cliente ? c.cliente.direccion : "");
             const destino = c.destino || "";
 
+            // 🛡️ Extracción blindada del ID del cliente para evitar undefined en el botón Asignar
+            const idClienteReal = c.cliente_id || c.cliente?.id_cliente || c.id_cliente || id;
+
             const valOrigen = window.memoriaEdicionCola1.origenes[id] !== undefined ? window.memoriaEdicionCola1.origenes[id] : origen;
             const valDestino = window.memoriaEdicionCola1.destinos[id] !== undefined ? window.memoriaEdicionCola1.destinos[id] : destino;
             const valTarifa = window.memoriaEdicionCola1.tarifas[id] !== undefined ? window.memoriaEdicionCola1.tarifas[id] : (c.tarifa || "");
@@ -887,7 +983,7 @@ async function cargarColaClientes() {
                     <span class="px-2 py-0.5 rounded bg-orange-100 text-xs text-orange-700 font-semibold">${c.estado || 'En espera'}</span>
                 </td>
                 <td class="border px-2 py-1 flex gap-1 justify-center">
-                    <button onclick="prepararAsignacion(${id}, ${c.cliente?.id_cliente || c.cliente_id || id})"
+                    <button onclick="prepararAsignacion(${id}, ${idClienteReal})"
                             class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">
                         Asignar
                     </button>
@@ -922,19 +1018,27 @@ function prepararAsignacion(idCola, idCliente) {
         return; 
     }
 
-    // 1. Buscar la fila (tr) utilizando el idCola buscando cualquier botón que lo contenga
-    const botones = Array.from(document.querySelectorAll("button[onclick*='prepararAsignacion']"));
-    const btn = botones.find(b => b.getAttribute("onclick").includes(`${idCola},`));
+    // 🚀 BÚSQUEDA ROBUSTA: Encontrar el botón que contenga el idCola de manera exacta en su onclick
+    const btn = document.querySelector(`button[onclick*="prepararAsignacion(${idCola},"]`) || 
+                document.querySelector(`button[onclick*="prepararAsignacion(${idCola}, "]`) ||
+                Array.from(document.querySelectorAll("button")).find(b => {
+                    const onclickStr = b.getAttribute("onclick") || "";
+                    return onclickStr.includes(`prepararAsignacion`) && onclickStr.includes(idCola.toString());
+                });
     
     if (!btn) {
         console.warn(`⚠️ No se encontró la fila correspondiente a idCola: ${idCola}`);
+        if (typeof mostrarToast === "function") mostrarToast("⚠️ No se pudo localizar la fila en la cola", "error");
         return;
     }
     
     const fila = btn.closest("tr");
+    if (!fila) {
+        console.warn(`⚠️ El botón encontrado no pertenece a ninguna fila (tr) para idCola: ${idCola}`);
+        return;
+    }
 
     // 2. Extraer los datos directamente de las columnas (children) de la fila
-    // [0]: Nro | [1]: Teléfono | [2]: Nombre | [3]: Origen input | [4]: Destino input | [5]: Tarifa input
     const telefonoVal = fila.children[1] ? fila.children[1].textContent.trim() : "";
     const nombreVal   = fila.children[2] ? fila.children[2].textContent.trim() : "";
     
@@ -947,9 +1051,9 @@ function prepararAsignacion(idCola, idCliente) {
     const destinoVal = inputDestino ? inputDestino.value : (window.memoriaEdicionCola1?.destinos?.[idCola] || "");
     const tarifaVal  = inputTarifa  ? inputTarifa.value  : (window.memoriaEdicionCola1?.tarifas?.[idCola] || "");
 
-    console.log("🚀 ASIGNANDO DESDE COLA:", { idCola, idCliente, telefonoVal, nombreVal, origenVal, destinoVal, tarifaVal });
+    console.log("🚀 ASIGNANDO DESDE COLA (Múltiple/Único):", { idCola, idCliente, telefonoVal, nombreVal, origenVal, destinoVal, tarifaVal });
 
-    // 3. Inyectar en los campos del formulario superior
+    // 3. Inyectar en los campos del formulario superior de forma limpia (sin eventos parásitos)
     const inputTelForm = document.getElementById("desTelefono");
     const inputNomForm = document.getElementById("desNombre");
     const inputOriForm = document.getElementById("desOrigen");
@@ -957,16 +1061,28 @@ function prepararAsignacion(idCola, idCliente) {
     const inputTarForm = document.getElementById("tarifaClienteUnico");
     const inputIdModal = document.getElementById("modalClienteIdDespacho");
 
-    if (inputTelForm) { inputTelForm.value = telefonoVal; inputTelForm.dispatchEvent(new Event('input', { bubbles: true })); }
-    if (inputNomForm) { inputNomForm.value = nombreVal; inputNomForm.dispatchEvent(new Event('input', { bubbles: true })); }
-    if (inputOriForm) { inputOriForm.value = origenVal; inputOriForm.dispatchEvent(new Event('input', { bubbles: true })); }
-    if (inputDesForm) { inputDesForm.value = destinoVal; inputDesForm.dispatchEvent(new Event('input', { bubbles: true })); }
-    if (inputTarForm) { inputTarForm.value = tarifaVal; inputTarForm.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (inputTelForm) { inputTelForm.value = telefonoVal; }
+    if (inputNomForm) { 
+        inputNomForm.value = nombreVal; 
+        inputNomForm.readOnly = true;
+        inputNomForm.style.backgroundColor = "#f3f4f6";
+    }
+    if (inputOriForm) { 
+        inputOriForm.value = origenVal; 
+        inputOriForm.disabled = false;
+        inputOriForm.readOnly = false;
+    }
+    if (inputDesForm) { 
+        inputDesForm.value = destinoVal; 
+        inputDesForm.disabled = false;
+        inputDesForm.readOnly = false;
+    }
+    if (inputTarForm) { inputTarForm.value = tarifaVal; }
     if (inputIdModal) { inputIdModal.value = idCliente; }
 
-    // ⚡ 4. ESTADO DE LISTO
+    // ⚡ 4. ESTADO DE LISTO Y HABILITACIÓN DE ENVÍO
     window.clienteIdActual = idCliente;
-    window.clienteListoParaEnviar = { id_cliente: idCliente, nombre: nombreVal, telefono: telefonoVal };
+    window.clienteListoParaEnviar = telefonoVal; // Aseguramos que coincida con el validador
 
     if (typeof activarCamposDespacho === "function") {
         activarCamposDespacho(true);
@@ -975,11 +1091,18 @@ function prepararAsignacion(idCola, idCliente) {
     const btnEnviar = document.getElementById("btnEnviarDespacho") || document.querySelector("button[type='submit']");
     if (btnEnviar) {
         btnEnviar.disabled = false;
+        btnEnviar.removeAttribute("disabled");
+        btnEnviar.classList.remove("opacity-50", "cursor-not-allowed");
     }
 
     window.idColaEnEdicion = idCola;
     window.idClienteEnEdicion = idCliente;
-
+    const selectTipoDespacho = document.getElementById("tipoDespacho");
+    if (selectTipoDespacho) {
+        selectTipoDespacho.selectedIndex = 0; // O la opción que corresponda al despacho normal/individual
+        // Opcional por si usas eventos de cambio:
+        selectTipoDespacho.dispatchEvent(new Event('change'));
+    }
     if (selectConductor) {
         selectConductor.scrollIntoView({ behavior: "smooth", block: "center" });
         selectConductor.focus();

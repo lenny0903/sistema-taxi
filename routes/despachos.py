@@ -67,7 +67,7 @@ def crear_despacho():
             }), 400
         # ====================================================================
 
-        # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
+       # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
         with db.session.no_autoflush:
             ahora = hora_local()
             nuevo_despacho = Despacho(
@@ -93,93 +93,78 @@ def crear_despacho():
             c_nom = cliente_obj.nombre if cliente_obj else "Cliente"
             con_tel = data.get("conductor_telefono") or (conductor_obj.nro_telefono if conductor_obj else "0000000")
             con_nom = conductor_obj.nombre if conductor_obj else "Conductor"
-            
-            # 🚖 NUEVO: Obtener el código de conductor de la base de datos de forma segura
             con_cod = conductor_obj.codigo if conductor_obj else "S/C"
 
-            # 🌐 NUEVO: Definir el dominio base de la aplicación para las imágenes públicas
-            # Reemplaza con tu URL de Ngrok en desarrollo o tu dominio en producción
-            DOMINIO_APP = "https://uhvbb-201-221-113-19.run.pinggy-free.link"  
+            # ====================================================================
+            # 🛡️ VALIDACIÓN DE VIGENCIA DEL CONDUCTOR PARA EL ENLACE/NOTIFICACIÓN
+            # ====================================================================
+            conductor_valido = True
+            if not conductor_obj:
+                conductor_valido = False
+            else:
+                # Normalizar la expiración del GPS para evitar choques de zonas horarias
+                exp_gps = conductor_obj.expiracion_gps
+                if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
+                    exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
 
-            # 🖼️ NUEVO: Construcción de la URL del flayer basada en el código (ej: b15.png)
-            # (Líneas 101 a 103 de tu captura)
-            # 🚀 NUEVO: Construcción de la URL del flayer basada en el código (ej: b15.png)
-            codigo_minicla = con_cod.lower()
-            url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
-            print(f"DEBUG URL ENVIADA A N8N ===> {url_flayer}")
-            # Determinar escenario basándonos en el teléfono del cliente
-            escenario_final = "CON_WHATSAPP" if c_tel.startswith('04') else "SIN_WHATSAPP"
-            
-            # AJUSTE: Carga útil con la estructura idónea para n8n
-            payload = {
-                "turno_id": nuevo_despacho.id_despacho,
-                "escenario": escenario_final,
-                "cliente": {
-                    "nombre": c_nom, 
-                    "telefono": c_tel
-                },
-                "conductor": {
-                    "nombre": con_nom, 
-                    "telefono": con_tel,
-                    "codigo": con_cod       # <-- Enviamos el código a n8n
-                },
-                "servicio": {
-                    "origen": origen, 
-                    "destino": data.get("destino_despacho"), 
-                    "tarifa": tarifa_val,
-                    "flayer_url": url_flayer # <-- Enviamos la URL del flayer lista
+                # Validación segura única
+                if conductor_obj.estado_red != 'conectado' or (exp_gps and exp_gps < ahora):
+                    conductor_valido = False
+                    print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} está inactivo o con GPS expirado. No se generará el enlace automático.")
+
+            # Solo construimos la notificación y el enlace si el conductor es válido
+            if conductor_valido:
+                codigo_minicla = con_cod.lower()
+                url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
+                
+                escenario_final = "CON_WHATSAPP" if c_tel.startswith('04') else "SIN_WHATSAPP"
+                
+                payload = {
+                    "turno_id": nuevo_despacho.id_despacho,
+                    "escenario": escenario_final,
+                    "cliente": {
+                        "nombre": c_nom, 
+                        "telefono": c_tel
+                    },
+                    "conductor": {
+                        "nombre": con_nom, 
+                        "telefono": con_tel,
+                        "codigo": con_cod
+                    },
+                    "servicio": {
+                        "origen": origen, 
+                        "destino": data.get("destino_despacho"), 
+                        "tarifa": tarifa_val,
+                        "flayer_url": url_flayer
+                    }
                 }
-            }
+                
+                notificacion = ColaNotificaciones(
+                    turno_id=nuevo_despacho.id_despacho,
+                    tipo_mensaje='DESPACHO_AUTOMATICO',
+                    destinatario_telefono=str(c_tel),
+                    contenido_json=json.dumps(payload),
+                    estado='PENDIENTE'
+                )
+                db.session.add(notificacion)
             
-            notificacion = ColaNotificaciones(
-                turno_id=nuevo_despacho.id_despacho,
-                tipo_mensaje='DESPACHO_AUTOMATICO',
-                destinatario_telefono=str(c_tel),
-                contenido_json=json.dumps(payload),
-                estado='PENDIENTE'
-            )
-            db.session.add(notificacion)
-            
-            # Borrado de Cola
+            # Borrado de Cola (si aplica)
             cola_id = data.get("id_notificacion")
             if cola_id:
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
         db.session.commit()
-        
-        # 🚨 NUEVO: Leer si el operador quiere enviar el WhatsApp automático
-        #debe_notificar = data.get("notificar_whatsapp", True) # Por defecto True si no viene
-        
-        #if debe_notificar:
-        #    # Envío asíncrono hacia n8n con timeout (Modo Automático)
-        #    try:
-        #        import requests
-        #        requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
-        #        print("🤖 MODO AUTOMÁTICO: Despacho enviado a n8n para WhatsApp.")
-        #    except Exception as e:
-        #        print(f"⚠️ Error enviando a n8n: {e}")
-        #else:
-        #    # Modo Manual: Se guarda en base de datos pero NO gasta saldo de Whapi
-        #    print("👤 MODO MANUAL: Despacho creado solo en sistema. No se envió WhatsApp.")
-        #notificar_whatsapp = data.get("notificar_whatsapp", True) # Viene del front
-    
-        # 🚨 LEER SI EL OPERADOR QUIERE ENVIAR EL WHATSAPP AUTOMÁTICO
-        debe_notificar = data.get("notificar_whatsapp", True) 
-        
-        #if debe_notificar:
-        #    try:
-        #        import requests
-        #        requests.post("http://localhost:5678/webhook-test/notificar-despacho", json=payload, timeout=2)
-        #        print("🤖 Envío Automático a n8n: ACTIVADO")
-        #    except Exception as e:
-        #        print(f"⚠️ Error enviando a n8n: {e}")
-        #else:
-        #    print("👤 Envío Automático: DESACTIVADO. Operación en modo manual.")
+
+        # Respuesta indicando el estado del despacho y si se encoló el mensaje
+        mensaje_respuesta = "Despacho creado exitosamente"
+        if not conductor_valido:
+            mensaje_respuesta += " (⚠️ Advertencia: Conductor inactivo o GPS expirado, no se generó enlace de WhatsApp)."
 
         return jsonify({
-            "msg": "Despacho creado exitosamente",
+            "msg": mensaje_respuesta,
             "id_despacho": nuevo_despacho.id_despacho,
-            "cliente_telefono": c_tel
+            "cliente_telefono": c_tel,
+            "enlace_generado": conductor_valido
         }), 201
 
     except Exception as e:
