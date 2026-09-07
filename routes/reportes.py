@@ -1,3 +1,4 @@
+
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_file, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -682,3 +683,52 @@ def reporte_encuestas():
     except Exception as e:
         print(f"❌ Error interno en /reporte/encuestas: {e}")
         return jsonify({"error": str(e)}), 500
+
+# -------------------------------
+# 📌 Reporte de Servicios Cancelados
+# -------------------------------
+from sqlalchemy import func, or_
+
+@reporte_bp.route("/cancelados", methods=["GET"])
+def reportes_cancelados():
+    try:
+        inicio = request.args.get("fecha_inicio") or request.args.get("inicio")
+        fin = request.args.get("fecha_fin") or request.args.get("fin")
+
+        if not inicio or not fin:
+            return jsonify({"error": "Debes enviar fecha_inicio y fecha_fin"}), 400
+
+        inicio_dt = datetime.strptime(inicio, "%Y-%m-%d")
+        fin_dt = datetime.strptime(fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+
+        # Consultar despachos cancelados filtrando por fecha_hora_fin O por fecha_hora_inicio (por si el fin quedó NULL)
+        despachos_cancelados = (
+            db.session.query(Despacho)
+            .filter(
+                Despacho.estado_despacho == "cancelado",
+                or_(
+                    Despacho.fecha_hora_fin.between(inicio_dt, fin_dt),
+                    Despacho.fecha_hora_inicio.between(inicio_dt, fin_dt)
+                )
+            )
+            .order_by(Despacho.id_despacho.desc())
+            .all()
+        )
+
+        resultado = [
+            {
+                "id_despacho": d.id_despacho,
+                "cliente_nombre": d.cliente.nombre if d.cliente else "N/A",
+                "conductor_nombre": d.conductor.nombre if d.conductor else "Sin Conductor",
+                "origen": d.origen_despacho or "-",
+                "destino": d.destino_despacho or "N/A",
+                "hora_solicitud": d.fecha_hora_inicio.strftime("%d/%m/%Y %I:%M %p") if d.fecha_hora_inicio else "-",
+                "hora_cancelacion": d.fecha_hora_fin.strftime("%d/%m/%Y %I:%M %p") if d.fecha_hora_fin else "-"
+            }
+            for d in despachos_cancelados
+        ]
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error en /reportes/cancelados: {e}")
+        return jsonify({"error": "Error interno al obtener reporte de cancelados"}), 500

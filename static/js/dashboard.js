@@ -77,33 +77,108 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------
   const btnGenerar = document.getElementById("btnGenerarReporte");
   if (btnGenerar) {
-    btnGenerar.addEventListener("click", async () => {
-      const inicio = document.getElementById("fechaInicio").value;
-      const fin = document.getElementById("fechaFin").value;
+        btnGenerar.addEventListener("click", async () => {
+        const inicio = document.getElementById("fechaInicio").value;
+        const fin = document.getElementById("fechaFin").value;
 
-      if (!inicio || !fin) {
-        alert("Debes seleccionar fecha de inicio y fecha de fin");
-        return;
-      }
-      if (inicio > fin) {
-        alert("La fecha inicio no puede ser mayor que la fecha fin");
-        return;
-      }
+        if (!inicio || !fin) {
+            alert("Debes seleccionar fecha de inicio y fecha de fin");
+            return;
+        }
+        if (inicio > fin) {
+            alert("La fecha inicio no puede ser mayor que la fecha fin");
+            return;
+        }
 
-      try {
-        const data = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
-        //const data = await res.json();
-        const contenedor = document.getElementById("reporteResultado");
-        contenedor.innerHTML = Array.isArray(data) && data.length > 0
-          ? generarTablaGeneral(data)
-          : "<p>No hay resultados en el rango seleccionado</p>";
-      } catch (err) {
-        console.error("❌ Error generando reporte:", err);
-        alert("Error al generar reporte");
-      }
-    });
-  }
+        try {
+            const data = await apiFetch(`/reportes?inicio=${inicio}&fin=${fin}`);
+            //const data = await res.json();
+            const contenedor = document.getElementById("reporteResultado");
+            contenedor.innerHTML = Array.isArray(data) && data.length > 0
+            ? generarTablaGeneral(data)
+            : "<p>No hay resultados en el rango seleccionado</p>";
+        } catch (err) {
+            console.error("❌ Error generando reporte:", err);
+            alert("Error al generar reporte");
+        }
+        });
+    }
+   // ==========================================
+  // REPORTE DE SERVICIOS CANCELADOS
+  // ==========================================
+    const btnCancelados = document.getElementById("btnReporteCancelados");
+    if (btnCancelados) {
+        btnCancelados.addEventListener("click", async () => {
+            console.log("🚀 Disparando reporte de cancelados...");
 
+            const inicio = document.getElementById("fechaInicio")?.value;
+            const fin = document.getElementById("fechaFin")?.value;
+
+            if (!inicio || !fin) {
+                alert("Debes seleccionar fecha de inicio y fecha de fin");
+                return;
+            }
+            if (inicio > fin) {
+                alert("La fecha inicio no puede ser mayor que la fecha fin");
+                return;
+            }
+
+            try {
+                const data = await apiFetch(`/reportes/cancelados?fecha_inicio=${inicio}&fecha_fin=${fin}`);
+                console.log("📦 Despachos cancelados recibidos:", data);
+
+                const tbody = document.getElementById("tablaCanceladosReporte");
+                const contenedor = document.getElementById("contenedorReporteCancelados");
+
+                if (!tbody) {
+                    alert("Error: No se encontró la tabla tablaCanceladosReporte en el HTML");
+                    return;
+                }
+
+                tbody.innerHTML = "";
+
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach((d, idx) => {
+                        const clienteNombre = d.cliente_nombre || 'N/A';
+                        const conductorNombre = d.conductor_nombre || 'Sin Conductor';
+                        const origen = d.origen || '-';
+                        const destino = d.destino || 'N/A';
+                        
+                        // Leemos directo lo que envía el backend
+                        const horaInicio = d.hora_solicitud || '-';
+                        const horaFin = d.hora_cancelacion || '-';
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-red-50 transition-colors border-b">
+                                <td class="p-2 text-center font-bold text-gray-700">${idx + 1}</td>
+                                <td class="p-2">${clienteNombre}</td>
+                                <td class="p-2">${origen}</td>
+                                <td class="p-2">${destino}</td>
+                                <td class="p-2">${conductorNombre}</td>
+                                <td class="p-2 text-center text-gray-600">${horaInicio}</td>
+                                <td class="p-2 text-center font-semibold text-red-600">${horaFin}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="p-4 text-center text-gray-500 font-bold bg-gray-50">
+                                ⚠️ No hay servicios cancelados en el rango seleccionado (${inicio} al ${fin})
+                            </td>
+                        </tr>`;
+                }
+
+                if (contenedor) {
+                    contenedor.classList.remove("hidden");
+                }
+
+            } catch (err) {
+                console.error("❌ Error al generar reporte de cancelados:", err);
+                alert("Error al generar el reporte de cancelados");
+            }
+        });
+    }
   // -------------------------------
   // 📌 Sección: Reportes por Conductor
   // -------------------------------

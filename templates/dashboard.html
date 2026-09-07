@@ -751,10 +751,41 @@
             <input type="date" id="fechaFin" class="border p-2 rounded">
           </div>
         </div>
-        <button id="btnGenerarReporte" class="bg-blue-500 text-white px-4 py-2 rounded">
-          Generar Reporte General
-        </button>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button id="btnGenerarReporte" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 shadow">
+            Generar Reporte General
+          </button>
+          
+          <button type="button" 
+                  id="btnReporteCancelados" 
+                  class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 shadow flex items-center gap-1"
+                  onclick="cargarReporteCancelados()">
+            🚫 Ver Servicios Cancelados
+          </button>
+        </div>
         <div id="reporteResultado" class="mt-4"></div>
+        <!-- 🔴 Tabla Dinámica para Reporte de Cancelados -->
+        <div id="contenedorReporteCancelados" class="mt-4 hidden">
+          <h3 class="text-lg font-bold text-red-700 mb-2">Detalle de Servicios Cancelados</h3>
+          <div class="overflow-x-auto max-h-[350px] border rounded bg-white shadow-sm">
+            <table class="w-full border-collapse text-sm">
+              <thead class="bg-red-50 sticky top-0 border-b z-10">
+                <tr>
+                  <th class="p-2 border text-center">Nro</th>
+                  <th class="p-2 border text-left">Cliente</th>
+                  <th class="p-2 border text-left">Origen</th>
+                  <th class="p-2 border text-left">Destino</th>
+                  <th class="p-2 border text-left">Conductor</th>
+                  <th class="p-2 border text-center">Hora Solicitud</th>
+                  <th class="p-2 border text-center">Hora Cancelación</th>
+                </tr>
+              </thead>
+              <tbody id="tablaCanceladosReporte">
+                <!-- Las filas dinámicas se cargarán vía JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
         <button id="btnReporteConductores" class="bg-green-500 text-white px-4 py-2 rounded">
           Reporte por Conductor
         </button>

@@ -1,4 +1,4 @@
-import uuid
+import pytz
 import json
 import os
 import sqlite3  
@@ -385,12 +385,18 @@ def finalizar_despacho(id):
 
 
 
+from utils.fechas import hora_local
+
 @despachos_bp.route("/<int:id>/cancelar", methods=["PUT"])
 def cancelar_despacho(id):
     despacho = Despacho.query.get_or_404(id)
+    
+    # 1. Actualizar estado y fecha fin usando hora_local()
     despacho.estado_despacho = "cancelado"
+    despacho.fecha_hora_fin = hora_local()
+    
     db.session.commit()
-    return jsonify(despacho.to_dict())
+    return jsonify(despacho.to_dict()), 200
 
 @despachos_bp.route("/<int:id>/embarque", methods=["PUT"])
 def registrar_embarque(id):

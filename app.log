@@ -64884,3 +64884,488 @@ AttributeError: 'scoped_session' object has no attribute 'cursor'
 2026-09-06 22:57:41,813 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-06 22:58:41 -04)" executed successfully
 2026-09-06 22:57:41,814 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-06 22:59:41 -04)" (scheduled at 2026-09-06 22:57:41.810282-04:00)
 2026-09-06 22:57:41,816 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-06 22:59:41 -04)" executed successfully
+2026-09-07 10:02:32,348 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:02:35,188 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:02:35,188 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:02:35,188 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:02:35,189 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:02:35,190 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:02:35,190 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:02:35,191 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:02:35,191 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:02:35,191 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:02:35,200 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:02:35,328 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:03:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:03:35 -04)" (scheduled at 2026-09-07 10:03:35.187861-04:00)
+2026-09-07 10:03:35,200 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:03:35 -04)" executed successfully
+2026-09-07 10:04:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:05:35 -04)" (scheduled at 2026-09-07 10:04:35.187861-04:00)
+2026-09-07 10:04:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:05:35 -04)" executed successfully
+2026-09-07 10:04:35,194 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:04:35 -04)" (scheduled at 2026-09-07 10:04:35.188698-04:00)
+2026-09-07 10:04:35,200 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:04:35 -04)" executed successfully
+2026-09-07 10:05:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:06:35 -04)" (scheduled at 2026-09-07 10:05:35.187861-04:00)
+2026-09-07 10:05:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:06:35 -04)" executed successfully
+2026-09-07 10:05:35,193 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:08:35 -04)" (scheduled at 2026-09-07 10:05:35.188386-04:00)
+2026-09-07 10:05:35,932 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:08:35 -04)" executed successfully
+2026-09-07 10:06:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:07:35 -04)" (scheduled at 2026-09-07 10:06:35.187861-04:00)
+2026-09-07 10:06:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:07:35 -04)" executed successfully
+2026-09-07 10:06:35,192 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:08:35 -04)" (scheduled at 2026-09-07 10:06:35.188698-04:00)
+2026-09-07 10:06:35,195 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:08:35 -04)" executed successfully
+2026-09-07 10:07:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:08:35 -04)" (scheduled at 2026-09-07 10:07:35.187861-04:00)
+2026-09-07 10:07:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:08:35 -04)" executed successfully
+2026-09-07 10:08:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:09:35 -04)" (scheduled at 2026-09-07 10:08:35.187861-04:00)
+2026-09-07 10:08:35,194 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:09:35 -04)" executed successfully
+2026-09-07 10:08:35,194 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:11:35 -04)" (scheduled at 2026-09-07 10:08:35.188386-04:00)
+2026-09-07 10:08:35,201 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:08:35 -04)" (scheduled at 2026-09-07 10:08:35.188698-04:00)
+2026-09-07 10:08:35,203 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:08:35 -04)" executed successfully
+2026-09-07 10:08:35,950 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:11:35 -04)" executed successfully
+2026-09-07 10:09:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:10:35 -04)" (scheduled at 2026-09-07 10:09:35.187861-04:00)
+2026-09-07 10:09:35,191 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:10:35 -04)" executed successfully
+2026-09-07 10:10:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:11:35 -04)" (scheduled at 2026-09-07 10:10:35.187861-04:00)
+2026-09-07 10:10:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:11:35 -04)" executed successfully
+2026-09-07 10:10:35,193 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:12:35 -04)" (scheduled at 2026-09-07 10:10:35.188698-04:00)
+2026-09-07 10:10:35,196 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:12:35 -04)" executed successfully
+2026-09-07 10:11:35,246 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:12:35 -04)" (scheduled at 2026-09-07 10:11:35.187861-04:00)
+2026-09-07 10:11:35,250 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:12:35 -04)" executed successfully
+2026-09-07 10:11:35,251 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:14:35 -04)" (scheduled at 2026-09-07 10:11:35.188386-04:00)
+2026-09-07 10:11:35,948 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:14:35 -04)" executed successfully
+2026-09-07 10:12:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:13:35 -04)" (scheduled at 2026-09-07 10:12:35.187861-04:00)
+2026-09-07 10:12:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:13:35 -04)" executed successfully
+2026-09-07 10:12:35,192 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:14:35 -04)" (scheduled at 2026-09-07 10:12:35.188698-04:00)
+2026-09-07 10:12:35,194 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:14:35 -04)" executed successfully
+2026-09-07 10:13:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:14:35 -04)" (scheduled at 2026-09-07 10:13:35.187861-04:00)
+2026-09-07 10:13:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:14:35 -04)" executed successfully
+2026-09-07 10:14:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:15:35 -04)" (scheduled at 2026-09-07 10:14:35.187861-04:00)
+2026-09-07 10:14:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:15:35 -04)" executed successfully
+2026-09-07 10:14:35,192 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:17:35 -04)" (scheduled at 2026-09-07 10:14:35.188386-04:00)
+2026-09-07 10:14:35,196 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:16:35 -04)" (scheduled at 2026-09-07 10:14:35.188698-04:00)
+2026-09-07 10:14:35,202 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:16:35 -04)" executed successfully
+2026-09-07 10:14:35,843 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:17:35 -04)" executed successfully
+2026-09-07 10:15:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:16:35 -04)" (scheduled at 2026-09-07 10:15:35.187861-04:00)
+2026-09-07 10:15:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:16:35 -04)" executed successfully
+2026-09-07 10:16:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:17:35 -04)" (scheduled at 2026-09-07 10:16:35.187861-04:00)
+2026-09-07 10:16:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:17:35 -04)" executed successfully
+2026-09-07 10:16:35,193 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:18:35 -04)" (scheduled at 2026-09-07 10:16:35.188698-04:00)
+2026-09-07 10:16:35,195 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:18:35 -04)" executed successfully
+2026-09-07 10:17:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:18:35 -04)" (scheduled at 2026-09-07 10:17:35.187861-04:00)
+2026-09-07 10:17:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:18:35 -04)" executed successfully
+2026-09-07 10:17:35,196 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:20:35 -04)" (scheduled at 2026-09-07 10:17:35.188386-04:00)
+2026-09-07 10:17:35,891 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:20:35 -04)" executed successfully
+2026-09-07 10:18:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:19:35 -04)" (scheduled at 2026-09-07 10:18:35.187861-04:00)
+2026-09-07 10:18:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:19:35 -04)" executed successfully
+2026-09-07 10:18:35,194 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:20:35 -04)" (scheduled at 2026-09-07 10:18:35.188698-04:00)
+2026-09-07 10:18:35,197 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:20:35 -04)" executed successfully
+2026-09-07 10:19:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:20:35 -04)" (scheduled at 2026-09-07 10:19:35.187861-04:00)
+2026-09-07 10:19:35,195 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:20:35 -04)" executed successfully
+2026-09-07 10:20:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:21:35 -04)" (scheduled at 2026-09-07 10:20:35.187861-04:00)
+2026-09-07 10:20:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:21:35 -04)" executed successfully
+2026-09-07 10:20:35,192 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:23:35 -04)" (scheduled at 2026-09-07 10:20:35.188386-04:00)
+2026-09-07 10:20:35,196 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:22:35 -04)" (scheduled at 2026-09-07 10:20:35.188698-04:00)
+2026-09-07 10:20:35,199 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:22:35 -04)" executed successfully
+2026-09-07 10:20:35,965 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:23:35 -04)" executed successfully
+2026-09-07 10:21:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:22:35 -04)" (scheduled at 2026-09-07 10:21:35.187861-04:00)
+2026-09-07 10:21:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:22:35 -04)" executed successfully
+2026-09-07 10:22:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:23:35 -04)" (scheduled at 2026-09-07 10:22:35.187861-04:00)
+2026-09-07 10:22:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:23:35 -04)" executed successfully
+2026-09-07 10:22:35,193 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:24:35 -04)" (scheduled at 2026-09-07 10:22:35.188698-04:00)
+2026-09-07 10:22:35,195 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:24:35 -04)" executed successfully
+2026-09-07 10:23:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:24:35 -04)" (scheduled at 2026-09-07 10:23:35.187861-04:00)
+2026-09-07 10:23:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:24:35 -04)" executed successfully
+2026-09-07 10:23:35,193 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:26:35 -04)" (scheduled at 2026-09-07 10:23:35.188386-04:00)
+2026-09-07 10:23:35,922 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:26:35 -04)" executed successfully
+2026-09-07 10:24:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:25:35 -04)" (scheduled at 2026-09-07 10:24:35.187861-04:00)
+2026-09-07 10:24:35,192 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:25:35 -04)" executed successfully
+2026-09-07 10:24:35,193 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:26:35 -04)" (scheduled at 2026-09-07 10:24:35.188698-04:00)
+2026-09-07 10:24:35,194 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:26:35 -04)" executed successfully
+2026-09-07 10:25:35,188 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:26:35 -04)" (scheduled at 2026-09-07 10:25:35.187861-04:00)
+2026-09-07 10:25:35,191 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:26:35 -04)" executed successfully
+2026-09-07 10:26:35,190 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:27:35 -04)" (scheduled at 2026-09-07 10:26:35.187861-04:00)
+2026-09-07 10:26:35,193 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:27:35 -04)" executed successfully
+2026-09-07 10:26:35,193 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:29:35 -04)" (scheduled at 2026-09-07 10:26:35.188386-04:00)
+2026-09-07 10:26:35,199 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:28:35 -04)" (scheduled at 2026-09-07 10:26:35.188698-04:00)
+2026-09-07 10:26:35,202 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:28:35 -04)" executed successfully
+2026-09-07 10:26:35,900 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:29:35 -04)" executed successfully
+2026-09-07 10:27:35,188 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:28:35 -04)" (scheduled at 2026-09-07 10:27:35.187861-04:00)
+2026-09-07 10:27:35,191 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:28:35 -04)" executed successfully
+2026-09-07 10:28:35,189 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:29:35 -04)" (scheduled at 2026-09-07 10:28:35.187861-04:00)
+2026-09-07 10:28:35,191 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:29:35 -04)" executed successfully
+2026-09-07 10:28:35,192 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:30:35 -04)" (scheduled at 2026-09-07 10:28:35.188698-04:00)
+2026-09-07 10:28:35,194 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:30:35 -04)" executed successfully
+2026-09-07 10:29:35,221 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:30:35 -04)" (scheduled at 2026-09-07 10:29:35.187861-04:00)
+2026-09-07 10:29:35,224 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:30:35 -04)" executed successfully
+2026-09-07 10:29:35,224 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:32:35 -04)" (scheduled at 2026-09-07 10:29:35.188386-04:00)
+2026-09-07 10:29:35,960 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:32:35 -04)" executed successfully
+2026-09-07 10:30:18,066 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:30:18,561 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:30:22,474 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:30:22,475 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:30:22,475 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:30:22,475 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:30:22,477 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:30:22,477 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:30:22,477 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:30:22,477 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:30:22,478 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:30:22,488 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:30:22,490 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:31:22,476 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:31:22 -04)" (scheduled at 2026-09-07 10:31:22.474443-04:00)
+2026-09-07 10:31:22,483 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:31:22 -04)" executed successfully
+2026-09-07 10:32:22,476 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:33:22 -04)" (scheduled at 2026-09-07 10:32:22.474443-04:00)
+2026-09-07 10:32:22,479 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:33:22 -04)" executed successfully
+2026-09-07 10:32:22,480 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:32:22 -04)" (scheduled at 2026-09-07 10:32:22.475225-04:00)
+2026-09-07 10:32:22,488 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:32:22 -04)" executed successfully
+2026-09-07 10:33:22,475 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:34:22 -04)" (scheduled at 2026-09-07 10:33:22.474443-04:00)
+2026-09-07 10:33:22,478 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:34:22 -04)" executed successfully
+2026-09-07 10:33:22,478 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:36:22 -04)" (scheduled at 2026-09-07 10:33:22.474945-04:00)
+2026-09-07 10:33:23,246 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:36:22 -04)" executed successfully
+2026-09-07 10:34:22,477 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:35:22 -04)" (scheduled at 2026-09-07 10:34:22.474443-04:00)
+2026-09-07 10:34:22,479 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:35:22 -04)" executed successfully
+2026-09-07 10:34:22,479 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:36:22 -04)" (scheduled at 2026-09-07 10:34:22.475225-04:00)
+2026-09-07 10:34:22,481 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:36:22 -04)" executed successfully
+2026-09-07 10:35:22,475 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:36:22 -04)" (scheduled at 2026-09-07 10:35:22.474443-04:00)
+2026-09-07 10:35:22,478 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:36:22 -04)" executed successfully
+2026-09-07 10:36:22,477 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:37:22 -04)" (scheduled at 2026-09-07 10:36:22.474443-04:00)
+2026-09-07 10:36:22,480 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:37:22 -04)" executed successfully
+2026-09-07 10:36:22,481 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:39:22 -04)" (scheduled at 2026-09-07 10:36:22.474945-04:00)
+2026-09-07 10:36:22,487 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:36:22 -04)" (scheduled at 2026-09-07 10:36:22.475225-04:00)
+2026-09-07 10:36:22,489 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:36:22 -04)" executed successfully
+2026-09-07 10:36:23,224 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:39:22 -04)" executed successfully
+2026-09-07 10:37:22,475 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:38:22 -04)" (scheduled at 2026-09-07 10:37:22.474443-04:00)
+2026-09-07 10:37:22,477 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:38:22 -04)" executed successfully
+2026-09-07 10:37:43,552 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:37:43,984 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:37:46,950 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:46,950 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:46,950 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:46,950 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:46,952 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:37:46,952 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:37:46,952 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:37:46,952 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:37:46,952 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:37:46,966 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:37:46,967 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:37:55,447 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:37:56,226 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:37:59,248 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:59,249 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:59,249 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:59,250 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:37:59,251 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:37:59,251 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:37:59,251 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:37:59,252 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:37:59,252 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:37:59,262 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:37:59,263 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:38:59,478 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:38:59 -04)" (scheduled at 2026-09-07 10:38:59.248666-04:00)
+2026-09-07 10:38:59,484 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:38:59 -04)" executed successfully
+2026-09-07 10:39:59,251 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:40:59 -04)" (scheduled at 2026-09-07 10:39:59.248666-04:00)
+2026-09-07 10:39:59,254 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:40:59 -04)" executed successfully
+2026-09-07 10:39:59,255 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:39:59 -04)" (scheduled at 2026-09-07 10:39:59.249624-04:00)
+2026-09-07 10:39:59,260 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:39:59 -04)" executed successfully
+2026-09-07 10:40:59,250 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:41:59 -04)" (scheduled at 2026-09-07 10:40:59.248666-04:00)
+2026-09-07 10:40:59,253 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:41:59 -04)" executed successfully
+2026-09-07 10:40:59,254 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:43:59 -04)" (scheduled at 2026-09-07 10:40:59.249243-04:00)
+2026-09-07 10:40:59,987 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:43:59 -04)" executed successfully
+2026-09-07 10:41:59,251 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:42:59 -04)" (scheduled at 2026-09-07 10:41:59.248666-04:00)
+2026-09-07 10:41:59,254 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:42:59 -04)" executed successfully
+2026-09-07 10:41:59,254 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:43:59 -04)" (scheduled at 2026-09-07 10:41:59.249624-04:00)
+2026-09-07 10:41:59,256 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:43:59 -04)" executed successfully
+2026-09-07 10:42:59,250 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:43:59 -04)" (scheduled at 2026-09-07 10:42:59.248666-04:00)
+2026-09-07 10:42:59,256 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:43:59 -04)" executed successfully
+2026-09-07 10:43:59,251 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:44:59 -04)" (scheduled at 2026-09-07 10:43:59.248666-04:00)
+2026-09-07 10:43:59,255 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:44:59 -04)" executed successfully
+2026-09-07 10:43:59,256 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:46:59 -04)" (scheduled at 2026-09-07 10:43:59.249243-04:00)
+2026-09-07 10:43:59,262 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:43:59 -04)" (scheduled at 2026-09-07 10:43:59.249624-04:00)
+2026-09-07 10:43:59,266 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:43:59 -04)" executed successfully
+2026-09-07 10:44:00,114 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:46:59 -04)" executed successfully
+2026-09-07 10:44:59,250 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:45:59 -04)" (scheduled at 2026-09-07 10:44:59.248666-04:00)
+2026-09-07 10:44:59,253 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:45:59 -04)" executed successfully
+2026-09-07 10:45:40,207 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:45:41,078 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:45:52,786 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:45:55,671 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:45:55,672 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:45:55,673 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:45:55,673 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:45:55,675 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:45:55,676 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:45:55,676 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:45:55,676 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:45:55,676 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:45:55,688 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:45:55,689 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:46:55,674 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:46:55 -04)" (scheduled at 2026-09-07 10:46:55.671528-04:00)
+2026-09-07 10:46:55,766 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:46:55 -04)" executed successfully
+2026-09-07 10:47:55,674 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:48:55 -04)" (scheduled at 2026-09-07 10:47:55.671528-04:00)
+2026-09-07 10:47:55,678 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:48:55 -04)" executed successfully
+2026-09-07 10:47:55,680 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:47:55 -04)" (scheduled at 2026-09-07 10:47:55.673107-04:00)
+2026-09-07 10:47:55,690 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:47:55 -04)" executed successfully
+2026-09-07 10:48:36,623 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/despachos.py', reloading
+2026-09-07 10:48:37,015 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:48:40,246 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:40,247 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:40,248 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:40,249 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:40,250 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:48:40,251 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:48:40,251 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:48:40,252 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:48:40,252 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:48:40,298 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:48:40,303 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:48:50,362 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:48:51,078 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:48:53,518 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:53,519 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:53,519 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:53,519 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:48:53,520 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:48:53,521 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:48:53,521 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:48:53,521 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:48:53,521 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:48:53,532 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:48:53,533 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:49:02,059 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:49:02,476 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:49:05,067 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:05,067 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:05,068 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:05,068 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:05,069 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:49:05,069 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:49:05,070 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:49:05,070 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:49:05,070 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:49:05,081 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:49:05,082 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:49:09,547 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/despachos.py', reloading
+2026-09-07 10:49:10,046 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:49:12,704 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:12,705 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:12,706 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:12,706 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:49:12,707 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:49:12,708 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:49:12,708 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:49:12,709 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:49:12,709 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:49:12,720 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:49:12,720 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:50:12,706 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:50:12 -04)" (scheduled at 2026-09-07 10:50:12.704458-04:00)
+2026-09-07 10:50:12,714 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:50:12 -04)" executed successfully
+2026-09-07 10:51:12,706 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:52:12 -04)" (scheduled at 2026-09-07 10:51:12.704458-04:00)
+2026-09-07 10:51:12,709 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:52:12 -04)" executed successfully
+2026-09-07 10:51:12,710 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:51:12 -04)" (scheduled at 2026-09-07 10:51:12.706081-04:00)
+2026-09-07 10:51:12,714 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:51:12 -04)" executed successfully
+2026-09-07 10:52:12,705 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:53:12 -04)" (scheduled at 2026-09-07 10:52:12.704458-04:00)
+2026-09-07 10:52:12,708 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:53:12 -04)" executed successfully
+2026-09-07 10:52:12,709 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:55:12 -04)" (scheduled at 2026-09-07 10:52:12.705609-04:00)
+2026-09-07 10:52:13,404 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 10:55:12 -04)" executed successfully
+2026-09-07 10:53:12,706 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:54:12 -04)" (scheduled at 2026-09-07 10:53:12.704458-04:00)
+2026-09-07 10:53:12,708 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:54:12 -04)" executed successfully
+2026-09-07 10:53:12,709 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:55:12 -04)" (scheduled at 2026-09-07 10:53:12.706081-04:00)
+2026-09-07 10:53:12,711 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:55:12 -04)" executed successfully
+2026-09-07 10:54:06,585 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 10:54:07,077 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 10:54:10,110 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:54:10,110 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:54:10,110 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:54:10,111 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 10:54:10,112 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 10:54:10,112 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 10:54:10,112 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 10:54:10,113 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 10:54:10,113 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 10:54:10,123 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 10:54:10,124 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 10:55:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:55:10 -04)" (scheduled at 2026-09-07 10:55:10.109815-04:00)
+2026-09-07 10:55:10,243 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:55:10 -04)" executed successfully
+2026-09-07 10:56:10,112 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:57:10 -04)" (scheduled at 2026-09-07 10:56:10.109815-04:00)
+2026-09-07 10:56:10,221 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:57:10 -04)" executed successfully
+2026-09-07 10:56:10,221 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:56:10 -04)" (scheduled at 2026-09-07 10:56:10.110691-04:00)
+2026-09-07 10:56:10,225 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 10:56:10 -04)" executed successfully
+2026-09-07 10:57:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:58:10 -04)" (scheduled at 2026-09-07 10:57:10.109815-04:00)
+2026-09-07 10:57:10,114 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:58:10 -04)" executed successfully
+2026-09-07 10:57:10,115 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:00:10 -04)" (scheduled at 2026-09-07 10:57:10.110351-04:00)
+2026-09-07 10:57:10,764 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:00:10 -04)" executed successfully
+2026-09-07 10:58:10,116 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:59:10 -04)" (scheduled at 2026-09-07 10:58:10.109815-04:00)
+2026-09-07 10:58:10,118 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 10:59:10 -04)" executed successfully
+2026-09-07 10:58:10,119 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:00:10 -04)" (scheduled at 2026-09-07 10:58:10.110691-04:00)
+2026-09-07 10:58:10,125 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:00:10 -04)" executed successfully
+2026-09-07 10:59:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:00:10 -04)" (scheduled at 2026-09-07 10:59:10.109815-04:00)
+2026-09-07 10:59:10,114 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:00:10 -04)" executed successfully
+2026-09-07 11:00:10,112 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:01:10 -04)" (scheduled at 2026-09-07 11:00:10.109815-04:00)
+2026-09-07 11:00:10,116 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:01:10 -04)" executed successfully
+2026-09-07 11:00:10,117 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:03:10 -04)" (scheduled at 2026-09-07 11:00:10.110351-04:00)
+2026-09-07 11:00:10,123 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:00:10 -04)" (scheduled at 2026-09-07 11:00:10.110691-04:00)
+2026-09-07 11:00:10,126 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:00:10 -04)" executed successfully
+2026-09-07 11:00:10,934 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:03:10 -04)" executed successfully
+2026-09-07 11:01:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:02:10 -04)" (scheduled at 2026-09-07 11:01:10.109815-04:00)
+2026-09-07 11:01:10,113 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:02:10 -04)" executed successfully
+2026-09-07 11:02:10,112 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:03:10 -04)" (scheduled at 2026-09-07 11:02:10.109815-04:00)
+2026-09-07 11:02:10,115 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:03:10 -04)" executed successfully
+2026-09-07 11:02:10,116 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:04:10 -04)" (scheduled at 2026-09-07 11:02:10.110691-04:00)
+2026-09-07 11:02:10,119 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:04:10 -04)" executed successfully
+2026-09-07 11:03:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:04:10 -04)" (scheduled at 2026-09-07 11:03:10.109815-04:00)
+2026-09-07 11:03:10,117 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:04:10 -04)" executed successfully
+2026-09-07 11:03:10,118 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:06:10 -04)" (scheduled at 2026-09-07 11:03:10.110351-04:00)
+2026-09-07 11:03:10,807 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:06:10 -04)" executed successfully
+2026-09-07 11:04:10,111 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:05:10 -04)" (scheduled at 2026-09-07 11:04:10.109815-04:00)
+2026-09-07 11:04:10,113 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:05:10 -04)" executed successfully
+2026-09-07 11:04:10,114 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:06:10 -04)" (scheduled at 2026-09-07 11:04:10.110691-04:00)
+2026-09-07 11:04:10,117 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:06:10 -04)" executed successfully
+2026-09-07 11:04:40,229 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 11:04:40,849 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:04:44,236 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:04:44,237 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:04:44,237 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:04:44,237 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:04:44,239 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:04:44,239 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:04:44,239 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:04:44,240 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:04:44,240 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:04:44,250 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:04:44,252 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:05:31,700 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/despachos.py', reloading
+2026-09-07 11:05:32,769 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:05:35,502 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:35,503 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:35,503 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:35,503 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:35,504 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:05:35,505 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:05:35,505 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:05:35,505 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:05:35,506 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:05:35,515 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:05:35,516 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:05:39,822 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 11:05:40,318 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:05:42,951 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:42,951 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:42,952 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:42,952 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:05:42,953 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:05:42,953 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:05:42,954 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:05:42,954 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:05:42,954 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:05:42,963 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:05:42,964 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:06:42,953 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:06:42 -04)" (scheduled at 2026-09-07 11:06:42.951336-04:00)
+2026-09-07 11:06:42,960 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:06:42 -04)" executed successfully
+2026-09-07 11:07:42,952 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:08:42 -04)" (scheduled at 2026-09-07 11:07:42.951336-04:00)
+2026-09-07 11:07:42,955 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:08:42 -04)" executed successfully
+2026-09-07 11:07:42,956 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:07:42 -04)" (scheduled at 2026-09-07 11:07:42.952162-04:00)
+2026-09-07 11:07:43,036 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:07:42 -04)" executed successfully
+2026-09-07 11:08:42,952 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:09:42 -04)" (scheduled at 2026-09-07 11:08:42.951336-04:00)
+2026-09-07 11:08:42,955 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:09:42 -04)" executed successfully
+2026-09-07 11:08:42,955 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:11:42 -04)" (scheduled at 2026-09-07 11:08:42.951852-04:00)
+2026-09-07 11:08:43,675 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:11:42 -04)" executed successfully
+2026-09-07 11:09:19,906 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/despachos.py', reloading
+2026-09-07 11:09:20,821 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:09:24,007 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:24,007 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:24,008 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:24,008 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:24,010 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:09:24,010 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:09:24,010 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:09:24,011 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:09:24,011 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:09:24,021 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:09:24,022 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:09:54,904 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 11:09:55,254 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:09:58,760 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:58,761 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:58,766 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:58,766 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:09:58,768 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:09:58,769 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:09:58,769 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:09:58,770 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:09:58,770 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:09:58,783 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:09:58,784 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:10:58,762 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:10:58 -04)" (scheduled at 2026-09-07 11:10:58.760724-04:00)
+2026-09-07 11:10:58,896 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:10:58 -04)" executed successfully
+2026-09-07 11:11:58,763 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:12:58 -04)" (scheduled at 2026-09-07 11:11:58.760724-04:00)
+2026-09-07 11:11:58,765 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:12:58 -04)" executed successfully
+2026-09-07 11:11:58,766 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:11:58 -04)" (scheduled at 2026-09-07 11:11:58.762008-04:00)
+2026-09-07 11:11:58,774 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:11:58 -04)" executed successfully
+2026-09-07 11:11:59,801 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/reportes.py', reloading
+2026-09-07 11:12:00,553 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:12:03,813 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:03,814 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:03,817 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:03,818 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:03,819 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:12:03,820 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:12:03,820 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:12:03,821 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:12:03,821 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:12:03,842 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:12:03,856 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:12:07,240 - werkzeug - INFO -  * Detected change in '/home/lenny/app_taxis_SIM/routes/despachos.py', reloading
+2026-09-07 11:12:08,157 - werkzeug - INFO -  * Restarting with stat
+2026-09-07 11:12:10,691 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:10,691 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:10,691 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:10,692 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-07 11:12:10,693 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-09-07 11:12:10,693 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-09-07 11:12:10,693 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-09-07 11:12:10,693 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-09-07 11:12:10,693 - apscheduler.scheduler - INFO - Scheduler started
+2026-09-07 11:12:10,702 - werkzeug - WARNING -  * Debugger is active!
+2026-09-07 11:12:10,703 - werkzeug - INFO -  * Debugger PIN: 104-094-215
+2026-09-07 11:13:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:13:10 -04)" (scheduled at 2026-09-07 11:13:10.690941-04:00)
+2026-09-07 11:13:10,700 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:13:10 -04)" executed successfully
+2026-09-07 11:14:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:15:10 -04)" (scheduled at 2026-09-07 11:14:10.690941-04:00)
+2026-09-07 11:14:10,778 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:15:10 -04)" executed successfully
+2026-09-07 11:14:10,779 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:14:10 -04)" (scheduled at 2026-09-07 11:14:10.691716-04:00)
+2026-09-07 11:14:10,787 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:14:10 -04)" executed successfully
+2026-09-07 11:15:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:16:10 -04)" (scheduled at 2026-09-07 11:15:10.690941-04:00)
+2026-09-07 11:15:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:16:10 -04)" executed successfully
+2026-09-07 11:15:10,696 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:18:10 -04)" (scheduled at 2026-09-07 11:15:10.691437-04:00)
+2026-09-07 11:15:11,363 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:18:10 -04)" executed successfully
+2026-09-07 11:16:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:17:10 -04)" (scheduled at 2026-09-07 11:16:10.690941-04:00)
+2026-09-07 11:16:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:17:10 -04)" executed successfully
+2026-09-07 11:16:10,696 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:18:10 -04)" (scheduled at 2026-09-07 11:16:10.691716-04:00)
+2026-09-07 11:16:10,698 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:18:10 -04)" executed successfully
+2026-09-07 11:17:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:18:10 -04)" (scheduled at 2026-09-07 11:17:10.690941-04:00)
+2026-09-07 11:17:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:18:10 -04)" executed successfully
+2026-09-07 11:18:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:19:10 -04)" (scheduled at 2026-09-07 11:18:10.690941-04:00)
+2026-09-07 11:18:10,697 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:19:10 -04)" executed successfully
+2026-09-07 11:18:10,698 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:21:10 -04)" (scheduled at 2026-09-07 11:18:10.691437-04:00)
+2026-09-07 11:18:10,703 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:18:10 -04)" (scheduled at 2026-09-07 11:18:10.691716-04:00)
+2026-09-07 11:18:10,705 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:18:10 -04)" executed successfully
+2026-09-07 11:18:11,346 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:21:10 -04)" executed successfully
+2026-09-07 11:19:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:20:10 -04)" (scheduled at 2026-09-07 11:19:10.690941-04:00)
+2026-09-07 11:19:10,694 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:20:10 -04)" executed successfully
+2026-09-07 11:20:10,691 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:21:10 -04)" (scheduled at 2026-09-07 11:20:10.690941-04:00)
+2026-09-07 11:20:10,694 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:21:10 -04)" executed successfully
+2026-09-07 11:20:10,695 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:22:10 -04)" (scheduled at 2026-09-07 11:20:10.691716-04:00)
+2026-09-07 11:20:10,696 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:22:10 -04)" executed successfully
+2026-09-07 11:21:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:22:10 -04)" (scheduled at 2026-09-07 11:21:10.690941-04:00)
+2026-09-07 11:21:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:22:10 -04)" executed successfully
+2026-09-07 11:21:10,696 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:24:10 -04)" (scheduled at 2026-09-07 11:21:10.691437-04:00)
+2026-09-07 11:21:11,433 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:24:10 -04)" executed successfully
+2026-09-07 11:22:10,692 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:23:10 -04)" (scheduled at 2026-09-07 11:22:10.690941-04:00)
+2026-09-07 11:22:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:23:10 -04)" executed successfully
+2026-09-07 11:22:10,696 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:24:10 -04)" (scheduled at 2026-09-07 11:22:10.691716-04:00)
+2026-09-07 11:22:10,698 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:24:10 -04)" executed successfully
+2026-09-07 11:23:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:24:10 -04)" (scheduled at 2026-09-07 11:23:10.690941-04:00)
+2026-09-07 11:23:10,695 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:24:10 -04)" executed successfully
+2026-09-07 11:24:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:25:10 -04)" (scheduled at 2026-09-07 11:24:10.690941-04:00)
+2026-09-07 11:24:10,696 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:25:10 -04)" executed successfully
+2026-09-07 11:24:10,696 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:27:10 -04)" (scheduled at 2026-09-07 11:24:10.691437-04:00)
+2026-09-07 11:24:10,702 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:26:10 -04)" (scheduled at 2026-09-07 11:24:10.691716-04:00)
+2026-09-07 11:24:10,704 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-09-07 11:26:10 -04)" executed successfully
+2026-09-07 11:24:11,431 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-09-07 11:27:10 -04)" executed successfully
+2026-09-07 11:25:10,693 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:26:10 -04)" (scheduled at 2026-09-07 11:25:10.690941-04:00)
+2026-09-07 11:25:10,699 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-09-07 11:26:10 -04)" executed successfully
