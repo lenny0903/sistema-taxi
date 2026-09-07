@@ -93,6 +93,7 @@ def job_verificar_reservas():
         try:
             from models.reserva import Reserva
             from extensions import db
+            from utils.time import TZ_CARACAS  # <--- Asegúrate de importar la zona horaria aquí
             
             ahora = hora_local()
             margen = ahora + timedelta(minutes=15)
@@ -100,8 +101,13 @@ def job_verificar_reservas():
             reservas = Reserva.query.filter_by(estado="activo", notificada=False).all()
 
             for r in reservas:
+                # 1. Combinamos fecha y hora, y le asignamos la zona horaria correspondiente
                 fecha_reserva = datetime.combine(r.fecha, r.hora)
-                ahora = hora_local()
+                if fecha_reserva.tzinfo is None:
+                    fecha_reserva = fecha_reserva.replace(tzinfo=TZ_CARACAS)
+
+                ahora = hora_local() # Actualizamos el "ahora" por si acaso
+                
                 if ahora <= fecha_reserva <= margen:
                     _socketio.emit("reserva_activa", {
                         "id_reserva": r.id_reserva,
@@ -118,7 +124,6 @@ def job_verificar_reservas():
             from extensions import db
             db.session.rollback()
             print(f"❌ [SCHEDULER ERROR - RESERVAS] {e}")
-
 def job_expirar_tiempos_gps():
     """
     Función ligera dedicada exclusivamente a marcar tiempos expirados.

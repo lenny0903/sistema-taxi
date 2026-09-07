@@ -176,8 +176,9 @@ async function ejecutarDespachoDirecto({
                 const idDespachoActual = result.id_despacho || window.despachoIdCreado; 
                 console.log("ID actual:", idDespachoActual);
 
-                // 🔗 Enlace limpio al canal oficial de la empresa en Telegram (Cero pantallas rojas en WhatsApp)
-                const enlaceCanalTelegram = "https://t.me/taxi_tariberosLosPatriotas";
+               // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
+                // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
+                const urlBotSeguimiento = `https://t.me/Taxilospatriotastest_bot?start=srv_${idDespachoActual}`;
 
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                 const conductorValido = result.enlace_generado !== false;
@@ -186,10 +187,8 @@ async function ejecutarDespachoDirecto({
                     `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
                     `🚗 Unidad asignada: #${nroControlConductor}\n` +
                     `👤 Conductor: ${nombreCond}\n\n` +
-                    `📍 Toca el siguiente enlace para entrar a nuestro canal de Telegram y ver tu rastreo en vivo:\n` + 
-                    enlaceCanalTelegram
+                    `📍 Rastreo en vivo:\n${urlBotSeguimiento}`
                 ) : "⚠️ [ENLACE NO DISPONIBLE: Conductor inactivo o GPS expirado]";
-
                 // Luego pasas este msgCliente a tu lógica para abrir el chat de WhatsApp con el cliente:
                 // const urlWhatsApp = `https://wa.me/${telefonoCliente}?text=${encodeURIComponent(msgCliente)}`;
                 // window.open(urlWhatsApp, '_blank');

@@ -27,8 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalInstance = new bootstrap.Modal(modalReservas);
         modalInstance.show();
 
-        // Cargar reservas próximas a vencerse
-        cargarReservasPorVencer();
+        // Cargar todas las reservas activas en general
+        cargarReservasActivas();
       }
     }
   });
