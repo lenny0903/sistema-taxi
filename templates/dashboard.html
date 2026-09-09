@@ -2578,100 +2578,79 @@ async function cargarDespachosActivos() {
     </div>
     
     <!-- Modal para hacer reserva-->
-     <div class="modal fade" id="modalDespachoReserva" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            
-            <!-- Header -->
-            <div class="modal-header bg-info text-white">
-              <h5 class="modal-title">Reserva de Despacho</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <!-- Body -->
-            <div class="modal-body">
-              <form id="formReserva" class="space-y-3">
-                
-                <!-- Teléfono -->
-                <div>
-                  <label for="resTelefono" class="form-label">Teléfono del cliente</label>
-                  <input type="text" id="resTelefono"
-                        maxlength="11"
-                        pattern="^(0276[0-9]{7}|04[0-9]{9})$"
-                        title="Debe comenzar con 0276 (fijo) o 04 (móvil) y tener 11 dígitos en total"
-                        class="form-control"
-                        placeholder="Ej: 04121234567">
-                </div>
-
-                <!-- Nombre del cliente -->
-                <div>
-                  <label for="resCliente" class="form-label">Nombre del cliente</label>
-                  <input type="text" id="resCliente" class="form-control" placeholder="Nombre completo">
-                </div>
-
-                <!-- Origen -->
-                <div>
-                  <label for="resOrigen" class="form-label">Origen</label>
-                  <input type="text" id="resOrigen" class="form-control" placeholder="Dirección de origen">
-                </div>
-
-                <!-- Destino -->
-                <div>
-                  <label for="resDestino" class="form-label">Destino</label>
-                  <input type="text" id="resDestino" class="form-control" placeholder="Dirección de destino">
-                </div>
-
-                <!-- Fecha y hora -->
-                <div class="row g-2">
-                  <div class="col-md-6">
-                    <label for="resFecha" class="form-label">Fecha</label>
-                    <input type="date" id="resFecha" class="form-control">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="resHora" class="form-label">Hora</label>
-                    <input type="time" id="resHora" class="form-control">
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <!-- Footer -->
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button id="btnCrearReserva" type="button" class="btn btn-success">Guardar reserva</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    <!-- Fin modal reserva -->
-    <!-- Modal para mostrar reserva -->
+     <!-- Modal para mostrar reservas (Actualizado con Pestañas) -->
       <div class="modal fade" id="modalListaReservas" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
 
             <!-- Header -->
             <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title">Listado de Reservas</h5>
+              <h5 class="modal-title">Gestión de Reservas</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <!-- Body -->
             <div class="modal-body">
-              <table class="table table-striped" id="tablaReservas">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Origen</th>
-                    <th>Destino</th>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Aquí se llenan las reservas vía JS -->
-                </tbody>
-              </table>
+              
+              <!-- Pestañas de navegación -->
+              <ul class="nav nav-tabs mb-3" id="reservasTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="tab-urgentes" data-bs-toggle="tab" data-bs-target="#pane-urgentes" type="button" role="tab">
+                    ⚠️ Próximas (30 min)
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="tab-agenda" data-bs-toggle="tab" data-bs-target="#pane-agenda" type="button" role="tab">
+                    📅 Agenda del Día (Todas)
+                  </button>
+                </li>
+              </ul>
+
+              <!-- Contenido de las pestañas -->
+              <div class="tab-content" id="reservasTabsContent">
+                
+                <!-- Pestaña 1: Urgentes -->
+                <div class="tab-pane fade show active" id="pane-urgentes" role="tabpanel">
+                  <table class="table table-striped" id="tablaReservasPorVencer">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Teléfono</th>
+                        <th>Cliente</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Se llena vía JS -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Pestaña 2: Agenda General -->
+                <div class="tab-pane fade" id="pane-agenda" role="tabpanel">
+                  <table class="table table-striped" id="tablaReservasAgenda">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Teléfono</th>
+                        <th>Cliente</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Se llena vía JS -->
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
+
             </div>
 
             <!-- Footer -->

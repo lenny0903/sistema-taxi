@@ -437,8 +437,7 @@ def webhook():
             return jsonify({"status": "error", "detalle": str(e)}), 200
         except:
             return "OK", 200  # Última red de seguridad: texto plano con código 200 si todo lo demás falla
-    
-        
+
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -512,3 +511,51 @@ def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='
     }
     requests.post(url, data=payload)    
 
+# En routes/telegram_bot.py (o donde tengas las funciones de Telegram)
+def publicar_en_canal(id_despacho):
+    """
+    Publica un mensaje en el canal de Telegram con un botón inline
+    que redirige al bot con el parámetro start.
+    """
+    from models.despachos import Despacho
+    from models.conductores import Conductor
+    from flask import url_for
+    from utils.notificaciones import enviar_mensaje_con_teclado_inline
+
+    # 1. Obtener el despacho
+    despacho = Despacho.query.get(id_despacho)
+    if not despacho:
+        print(f"⚠️ Despacho #{id_despacho} no encontrado para publicar en canal.")
+        return
+
+    # 2. Datos del conductor
+    conductor = Conductor.query.get(despacho.conductor_id) if despacho.conductor_id else None
+    nro_ctrl = conductor.codigo if conductor else "Unidad"
+    nombre_cond = conductor.nombre if conductor else "Conductor"
+
+    # 3. Generar la URL del bot con parámetro start
+    # Reemplaza 'Taxilospatriotastest_bot' con el nombre de usuario de TU bot
+    url_bot = f"https://t.me/taxi_tariberosLosPatriotas?start=srv-{id_despacho}"
+
+    # 4. Crear el teclado inline
+    teclado = {
+        "inline_keyboard": [
+            [{"text": "🚗 Ver mi viaje", "url": url_bot}]
+        ]
+    }
+
+    # 5. Mensaje que se publicará en el canal
+    mensaje = (
+        f"🚖 *Nuevo servicio disponible*\n\n"
+        f"📋 Despacho #{id_despacho}\n"
+        f"🚗 Unidad: #{nro_ctrl}\n"
+        f"👤 Conductor: {nombre_cond}\n\n"
+        "🔹 Haz clic en el botón para rastrear tu viaje en tiempo real."
+    )
+
+    # 6. ID del canal (puede ser @username o el ID numérico)
+    canal_chat_id = "@TaxiLospatriotasCanal"  # <-- Cámbialo por tu canal público
+
+    # 7. Enviar el mensaje al canal
+    enviar_mensaje_con_teclado_inline(canal_chat_id, mensaje, teclado)
+    print(f"📢 Mensaje publicado en el canal para el Despacho #{id_despacho}")

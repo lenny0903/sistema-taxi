@@ -178,21 +178,20 @@ async function ejecutarDespachoDirecto({
 
                // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
                 // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
-                const urlBotSeguimiento = `https://t.me/Taxilospatriotastest_bot?start=srv_${idDespachoActual}`;
-
+                // Cambiar Taxilospatriotastest_bot a minúsculas:
+                // Cambiar Taxilospatriotastest_bot a minúsculas:
+                //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
+                const urlBotSeguimiento = `https://t.me/taxi_tariberosLosPatriotas?start=srv-${idDespachoActual}`;
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                 const conductorValido = result.enlace_generado !== false;
-
+                console.log("🔍 idDespachoActual:", idDespachoActual);
+                console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
                 const msgCliente = conductorValido ? (
                     `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
                     `🚗 Unidad asignada: #${nroControlConductor}\n` +
                     `👤 Conductor: ${nombreCond}\n\n` +
                     `📍 Rastreo en vivo:\n${urlBotSeguimiento}`
                 ) : "⚠️ [ENLACE NO DISPONIBLE: Conductor inactivo o GPS expirado]";
-                // Luego pasas este msgCliente a tu lógica para abrir el chat de WhatsApp con el cliente:
-                // const urlWhatsApp = `https://wa.me/${telefonoCliente}?text=${encodeURIComponent(msgCliente)}`;
-                // window.open(urlWhatsApp, '_blank');
-
                 const origenTexto = typeof origen !== 'undefined' ? origen : (document.getElementById('desOrigen')?.value || 'N/A');
                 const destinoTexto = typeof destino !== 'undefined' ? destino : (document.getElementById('desDestino')?.value || 'N/A');
 

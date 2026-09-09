@@ -131,3 +131,44 @@ def listar_reservas_activas():
         "total": len(reservas),
         "reservas": [r.to_dict() for r in reservas]
     }), 200
+
+@reservas_bp.route("/clientes/telefono/<telefono>", methods=["GET"])
+def obtener_cliente_por_telefono(telefono):
+    # Asumiendo que tu modelo Cliente tiene los campos telefono, nombre, direccion, etc.
+    cliente = Cliente.query.filter_by(telefono=telefono).first()
+    if cliente:
+        return jsonify({
+            "existe": True,
+            "id_cliente": cliente.id_cliente, # Ajusta al nombre real de tu PK (id o id_cliente)
+            "nombre": cliente.nombre,
+            "direccion": cliente.direccion
+        }), 200
+    return jsonify({"existe": False}), 200
+
+@reservas_bp.route("/clientes", methods=["POST"])
+def crear_cliente():
+    data = request.get_json()
+    telefono = data.get("telefono")
+    nombre = data.get("nombre")
+    direccion = data.get("direccion")
+
+    if not telefono or not nombre:
+        return jsonify({"error": "Teléfono y nombre son obligatorios"}), 400
+
+    try:
+        nuevo_cliente = Cliente(
+            telefono=telefono,
+            nombre=nombre,
+            direccion=direccion
+        )
+        db.session.add(nuevo_cliente)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Cliente registrado exitosamente",
+            "id_cliente": nuevo_cliente.id_cliente # Ajusta según tu modelo
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400

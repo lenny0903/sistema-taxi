@@ -47,7 +47,16 @@ def enviar_menu_botones(chat_id):
 
 def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='HTML'):
     """Envía mensajes con botones inline flotantes (mapas, enlaces, etc.)."""
+    import os
+    import json
+    import requests
+    
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    
+    if not TOKEN:
+        print("❌ ERROR: TELEGRAM_BOT_TOKEN no está definido en el entorno")
+        return {"ok": False, "error": "Token no definido"}
+    
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
         'chat_id': chat_id,
@@ -55,8 +64,16 @@ def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='
         'parse_mode': parse_mode,
         'reply_markup': json.dumps(teclado_json)
     }
-    requests.post(url, data=payload)
-
+    
+    print(f"📤 Enviando mensaje a {chat_id}...")
+    try:
+        response = requests.post(url, data=payload)
+        print(f"📤 Código de estado: {response.status_code}")
+        print(f"📤 Respuesta de Telegram: {response.text}")
+        return response.json()
+    except Exception as e:
+        print(f"❌ Error al enviar: {e}")
+        return {"ok": False, "error": str(e)}
 
 def enviar_encuesta_satisfaccion(chat_id_cliente, id_despacho):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')

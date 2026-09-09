@@ -242,10 +242,11 @@ def create_app():
 
     from flask import redirect
 
-    @app.route('/s/<int:id_despacho>')
-    def acortador_telegram(id_despacho):
-        # Redirige de inmediato al canal oficial de la empresa donde está fijado el acceso al bot
-        return redirect("https://t.me/taxi_tariberosLosPatriotas")
+    @app.route('/ir/<id_servicio>')
+    def redirect_telegram(id_servicio):
+        # Aquí puedes buscar el ID en tu BD si lo necesitas, o armar el start dinámico
+        url_telegram = f"https://t.me/taxilospatriotastest_bot?start=srv-{id_servicio}"
+        return redirect(url_telegram, code=302)
     
 
     return app
