@@ -3040,6 +3040,19 @@ async function cargarDespachosActivos() {
         </div>
     </div>
 </div>
+    <!-- Contenedor para notificaciones Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="toastReservaUrgente" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-warning text-dark">
+        <strong class="me-auto">⚠️ ¡Alerta de Reserva!</strong>
+        <small>Hace un momento</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastReservaBody">
+        Hay una reserva próxima a vencer en los siguientes 30 minutos.
+      </div>
+    </div>
+  </div>
 
 <script>
     window.MATRIZ_TARIFAS = {{ destinos|tojson }};

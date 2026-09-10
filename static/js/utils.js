@@ -282,3 +282,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Variable global o en el ámbito adecuado para recordar la última alerta mostrada
+let ultimaReservaUrgenteId = null;
+
+function verificarReservasUrgentes() {
+    fetch('/reservas/por_vencer')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const r = data[0];
+                const idActual = r.id || r.ID; // Asegurar compatibilidad con la clave del ID
+                
+                // Solo disparamos el Toast si es una reserva nueva que no habíamos alertado antes
+                if (idActual !== ultimaReservaUrgenteId) {
+                    ultimaReservaUrgenteId = idActual; // Guardamos este ID como ya notificado
+                    
+                    const nombreCliente = r.cliente || r.cliente_nombre || 'Cliente';
+                    const telCliente = r.telefono || r.cliente_telefono || 'N/A';
+                    
+                    const bodyText = document.getElementById('toastReservaBody');
+                    bodyText.innerHTML = `El cliente <b>${nombreCliente}</b> (Tel: ${telCliente}) tiene servicio a las <b>${r.hora}</b>.`;
+                    
+                    const toastElement = document.getElementById('toastReservaUrgente');
+                    const toast = new bootstrap.Toast(toastElement);
+                    toast.show();
+                }
+            } else {
+                // Si ya no hay reservas por vencer, reiniciamos el control
+                ultimaReservaUrgenteId = null;
+            }
+        })
+        .catch(err => console.error("Error al verificar reservas urgentes:", err));
+}
+
+// Ejecutar la verificación al cargar y cada 60 segundos
+setInterval(verificarReservasUrgentes, 60000);
