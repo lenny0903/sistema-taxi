@@ -212,11 +212,18 @@
                 } else if (precision > 50) {
                     colorIcono = "#e67e22"; // Naranja
                 }
-                // Si hay un despacho activo, sabemos que es la vista del cliente (podemos ponerlo más grande)
+                
+                // Detectar si es vista de cliente
                 const esVistaCliente = (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '');
-                const tamañoTaxi = esVistaCliente ? '54px' : '24px'; 
-                const tamañoTexto = esVistaCliente ? '15px' : '11px';
-                const paddingTexto = esVistaCliente ? '4px 10px' : '2px 6px';
+                
+                // Tamaños según el tipo de vista (¡ahora sí se usan!)
+                const tamañoTaxi = esVistaCliente ? '64px' : '24px';
+                const tamañoTexto = esVistaCliente ? '18px' : '11px';
+                const paddingTexto = esVistaCliente ? '6px 14px' : '2px 6px';
+                const borderRadius = esVistaCliente ? '8px' : '4px';
+                const tamañoIcono = esVistaCliente ? [90, 90] : [50, 50];
+                const anclaIcono = esVistaCliente ? [45, 70] : [25, 25];
+                
                 return L.divIcon({
                     className: 'etiqueta-vehiculo-custom',
                     html: `
@@ -224,24 +231,26 @@
                             <span style="
                                 background: #1e272e;
                                 color: #ffffff;
-                                padding: 2px 6px;
-                                border-radius: 4px;
-                                font-size: 11px;
+                                padding: ${paddingTexto};
+                                border-radius: ${borderRadius};
+                                font-size: ${tamañoTexto};
                                 font-weight: bold;
-                                border: 1px solid ${colorIcono};
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.4);">
+                                border: 2px solid ${colorIcono};
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                                display: inline-block;">
                                 ${codigoUnidad}
                             </span>
                             <br>
                             <i class="fa-solid fa-taxi" style="
                                 color: ${colorIcono};
-                                font-size: 24px;
-                                text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-                                margin-top: 2px;"></i>
+                                font-size: ${tamañoTaxi};
+                                text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+                                margin-top: 2px;
+                                display: inline-block;"></i>
                         </div>
                     `,
-                    iconSize: [50, 50],
-                    iconAnchor: [25, 25]
+                    iconSize: tamañoIcono,
+                    iconAnchor: anclaIcono
                 });
             }
 
@@ -590,7 +599,7 @@
             socket.on('nueva_ubicacion', () => actualizarMapa());
             socket.on('conductor_inactivo', () => actualizarMapa());
 
-            setInterval(actualizarMapa, 60000);
+            setInterval(actualizarMapa, 30000);
             actualizarMapa();
 
             // Bucle autónomo optimizado para actualizar exclusivamente el texto de los minutos cada 10 segundos
@@ -607,7 +616,7 @@
                 fetch('/conductores/ubicaciones_activas?keepalive=true')
                     .then(response => response.text())
                     .catch(err => console.warn('Keep-alive ping falló:', err));
-            }, 30000);
+            }, 60000);
             // Al final del script (dentro de DOMContentLoaded)
           
         });

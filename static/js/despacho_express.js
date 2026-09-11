@@ -181,16 +181,21 @@ async function ejecutarDespachoDirecto({
                 // Cambiar Taxilospatriotastest_bot a minúsculas:
                 // Cambiar Taxilospatriotastest_bot a minúsculas:
                 //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
-                const urlBotSeguimiento = `https://t.me/taxi_tariberosLosPatriotas?start=srv-${idDespachoActual}`;
+                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`;
+
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
+               // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
+                const urlBotSeguimiento = `https://t.me/Lospatriotasdetariba`;  
                 const conductorValido = result.enlace_generado !== false;
                 console.log("🔍 idDespachoActual:", idDespachoActual);
                 console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
+
                 const msgCliente = conductorValido ? (
-                    `¡Hola! 🚖 Su servicio ha sido procesado con éxito.\n\n` +
-                    `🚗 Unidad asignada: #${nroControlConductor}\n` +
-                    `👤 Conductor: ${nombreCond}\n\n` +
-                    `📍 Rastreo en vivo:\n${urlBotSeguimiento}`
+                    `🚖 ¡Hola! Su servicio está confirmado.\n\n` +
+                    `📍 Vea a su taxi acercarse en tiempo real:\n` +
+                    `👉 ${urlBotSeguimiento}\n\n` +
+                    `⏱️ Se actualiza cada segundo.\n` +
+                    `¡Ya no tiene que llamar para preguntar dónde está!`
                 ) : "⚠️ [ENLACE NO DISPONIBLE: Conductor inactivo o GPS expirado]";
                 const origenTexto = typeof origen !== 'undefined' ? origen : (document.getElementById('desOrigen')?.value || 'N/A');
                 const destinoTexto = typeof destino !== 'undefined' ? destino : (document.getElementById('desDestino')?.value || 'N/A');

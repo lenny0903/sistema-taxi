@@ -35,14 +35,10 @@ def confirmar_clic(callback_id):
 
 @telegram_bp.route('/webhook', methods=['POST'])
 def webhook():
-     # 🔐 Verificación del secret_token
-    #secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    #if secret != os.getenv('TELEGRAM_WEBHOOK_SECRET'):
-    #    print(f"⚠️ Intento de acceso no autorizado con token: {secret}")
-    #    return jsonify({"status": "unauthorized"}), 403
     from models.conductores import Conductor
     from models.turnos import Turno
     from extensions import db
+
     print("--- LLEGÓ PETICIÓN DE TELEGRAM ---")
     print("RAW DATA:", request.data)
     try:
@@ -51,19 +47,24 @@ def webhook():
         if not update:
             return jsonify({"status": "ok"}), 200
 
-        # 0. 🔘 PROCESAMIENTO DE CLICS EN BOTONES (ENCUESTA DEL CLIENTE)
+        # =========================================================================
+        # 0. PROCESAMIENTO DE BOTONES INLINE (CALLBACK QUERIES)
+        # =========================================================================
         callback = update.get('callback_query')
         if callback:
             data = callback.get('data') # Ej: 'cal_123_5'
             chat_id = str(callback['from']['id'])
             callback_id = callback['id']
-            # 📍 NUEVO: Manejo del botón "Ver mi viaje en curso" desde el menú del bot
+
+            # Botón: "Ver mi viaje en curso"
             if data == 'menu_ver_viaje':
                 confirmar_clic(callback_id)
-                despacho_reciente = Despacho.query.filter_by(telegram_id_cliente=chat_id).order_by(Despacho.id_despacho.desc()).first()
+                despacho_reciente = Despacho.query.filter_by(
+                    telegram_id_cliente=chat_id
+                ).order_by(Despacho.id_despacho.desc()).first()
                 
                 if despacho_reciente:
-                    url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=despacho_reciente.id_despacho, _external=True)
+                    url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=id_despacho, _external=True, _scheme='https')
                     teclado_mapa = {
                         "inline_keyboard": [
                             [{"text": "🗺️ Abrir Mapa en Vivo", "url": url_mapa}]
@@ -78,7 +79,7 @@ def webhook():
                     enviar_mensaje(chat_id, "⚠️ No encontramos ningún servicio activo vinculado a tu cuenta en este momento.")
                 return jsonify({"status": "menu_viaje_procesado"}), 200
 
-            # ℹ️ NUEVO: Manejo del botón "Ayuda / Soporte"
+            # Botón: "Ayuda / Soporte"
             if data == 'menu_ayuda':
                 confirmar_clic(callback_id)
                 enviar_mensaje(
@@ -87,13 +88,14 @@ def webhook():
                     "Si tienes algún inconveniente con tu servicio, puedes escribirnos directamente por este chat o reportarlo al finalizar tu viaje con la calificación de 1 estrella."
                 )
                 return jsonify({"status": "menu_ayuda_procesado"}), 200
+
+            # Encuesta / Calificación
             if data and data.startswith('cal_'):
                 try:
                     _, id_despacho_str, calificacion_str = data.split('_')
                     id_despacho = int(id_despacho_str)
                     estrellas = int(calificacion_str)
 
-                    # 🌟 GUARDAR EN LA BASE DE DATOS
                     despacho = Despacho.query.get(id_despacho)
                     if despacho:
                         despacho.calificacion = estrellas
@@ -108,10 +110,8 @@ def webhook():
                     db.session.rollback()
                     print(f"❌ Error al guardar calificación en DB: {e}")
 
-                # Responder al clic para quitar el estado de carga del botón
                 confirmar_clic(callback_id)
                 
-                # 🚨 NUEVO: Si marca 1 estrella (Inconveniente), activamos el modo reporte
                 if estrellas == 1:
                     usuarios_reportando[chat_id] = id_despacho
                     enviar_mensaje(
@@ -121,11 +121,12 @@ def webhook():
                     )
                     return jsonify({"status": "esperando_comentario_inconveniente"}), 200
                 else:
-                    # Para las demás calificaciones, mensaje normal de agradecimiento
                     enviar_mensaje(chat_id, "✅ ¡Muchas gracias por tu opinión! Nos ayuda a mejorar el servicio.")
                     return jsonify({"status": "encuesta_recibida"}), 200
 
-        # 1. Identificar el mensaje de forma segura
+        # =========================================================================
+        # 1. IDENTIFICAR EL MENSAJE
+        # =========================================================================
         msg = update.get('message') or update.get('edited_message')
         if not msg:
             return jsonify({"status": "sin_mensaje"}), 200
@@ -135,21 +136,21 @@ def webhook():
             return jsonify({"status": "sin_remitente_valido"}), 200
         chat_id = str(user_from['id'])
 
+        # =========================================================================
         # 2. PROCESAMIENTO DE TEXTO
-        # 2. PROCESAMIENTO DE TEXTO
+        # =========================================================================
         if 'text' in msg:
-            texto = msg['text']
+            texto = msg['text'].strip()
             
-            # 🟢 ACTUALIZAR ESTADO DE RED: Si el mensaje viene de un conductor, actualizamos su actividad de red
+            # Actualizar latido/red si quien escribe es conductor
             conductor_activo_check = Conductor.query.filter_by(telegram_id=chat_id).first()
             if conductor_activo_check:
-                # Actualizamos su marca de vida para que el planificador (scheduler) sepa que hay red activa
-                conductor_activo_check.ultima_actualizacion_red = hora_local().replace(microsecond=0) # O el campo que uses para la red
+                conductor_activo_check.ultima_actualizacion_red = hora_local().replace(microsecond=0)
                 db.session.commit()
 
-            # 📝 NUEVO: ¿El usuario está escribiendo un reporte de inconveniente pendiente?
+            # Módulo de comentario tras calificación negativa
             if chat_id in usuarios_reportando:
-                id_despacho = usuarios_reportando.pop(chat_id) # Extrae y borra del diccionario para liberar el estado
+                id_despacho = usuarios_reportando.pop(chat_id)
                 try:
                     despacho = Despacho.query.get(id_despacho)
                     if despacho:
@@ -157,7 +158,7 @@ def webhook():
                         db.session.commit()
                         print(f"📝 [REPORTE] Comentario guardado para Despacho #{id_despacho}: {texto}")
                     else:
-                        print(f"⚠️ [REPORTE] Despacho #{id_despacho} no encontrado para guardar el comentario.")
+                        print(f"⚠️ [REPORTE] Despacho #{id_despacho} no encontrado.")
                 except Exception as e:
                     db.session.rollback()
                     print(f"❌ Error al guardar comentario de inconveniente: {e}")
@@ -165,12 +166,11 @@ def webhook():
                 enviar_mensaje(chat_id, "✅ Reporte recibido. Muchas gracias por ayudarnos a mejorar. ¡Feliz día!")
                 return jsonify({"status": "comentario_inconveniente_guardado"}), 200
 
-            # --- COMANDO START ---
-            # --- COMANDO START ---
+            # --- COMANDO /START ---
             if texto.startswith('/start'):
                 partes = texto.split(' ')
-                if len(partes) > 1 and ('srv-' in partes[1] or 'srv_' in partes[1]):
-                    servicio_id = partes[1].replace('srv-', '').replace('srv_', '')
+                if len(partes) > 1:
+                    servicio_id = partes[1].replace('srv-', '')
                     try:
                         id_despacho = int(servicio_id)
                         despacho = Despacho.query.get(id_despacho)
@@ -179,26 +179,23 @@ def webhook():
                             despacho.telegram_id_cliente = chat_id
                             db.session.commit()
                             print(f"🔗 [TELEGRAM] Cliente {chat_id} vinculado al Despacho #{id_despacho}")
+                            
                             conductor_asig = db.session.get(Conductor, despacho.conductor_id) if hasattr(despacho, 'conductor_id') and despacho.conductor_id else None
                             nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
                             nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
                             
-                            base_url = request.host_url.rstrip('/')
-                            url_mapa = url_for('views_bp.pagina_mapa_despacho', id_despacho=id_despacho, _external=True)
-                            
+                            url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=id_despacho, _external=True, _scheme='https')
                             teclado_cliente = {
                                 "inline_keyboard": [
                                     [{"text": "🗺️ Ver Mapa en Tiempo Real", "url": url_mapa}]
                                 ]
                             }
-                            
                             mensaje_cliente = (
                                 f"📍 *¡Hola! Aquí tienes el rastreo de tu servicio #{id_despacho}*\n\n"
                                 f"🚗 Unidad: #{nro_ctrl}\n"
                                 f"👤 Conductor: {nombre_cond}\n\n"
                                 "Haz clic en el botón de abajo para seguir el recorrido en vivo:"
                             )
-                            
                             enviar_mensaje_con_teclado_inline(chat_id, mensaje_cliente, teclado_cliente)
                         else:
                             enviar_mensaje(chat_id, "⚠️ No encontramos los datos de este servicio.")
@@ -208,59 +205,82 @@ def webhook():
                     
                     return jsonify({"status": "menu_client_enviado"}), 200
                 else:
-                    # 🟢 VERIFICAR SI EL QUE ESCRIBE ES UN CONDUCTOR O UN CLIENTE
-                    try:
-                        from models.conductores import Conductor
-                        conductor_activo = Conductor.query.filter_by(telegram_id=str(chat_id)).first()
+                    if conductor_activo_check:
+                        conductor_activo_check.estado_red = 'conectado'
+                        if hasattr(conductor_activo_check, 'ultima_actualizacion_red'):
+                            conductor_activo_check.ultima_actualizacion_red = hora_local() 
+                        db.session.commit()
                         
-                        if conductor_activo:
-                            # ES CONDUCTOR: Mantiene su lógica de red
-                            conductor_activo.estado_red = 'conectado'
-                            if hasattr(conductor_activo, 'ultima_actualizacion_red'):
-                                conductor_activo.ultima_actualizacion_red = hora_local() 
-                            db.session.commit()
-                            
-                            try:
-                                from app import socketio
-                                socketio.emit('estado_red_cambiado', namespace='/')
-                            except Exception as e:
-                                print(f"⚠️ No se pudo emitir por socket: {e}")
-                            
-                            enviar_menu_botones(chat_id)
-                        else:
-                            # 👤 ES UN CLIENTE: Mostrar el menú limpio acordado (Viaje en curso y Ayuda)
-                            teclado_cliente_menu = {
-                                "inline_keyboard": [
-                                    [{"text": "📍 Ver mi viaje en curso", "callback_data": "menu_ver_viaje"}],
-                                    [{"text": "ℹ️ Ayuda / Soporte", "callback_data": "menu_ayuda"}]
-                                ]
-                            }
-                            enviar_mensaje_con_teclado_inline(
-                                chat_id, 
-                                "¡Hola! Bienvenido a nuestro servicio de transporte 🚗\n\nSelecciona una opción:", 
-                                teclado_cliente_menu
-                            )
-                    except Exception as err:
-                        print(f"⚠️ Error procesando /start: {err}")
+                        try:
+                            from app import socketio
+                            socketio.emit('estado_red_cambiado', namespace='/')
+                        except Exception as e:
+                            print(f"⚠️ No se pudo emitir por socket: {e}")
+                        
                         enviar_menu_botones(chat_id)
+                    else:
+                        teclado_cliente_menu = {
+                            "inline_keyboard": [
+                                [{"text": "📍 Ver mi viaje en curso", "callback_data": "menu_ver_viaje"}],
+                                [{"text": "ℹ️ Ayuda / Soporte", "callback_data": "menu_ayuda"}]
+                            ]
+                        }
+                        enviar_mensaje_con_teclado_inline(
+                            chat_id, 
+                            "¡Hola! Bienvenido a nuestro servicio de transporte 🚗\n\nSelecciona una opción:", 
+                            teclado_cliente_menu
+                        )
 
                     return jsonify({"status": "menu_enviado"}), 200
 
+            # --- PALABRA CLAVE "UBI" (Para Clientes) ---
+            if texto.lower() == "ubi":
+                print(f"🎯 [WEBHOOK] Petición 'UBI' recibida del chat: {chat_id}")
+                
+                # Buscar el último despacho asociado a este telegram_id de cliente
+                despacho_reciente = Despacho.query.filter_by(telegram_id_cliente=chat_id).order_by(Despacho.id_despacho.desc()).first()
+                
+                if not despacho_reciente:
+                    despacho_reciente = Despacho.query.order_by(Despacho.id_despacho.desc()).first()
+                    if despacho_reciente:
+                        despacho_reciente.telegram_id_cliente = chat_id
+                        db.session.commit()
+
+                if despacho_reciente:
+                    conductor_asig = db.session.get(Conductor, despacho_reciente.conductor_id) if hasattr(despacho_reciente, 'conductor_id') and despacho_reciente.conductor_id else None
+                    nro_ctrl = conductor_asig.codigo if conductor_asig else "Unidad"
+                    nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor"
                     
-            # 📍 Palabra clave "UBI"
-            
+                    # 👇 CAMBIO AQUÍ: despacho_reciente.id_despacho (no id_despacho)
+                    url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=despacho_reciente.id_despacho, _external=True, _scheme='https')
+                    
+                    teclado_mapa = {
+                        "inline_keyboard": [
+                            [{"text": "🗺️ Ver Mapa en Tiempo Real", "url": url_mapa}]
+                        ]
+                    }
+                    mensaje_ubi = (
+                        f"📍 *Rastreo de tu servicio activo (Despacho #{despacho_reciente.id_despacho})*\n\n"
+                        f"🚗 Unidad: #{nro_ctrl}\n"
+                        f"👤 Conductor: {nombre_cond}\n\n"
+                        "Haz clic en el botón de abajo para seguir la unidad en vivo:"
+                    )
+                    enviar_mensaje_con_teclado_inline(chat_id, mensaje_ubi, teclado_mapa)
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No tienes ningún servicio activo registrado en este momento.")
+                
+                return jsonify({"status": "ubi_procesado"}), 200
+
             # --- BOTÓN ACTIVAR (Conductores) ---
             if texto == "🔗 Activar":
-                conductor_temp = Conductor.query.filter_by(telegram_id=chat_id).first()
-                if conductor_temp:
+                if conductor_activo_check:
                     enviar_mensaje(chat_id, "✅ Ya estás vinculado al sistema.")
-                    enviar_menu_botones(chat_id)
                 else:
                     enviar_mensaje(chat_id, "🆔 Por favor, escribe tu código (ejemplo: B64) para activar tu cuenta.")
-                    enviar_menu_botones(chat_id)
+                enviar_menu_botones(chat_id)
                 return jsonify({"status": "esperando_codigo"}), 200
 
-            # --- VALIDACIÓN DE CÓDIGO ---
+            # --- VALIDACIÓN DE CÓDIGO (Conductores) ---
             elif texto.upper().startswith('B') and len(texto) >= 2:
                 codigo_buscado = texto.upper()
                 conductor_c = Conductor.query.filter_by(codigo=codigo_buscado).first()
@@ -277,29 +297,50 @@ def webhook():
                     enviar_menu_botones(chat_id)
                 return jsonify({"status": "resultado_vinculacion"}), 200
 
-            enviar_menu_botones(chat_id)
+            # Si es un texto libre de un conductor, muestra el menú de botones
+            if conductor_activo_check:
+                enviar_menu_botones(chat_id)
+            else:
+                # Si es un cliente escribiendo cualquier texto libre
+                teclado_cliente_menu = {
+                    "inline_keyboard": [
+                        [{"text": "📍 Ver mi viaje en curso", "callback_data": "menu_ver_viaje"}],
+                        [{"text": "ℹ️ Ayuda / Soporte", "callback_data": "menu_ayuda"}]
+                    ]
+                }
+                enviar_mensaje_con_teclado_inline(
+                    chat_id, 
+                    "¡Hola! Escribe *ubi* o utiliza las opciones del menú:", 
+                    teclado_cliente_menu
+                )
+
             return jsonify({"status": "texto_procesado"}), 200
 
-        # 3. BUSCAR AL CONDUCTOR PRIMERO (Para funciones como ubicación que exigen estar registrado)
+        # =========================================================================
+        # 3. VERIFICAR SI EL REMITENTE ES CONDUCTOR PARA GPS
+        # =========================================================================
         conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
 
         if not conductor:
-            print(f"⚠️ Telegram ID {chat_id} no encontrado en la BD")
-            
-            # 🛡️ BLINDAJE ANTISPAM: Si un usuario no registrado manda ubicación, 
-            # la ignoramos silenciosamente para evitar que el bucle de Live Location sature el chat.
             if "location" in msg:
                 return jsonify({"status": "ubicacion_ignorada_sin_registro"}), 200
 
-            enviar_mensaje(chat_id, "🆔 Bienvenido. Por favor, presiona el botón de abajo o escribe tu código de control:")
-            enviar_menu_botones(chat_id)
-            return jsonify({"status": "conductor_no_encontrado"}), 200
+            teclado_cliente_menu = {
+                "inline_keyboard": [
+                    [{"text": "📍 Ver mi viaje en curso", "callback_data": "menu_ver_viaje"}],
+                    [{"text": "ℹ️ Ayuda / Soporte", "callback_data": "menu_ayuda"}]
+                ]
+            }
+            enviar_mensaje_con_teclado_inline(
+                chat_id, 
+                "Bienvenido 🚗. Escribe *ubi* para obtener el mapa de tu viaje:", 
+                teclado_cliente_menu
+            )
+            return jsonify({"status": "cliente_atendido"}), 200
 
-       
-        # 4. PROCESAMIENTO DE UBICACIÓN (Normal, Live Location o Cierre Manual)
-        
-        # 🛑 DETECCIÓN DE CIERRE MANUAL: 
-        # Si es un mensaje editado y la ubicación ya no tiene 'live_period' (o no viene la ubicación)
+        # =========================================================================
+        # 4. PROCESAMIENTO DE UBICACIÓN (LIVE LOCATION Y EXPIRED)
+        # =========================================================================
         es_cierre_manual = False
         if "edited_message" in update and "location" in msg:
             if "live_period" not in msg["location"]:
@@ -316,7 +357,6 @@ def webhook():
 
             db.session.commit()
             
-            # Emitir evento al panel en tiempo real
             emitir_al_panel('conductor_inactivo', {
                 'conductor_id': conductor.id_conductor,
                 'codigo': conductor.codigo
@@ -327,12 +367,7 @@ def webhook():
             print(f"🛑 [GPS] El conductor {conductor.codigo} finalizó su GPS manualmente.")
             return jsonify({"status": "loc_finalizada_manual"}), 200
 
-        # --- PROCESAMIENTO DE UBICACIÓN ACTIVA (Cuando sí trae coordenadas) ---
         if "location" in msg:
-            print(">>> LLEGÓ UNA UBICACIÓN DESDE TELEGRAM <<<")
-            print(">>> CONTENIDO COMPLETO DE LOCATION:", msg["location"])
-            
-            # 🚨 🛑 FILTRO: Validar que NO envíe ubicación fija (estática). 
             if "edited_message" not in update and "live_period" not in msg["location"]:
                 enviar_mensaje(
                     chat_id, 
@@ -344,16 +379,15 @@ def webhook():
                 print(f"⚠️ [GPS] El conductor {conductor.codigo} intentó enviar ubicación estática (Rechazado).")
                 return jsonify({"status": "ubicacion_estatica_rechazada"}), 200
 
-            # 🟢 SI PASA LA VALIDACIÓN: ES UBICACIÓN EN TIEMPO REAL (LIVE LOCATION)
-            ahora = hora_local().replace(microsecond=0)  # 🔥 TRUNCAR MICROSEGUNDOS
+            ahora = hora_local().replace(microsecond=0)
 
             conductor.latitud = msg["location"]["latitude"]
             conductor.longitud = msg["location"]["longitude"]
             conductor.ultima_actualizacion = ahora
             conductor.aviso_enviado = 0
-            # 🟢 ACTUALIZAR RED TAMBIÉN AQUÍ: Cada ping de GPS confirma que hay conexión de red activa
+            
             if hasattr(conductor, 'estado_red'):
-                conductor.estado_red = 'conectado' # O el valor que manejes para red activa
+                conductor.estado_red = 'conectado'
             if hasattr(conductor, 'ultima_actualizacion_red'):
                 conductor.ultima_actualizacion_red = ahora
 
@@ -361,7 +395,6 @@ def webhook():
 
             segundos = msg["location"].get("live_period")
 
-            # Determinar la opción elegida según los segundos
             if segundos == 900:
                 nueva_opcion = "15 min"
                 nueva_duracion_seg = 900
@@ -373,13 +406,11 @@ def webhook():
                 nueva_duracion_seg = 28800
             else:
                 nueva_opcion = "Hasta que se desactive"
-                nueva_duracion_seg = None  # sin expiración fija
+                nueva_duracion_seg = None
 
-            # 🔑 LÓGICA INTELIGENTE: solo renovar si la opción cambió o la expiración ya pasó
             opcion_actual = getattr(conductor, 'opcion_gps', None)
             exp_actual = getattr(conductor, 'expiracion_gps', None)
 
-            # Normalizar exp_actual (si es naive, asumir misma zona horaria)
             if exp_actual and exp_actual.tzinfo is None:
                 from utils.time import TZ_CARACAS
                 exp_actual = exp_actual.replace(tzinfo=TZ_CARACAS)
@@ -387,34 +418,21 @@ def webhook():
             expirada = (exp_actual is None) or (exp_actual < ahora)
 
             if nueva_opcion != opcion_actual or expirada:
-                # Cambió la opción o expiró: renovamos
                 if nueva_duracion_seg:
                     conductor.expiracion_gps = ahora + timedelta(seconds=nueva_duracion_seg)
                 else:
-                    conductor.expiracion_gps = ahora + timedelta(days=365)  # modo indefinido
+                    conductor.expiracion_gps = ahora + timedelta(days=365)
                 conductor.opcion_gps = nueva_opcion
                 print(f"🔄 [GPS] {conductor.codigo} renovó expiración: {conductor.expiracion_gps} (opción: {nueva_opcion})")
-                # 🟢 SALUDO EXCLUSIVO AL INICIAR O CAMBIAR OPCIÓN DE GPS
-                #nombre_conductor = getattr(conductor, 'nombre', None) or conductor.codigo
-                #saludo = (
-                #    f"👋 ¡Hola, *{nombre_conductor}*!\n\n"
-                #    "🚗 Ubicación recibida y conectada con éxito.\n"
-                #    "⏱️ Tu turno está activo. ¡Que tengas un excelente recorrido y mucho éxito hoy!"
-                #)
-                #enviar_mensaje(chat_id, saludo)
             else:
-                # Misma opción y aún válida: solo actualizamos coordenadas y timestamp
                 print(f"📌 [GPS] {conductor.codigo} actualizó ubicación sin renovar expiración")
-                # No tocamos expiracion_gps ni opcion_gps
 
-            # Sincronizar con el turno activo (si existe)
             if hasattr(conductor, "turno_activo") and conductor.turno_activo:
                 conductor.turno_activo.expiracion_gps = conductor.expiracion_gps
                 conductor.turno_activo.opcion_gps = conductor.opcion_gps
 
             db.session.commit()
             
-            # 📡 EMITIR AL MAPA EN TIEMPO REAL VÍA WEBSOCKET
             emitir_al_panel('nueva_ubicacion', {
                 'conductor_id': conductor.id_conductor,
                 'codigo': conductor.codigo,
@@ -425,19 +443,13 @@ def webhook():
             })
             return jsonify({"status": "loc_actualizada"}), 200
 
-        # 🛡️ CIERRE SEGURO Y SILENCIOSO: 
-        # Si llega cualquier otra actualización que no sea texto ni ubicación activa.
         return jsonify({"status": "actualizacion_silenciada"}), 200
 
     except Exception as e:
         print(f"❌ ERROR CRÍTICO EN WEBHOOK: {e}")
         import traceback
         traceback.print_exc()
-        try:
-            return jsonify({"status": "error", "detalle": str(e)}), 200
-        except:
-            return "OK", 200  # Última red de seguridad: texto plano con código 200 si todo lo demás falla
-
+        return jsonify({"status": "error", "detalle": str(e)}), 200        
 def enviar_mensaje(chat_id, texto, parse_mode='HTML', reply_markup=None):
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -511,40 +523,29 @@ def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='
     }
     requests.post(url, data=payload)    
 
-# En routes/telegram_bot.py (o donde tengas las funciones de Telegram)
 def publicar_en_canal(id_despacho):
-    """
-    Publica un mensaje en el canal de Telegram con un botón inline
-    que redirige al bot con el parámetro start.
-    """
     from models.despachos import Despacho
     from models.conductores import Conductor
-    from flask import url_for
     from utils.notificaciones import enviar_mensaje_con_teclado_inline
 
-    # 1. Obtener el despacho
     despacho = Despacho.query.get(id_despacho)
     if not despacho:
-        print(f"⚠️ Despacho #{id_despacho} no encontrado para publicar en canal.")
+        print(f"⚠️ Despacho #{id_despacho} no encontrado.")
         return
 
-    # 2. Datos del conductor
     conductor = Conductor.query.get(despacho.conductor_id) if despacho.conductor_id else None
     nro_ctrl = conductor.codigo if conductor else "Unidad"
     nombre_cond = conductor.nombre if conductor else "Conductor"
 
-    # 3. Generar la URL del bot con parámetro start
-    # Reemplaza 'Taxilospatriotastest_bot' con el nombre de usuario de TU bot
-    url_bot = f"https://t.me/taxi_tariberosLosPatriotas?start=srv-{id_despacho}"
+    # 🚀 Bot de PRODUCCIÓN
+    url_bot = f"https://t.me/Lospatriotas_bot?start=srv-{id_despacho}"
 
-    # 4. Crear el teclado inline
     teclado = {
         "inline_keyboard": [
             [{"text": "🚗 Ver mi viaje", "url": url_bot}]
         ]
     }
 
-    # 5. Mensaje que se publicará en el canal
     mensaje = (
         f"🚖 *Nuevo servicio disponible*\n\n"
         f"📋 Despacho #{id_despacho}\n"
@@ -553,9 +554,8 @@ def publicar_en_canal(id_despacho):
         "🔹 Haz clic en el botón para rastrear tu viaje en tiempo real."
     )
 
-    # 6. ID del canal (puede ser @username o el ID numérico)
-    canal_chat_id = "@TaxiLospatriotasCanal"  # <-- Cámbialo por tu canal público
+    # 🚀 Canal de PRODUCCIÓN
+    canal_chat_id = "@Lospatriotasdetariba"
 
-    # 7. Enviar el mensaje al canal
     enviar_mensaje_con_teclado_inline(canal_chat_id, mensaje, teclado)
     print(f"📢 Mensaje publicado en el canal para el Despacho #{id_despacho}")

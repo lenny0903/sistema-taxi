@@ -294,7 +294,7 @@ function verificarReservasUrgentes() {
                 const r = data[0];
                 const idActual = r.id || r.ID; // Asegurar compatibilidad con la clave del ID
                 
-                // Solo disparamos el Toast si es una reserva nueva que no habíamos alertado antes
+                // Solo disparamos el Toast y el sonido si es una reserva nueva que no habíamos alertado antes
                 if (idActual !== ultimaReservaUrgenteId) {
                     ultimaReservaUrgenteId = idActual; // Guardamos este ID como ya notificado
                     
@@ -307,6 +307,12 @@ function verificarReservasUrgentes() {
                     const toastElement = document.getElementById('toastReservaUrgente');
                     const toast = new bootstrap.Toast(toastElement);
                     toast.show();
+
+                    // 🔊 Disparar alerta sonora de forma segura
+                    const sonidoAlerta = new Audio('/static/sounds/notification.mp3');
+                    sonidoAlerta.play().catch(err => {
+                        console.log("Audio en espera de interacción previa del usuario:", err);
+                    });
                 }
             } else {
                 // Si ya no hay reservas por vencer, reiniciamos el control
