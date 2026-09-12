@@ -181,11 +181,11 @@ async function ejecutarDespachoDirecto({
                 // Cambiar Taxilospatriotastest_bot a minúsculas:
                 // Cambiar Taxilospatriotastest_bot a minúsculas:
                 //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
-                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`;
+                
 
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
-                const urlBotSeguimiento = `https://t.me/Lospatriotasdetariba`;  
+                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
                 const conductorValido = result.enlace_generado !== false;
                 console.log("🔍 idDespachoActual:", idDespachoActual);
                 console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
@@ -523,14 +523,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // --------------------------------------------------------------------------
     telefonoInput?.addEventListener("keydown", async (event) => {
         if (event.key === "Enter") {
-            const telActual = telefonoInput.value.trim();
-            if (telActual === "") {
+            const telRaw = telefonoInput.value.trim();
+            if (telRaw === "") {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 return;
             }
             event.preventDefault();
             event.stopImmediatePropagation();
+
+            // 🛡️ CORRECCIÓN: Normalizar automáticamente antes de validar y buscar
+            const resultadoNormalizacion = normalizarTelefonoVenezolano(telRaw);
+            if (resultadoNormalizacion.valido) {
+                telefonoInput.value = resultadoNormalizacion.numero;
+            }
+            const telActual = telefonoInput.value.trim();
 
             if (!telefonoInput.checkValidity()) {
                 if (typeof mostrarToast === "function") mostrarToast("⚠️ " + telefonoInput.validationMessage, "error");
@@ -550,7 +557,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof refrescarSelectConductorUnico === "function") {
                 refrescarSelectConductorUnico();
             }
-
             const resultado = await validarClienteExpreso();
             
             if (resultado && resultado.valido === true && resultado.cliente) {

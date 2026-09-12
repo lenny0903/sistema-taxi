@@ -64,7 +64,8 @@ def webhook():
                 ).order_by(Despacho.id_despacho.desc()).first()
                 
                 if despacho_reciente:
-                    url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=id_despacho, _external=True, _scheme='https')
+                    url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=despacho_reciente.id_despacho, _external=True, _scheme='https')
+                    print(f"🗺️ [MAPA DEBUG] URL generada para el mapa: {url_mapa}")  # <-- Añade este print
                     teclado_mapa = {
                         "inline_keyboard": [
                             [{"text": "🗺️ Abrir Mapa en Vivo", "url": url_mapa}]
@@ -185,6 +186,7 @@ def webhook():
                             nombre_cond = conductor_asig.nombre if conductor_asig else "Conductor asignado"
                             
                             url_mapa = url_for('views.pagina_mapa_despacho', id_despacho=id_despacho, _external=True, _scheme='https')
+                            print(f"🗺️ [MAPA DEBUG] URL generada para el mapa: {url_mapa}")  # <-- Añade este print
                             teclado_cliente = {
                                 "inline_keyboard": [
                                     [{"text": "🗺️ Ver Mapa en Tiempo Real", "url": url_mapa}]
@@ -512,16 +514,30 @@ def limpiar_teclado_conductor(chat_id):
     }
     requests.post(url, data=payload)
 
-def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='HTML'):
+from utils.notificaciones import _enviar_peticion
+def enviar_mensaje_con_teclado_inline(chat_id, texto, teclado_json, parse_mode='Markdown'):
+    """Envía mensajes con botones inline flotantes (mapas, enlaces, etc.)."""
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    
+    if not TOKEN:
+        print("❌ ERROR: TELEGRAM_BOT_TOKEN no está definido en el entorno")
+        return {"ok": False, "error": "Token no definido"}
+    
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    
+    # Pasamos el diccionario directamente sin json.dumps previo
     payload = {
         'chat_id': chat_id,
         'text': texto,
         'parse_mode': parse_mode,
-        'reply_markup': json.dumps(teclado_json)
+        'reply_markup': teclado_json  
     }
-    requests.post(url, data=payload)    
+    
+    print(f"📤 Enviando mensaje con botón inline a {chat_id}...")
+    # CAMBIAMOS A True para enviar un JSON limpio que Telegram no rechace
+    resultado = _enviar_peticion(url, payload, es_json=True)
+    print(f"📤 Respuesta de Telegram: {resultado}")
+    return resultado
 
 def publicar_en_canal(id_despacho):
     from models.despachos import Despacho

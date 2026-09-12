@@ -6,6 +6,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 DOMContentLoaded disparado (modales_tipo_despacho.js)");
   console.log("📍 Ejecutando lógica de reservas");
+  verificarReservasAlCargar();
 
   const tipor = document.getElementById("tipoDespacho");
   const modalReservaEl = document.getElementById("modalDespachoReserva");
@@ -177,6 +178,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 💡 Pedir permiso para notificaciones nativas al cargar la página
+  if (typeof Notification !== "undefined" && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+  }
+
   // ---------------------------------------------------------
   // 6. ALERTAS Y SOCKETS
   // ---------------------------------------------------------
@@ -189,21 +195,59 @@ document.addEventListener("DOMContentLoaded", () => {
       if (msHastaReserva <= 0) return;
 
       if (msHastaAlerta > 0) {
-          console.log(`Reserva #${reserva.id_reserva} programada. El servidor avisará a los 15 min.`);
+          // ✅ Programar temporizador local en el navegador para los 15 min previos
+          setTimeout(() => {
+              const nombreCliente = reserva.cliente_nombre || reserva.cliente?.nombre || "Cliente";
+              const textoAlerta = `⚠️ ALERTA: La reserva #${reserva.id_reserva} de ${nombreCliente} es a las ${reserva.hora}`;
+              
+              // 1. Toast visual dentro de la app
+              mostrarToast(textoAlerta, "warning");
+              
+              // 2. Audio de notificación
+              const beep = new Audio('/static/sounds/notification.mp3');
+              beep.play().catch(() => console.log("Permiso de audio requerido por el navegador"));
+
+              // 3. 🚀 Notificación nativa (Sale en Windows/Linux aunque esté en otra app)
+              if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+                  new Notification("¡Alerta de Reserva Próxima! 🚗", {
+                      body: textoAlerta,
+                      icon: "/static/images/logo_taxi.png" // Opcional: ajusta o elimina si no usas icono
+                  });
+              }
+          }, msHastaAlerta);
+
+          console.log(`✅ Reserva #${reserva.id_reserva} programada localmente. Sonará la alerta en ${Math.round(msHastaAlerta / 60000)} minutos.`);
       } else {
-          mostrarToast(`⏰ Alerta: Reserva #${reserva.id_reserva} en menos de 15 min`, "warning");
+          // Si la reserva se creó y faltan menos de 15 minutos para la hora pactada
+          const nombreCliente = reserva.cliente_nombre || reserva.cliente?.nombre || "Cliente";
+          const textoAlerta = `⏰ Alerta: Reserva #${reserva.id_reserva} de ${nombreCliente} en menos de 15 min (${reserva.hora})`;
+          
+          mostrarToast(textoAlerta, "warning");
+          
+          const beep = new Audio('/static/sounds/notification.mp3');
+          beep.play().catch(() => console.log("Permiso de audio requerido"));
+
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+              new Notification("¡Alerta de Reserva Próxima! 🚗", {
+                  body: textoAlerta
+              });
+          }
       }
   }
 
   if (typeof socket !== 'undefined') {
     socket.on("reserva_activa", (data) => {
-        mostrarToast(
-            `🚗 ALERTA: Reserva #${data.id_reserva} de ${data.cliente} está próxima (a las ${data.hora})`,
-            "info"
-        );
+        const textoServidor = `🚗 ALERTA (Servidor): Reserva #${data.id_reserva} de ${data.cliente} está próxima (a las ${data.hora})`;
+        mostrarToast(textoServidor, "info");
         
         const beep = new Audio('/static/sounds/notification.mp3');
         beep.play().catch(() => console.log("Permiso de audio requerido"));
+
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            new Notification("Aviso del Servidor - Reserva 🚗", {
+                body: textoServidor
+            });
+        }
     });
   }
 
@@ -308,3 +352,34 @@ document.addEventListener("DOMContentLoaded", () => {
     btnCrearReserva.addEventListener("click", crearReserva);
   }
 });
+// 🔄 VERIFICACIÓN POST-REINICIO: Al cargar la página, comprobar si hay reservas urgentes en la BD
+  async function verificarReservasAlCargar() {
+      try {
+          const data = await apiFetch("/reservas/por_vencer");
+          const activas = (data && Array.isArray(data.reservas)) ? data.reservas : [];
+          
+          const ahora = new Date();
+
+          activas.forEach(r => {
+              const fechaHoraReserva = new Date(`${r.fecha}T${r.hora}`);
+              const msHastaReserva = fechaHoraReserva - ahora;
+              
+              // Si la reserva es para dentro de menos de 15 minutos (o ya pasó y sigue activa)
+              if (msHastaReserva <= (15 * 60 * 1000) && msHastaReserva > 0) {
+                  const nombreCliente = r.cliente_nombre || r.cliente?.nombre || "Cliente";
+                  const textoAlerta = `⚠️ ALERTA (Recuperada): La reserva #${r.id_reserva} de ${nombreCliente} es a las ${r.hora}`;
+                  
+                  mostrarToast(textoAlerta, "warning");
+                  
+                  const beep = new Audio('/static/sounds/notification.mp3');
+                  beep.play().catch(() => {});
+
+                  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+                      new Notification("¡Alerta de Reserva Pendiente! 🚗", { body: textoAlerta });
+                  }
+              }
+          });
+      } catch (err) {
+          console.error("Error al verificar reservas tras reinicio:", err);
+      }
+  }

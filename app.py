@@ -251,6 +251,7 @@ def create_app():
 
     return app
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 if __name__ == "__main__":
     app = create_app()
     
@@ -261,3 +262,10 @@ if __name__ == "__main__":
 
     print("[SERVIDOR] Servidor iniciado con WebSockets (Eventlet)...")
     socketio.run(app, host="0.0.0.0", port=5000, debug=app.config['DEBUG'])
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, 
+        x_for=1, 
+        x_proto=1, 
+        x_host=1, 
+        x_prefix=1
+    )
