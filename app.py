@@ -200,23 +200,19 @@ def create_app():
     @app.route('/obtener_tarifas', methods=['GET'])
     def obtener_tarifas():
         try:
-            conn = sqlite3.connect('taxis.db')
-            conn.row_factory = sqlite3.Row  # Permite retornar diccionarios con el nombre de cada columna
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT id, destino, precio_cop, municipio FROM matriz_tarifas")
-            filas = cursor.fetchall()
-            
-            # Convertimos las filas de SQLite a una lista de diccionarios JSON
-            tarifas = [dict(fila) for fila in filas]
-            return jsonify(tarifas)
-            
+            tarifas = MatrizTarifa.query.all()
+            # Convertimos la lista de objetos de SQLAlchemy a una lista de diccionarios JSON
+            return jsonify([
+                {
+                    "id": t.id, 
+                    "destino": t.destino, 
+                    "precio_cop": t.precio_cop, 
+                    "municipio": t.municipio
+                } for t in tarifas
+            ])
         except Exception as e:
             print(f"❌ Error consultando tarifas: {e}")
             return jsonify([]), 500
-        finally:
-            if 'conn' in locals() and conn:
-                conn.close()
 
     @app.route('/configurar_webhook', methods=['POST'])
     def configurar_webhook():
@@ -248,6 +244,13 @@ def create_app():
         url_telegram = f"https://t.me/taxilospatriotastest_bot?start=srv-{id_servicio}"
         return redirect(url_telegram, code=302)
     
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, 
+        x_for=1, 
+        x_proto=1, 
+        x_host=1, 
+        x_prefix=1
+    )
 
     return app
 
@@ -262,10 +265,4 @@ if __name__ == "__main__":
 
     print("[SERVIDOR] Servidor iniciado con WebSockets (Eventlet)...")
     socketio.run(app, host="0.0.0.0", port=5000, debug=app.config['DEBUG'])
-    app.wsgi_app = ProxyFix(
-        app.wsgi_app, 
-        x_for=1, 
-        x_proto=1, 
-        x_host=1, 
-        x_prefix=1
-    )
+   

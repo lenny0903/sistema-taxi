@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, app, request, jsonify
 from extensions import db
 from models import ColaDespacho, Cliente
 from datetime import datetime
@@ -129,3 +129,28 @@ def webhook_wa():
         db.session.rollback()
         print(f"❌ Error en Webhook WA: {e}")
         return jsonify({"error": str(e)}), 500
+
+@cola_despachos_bp.route('/cola_despachos/lote', methods=['POST'])
+def registrar_lote_despachos():
+    datos = request.json.get('despachos', [])
+
+    if not datos:
+        return jsonify({"error": "No hay datos para procesar"}), 400
+
+    # Debes abrir el cursor a partir de tu conexión o de db
+    cursor = db.cursor() # O la variable de conexión que uses
+    try:
+        for despacho in datos:
+            cursor.execute("""
+                INSERT INTO cola_despachos (cliente_id, telefono, nombre, origen, destino, tarifa, estado)
+                VALUES (%(cliente_id)s, %(telefono)s, %(nombre)s, %(origen)s, %(destino)s, %(tarifa)s, %(estado)s)
+            """, despacho)
+        
+        db.commit() # ✔ Guardado masivo exitoso
+        return jsonify({"status": "success", "message": f"Lote de {len(datos)} unidades procesado"}), 201
+
+    except Exception as e:
+        db.rollback() # 🔄 Reversión total si ocurre un fallo
+        return jsonify({"error": "Fallo en la transacción: " + str(e)}), 500
+    finally:
+        cursor.close() # Siempre es buena práctica cerrar el cursor

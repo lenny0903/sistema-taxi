@@ -83,70 +83,49 @@ window.procesarDespachoMultiple = async function(formDataCliente, tipoModalidad)
     const cantidadVehiculos = parseInt(tipoModalidad.charAt(0)) || 2;
     const esMismoDestino = tipoModalidad.includes("_mismo");
 
-    // 🎯 Capturamos el valor REAL actual de los inputs de la interfaz una sola vez antes del bucle
     const inputDestinoElem = document.getElementById("desDestino");
     const inputTarifaElem = document.getElementById("tarifaClienteUnico");
     
     const destinoCapturado = inputDestinoElem ? inputDestinoElem.value.trim() : "";
     const tarifaCapturada = inputTarifaElem ? parseFloat(inputTarifaElem.value) || 0 : 0;
 
-    console.log(`📦 Procesando despacho múltiple: ${cantidadVehiculos} vehículos (${esMismoDestino ? 'Mismo destino' : 'Diferentes destinos'})`);
+    // 📦 Arreglo para empaquetar toda la caravana en un solo payload
+    const loteDespachos = []; 
+
+    for (let i = 1; i <= cantidadVehiculos; i++) {
+        loteDespachos.push({
+            cliente_id: formDataCliente.cliente_id,
+            telefono: formDataCliente.telefono,
+            nombre: `${formDataCliente.nombre} [Unidad ${i}/${cantidadVehiculos}]`,
+            origen: formDataCliente.origen,
+            destino: esMismoDestino ? destinoCapturado : "",
+            tarifa: esMismoDestino ? tarifaCapturada : 0,
+            estado: esMismoDestino ? "Múltiple (Mismo Dst)" : "PENDIENTE"
+        });
+    }
 
     try {
-        for (let i = 1; i <= cantidadVehiculos; i++) {
-            let destinoFinal = "";
-            let tarifaFinal = 0;
-            let estadoFinal = "PENDIENTE";
-
-            if (esMismoDestino) {
-                // Si es mismo destino, TODAS las unidades llevan el mismo destino capturado y la nota de caravana
-                destinoFinal = destinoCapturado; 
-                tarifaFinal = tarifaCapturada;
-                estadoFinal = "Múltiple (Mismo Dst)";
-            } else {
-                // Si es diferente destino, van vacíos para llenarse individualmente en la tabla
-                destinoFinal = "";
-                tarifaFinal = 0;
-                estadoFinal = "PENDIENTE";
-            }
-
-            const payloadCola = {
-                cliente_id: formDataCliente.cliente_id,
-                telefono: formDataCliente.telefono,
-                nombre: `${formDataCliente.nombre} [Unidad ${i}/${cantidadVehiculos}]`,
-                origen: formDataCliente.origen,
-                destino: destinoFinal,
-                tarifa: tarifaFinal,
-                estado: estadoFinal
-            };
-            console.log("🚀 Payload enviado al backend:", payloadCola);
-            await apiFetch("/cola_despachos/", {
-                method: "POST",
-                body: JSON.stringify(payloadCola)
-            });
-        }
+        console.log("🚀 Enviando lote completo al backend:", loteDespachos);
+        // 🎯 Única petición HTTP para toda la operación
+        await apiFetch("/cola_despachos/lote", {
+            method: "POST",
+            body: JSON.stringify({ despachos: loteDespachos })
+        });
 
         if (typeof mostrarToast === "function") {
             mostrarToast(`✅ Cola múltiple de ${cantidadVehiculos} vehículos creada con éxito`, "success");
         }
 
-        // Restablecer select y limpiar inputs
         const selectTipo = document.getElementById("tipoDespacho");
         if (selectTipo) selectTipo.selectedIndex = 0;
-
         if (inputDestinoElem) { inputDestinoElem.value = ""; inputDestinoElem.disabled = false; }
         if (inputTarifaElem) { inputTarifaElem.value = ""; inputTarifaElem.disabled = false; }
-
-        if (typeof cargarColaClientes === "function") {
-            cargarColaClientes();
-        }
+        if (typeof cargarColaClientes === "function") cargarColaClientes();
 
         return true;
     } catch (err) {
         console.error("❌ Error al crear despacho múltiple:", err);
-        if (typeof mostrarToast === "function") {
-            mostrarToast("❌ Error al registrar la cola múltiple", "error");
-        }
+        if (typeof mostrarToast === "function") mostrarToast("❌ Error al registrar la cola múltiple", "error");
         return false;
     }
 };

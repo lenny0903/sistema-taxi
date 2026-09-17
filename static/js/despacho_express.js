@@ -227,6 +227,11 @@ async function ejecutarDespachoDirecto({
                 const bannerAnterior = document.getElementById('bannerDespachoFlotante');
                 if (bannerAnterior) bannerAnterior.remove();
 
+                // 🛡️ NUEVO: Limpiar temporizador previo si la operadora despacha muy rápido
+                if (window.bannerDespachoTimeout) {
+                    clearTimeout(window.bannerDespachoTimeout);
+                }
+
                 const bannerDiv = document.createElement('div');
                 bannerDiv.id = 'bannerDespachoFlotante';
                 bannerDiv.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #222; color: #fff; padding: 12px 18px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 12px; font-family: sans-serif;";
@@ -365,7 +370,14 @@ async function ejecutarDespachoDirecto({
                     e.preventDefault();
                     bannerDiv.remove();
                 });
-
+                // ⏱️ Autodestruir el banner automáticamente tras 45 segundos de inactividad
+                window.bannerDespachoTimeout = setTimeout(() => {
+                    const bannerElem = document.getElementById('bannerDespachoFlotante');
+                    if (bannerElem) {
+                        bannerElem.remove();
+                        console.log("🧹 Banner flotante autodestruido por tiempo.");
+                    }
+                }, 45000); // 45 segundos
             } catch (bannerErr) {
                 console.error("⚠️ Error manipulando el banner flotante:", bannerErr);
             }
@@ -649,7 +661,17 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete la información del cliente antes de enviar.", "error");
             return;
         }
+        // 🛡️ FILTRO DE INTEGRIDAD: Normalizar nombres numéricos (ej: "34")
+        const nomInputTemp = document.getElementById("desNombre");
+        let nombreLimpio = nomInputTemp ? nomInputTemp.value.trim() : "";
 
+        if (!nombreLimpio || /^\d+$/.test(nombreLimpio)) {
+            const sufijoNum = nombreLimpio ? ` #${nombreLimpio}` : "";
+            nombreLimpio = `Cliente Ocasional${sufijoNum}`;
+            if (nomInputTemp) {
+                nomInputTemp.value = nombreLimpio; // Se actualiza visualmente en pantalla
+            }
+        }
         const selectTipoDespacho = document.getElementById("tipoDespacho");
         const tipoSeleccionado = selectTipoDespacho ? selectTipoDespacho.value : "1";
 

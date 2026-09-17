@@ -2092,36 +2092,22 @@ async function cargarDespachosActivos() {
       alert("Error al actualizar cliente: " + (data.error || "verifica datos"));
     }
   }
-  // Registrar embarque de despacho
-  async function registrarEmbarque(despachoId) {
-    const res = await apiFetch(`/despachos/${despachoId}/embarque`, { method: "PUT" });
-    const data = await res.json();
-    if (res.ok) {
-      alert("Embarque registrado: " + data.embarque_timestamp);
-      cargarDespachosActivos(); // refresca la tabla dinámica
-    } else {
-      alert("Error: " + (data.error || "No se pudo registrar el embarque"));
-    }
-  }
- 
-
-  // Registrar embarque
+    // Registrar embarque de despacho
   async function registrarEmbarque(idDespacho) {
     try {
-      // 1. Aquí guardamos el resultado de la API
       const data = await apiFetch(`/despachos/${idDespacho}/embarque`, { method: "PUT" });
 
-      // 2. En lugar de res.ok, verificamos si data existe o tiene éxito
-      // (Depende de cómo responda tu Flask, pero usualmente si no hay error, es exitoso)
+      // Verificamos si la respuesta no trae un error
       if (data && !data.error) {
-        alert("Embarque registrado correctamente");
-        cargarDespachosActivos(); // refresca la tabla
+        const timestampMsg = data.embarque_timestamp ? ": " + data.embarque_timestamp : " correctamente";
+        alert("Embarque registrado" + timestampMsg);
+        cargarDespachosActivos(); // Refresca la tabla dinámica
       } else {
-        alert("Error al registrar embarque: " + (data.error || "verifica datos"));
+        alert("Error: " + (data.error || "No se pudo registrar el embarque"));
       }
     } catch (err) {
       console.error("Error en registrarEmbarque:", err);
-      alert("No se pudo registrar el embarque");
+      alert("No se pudo conectar con el servidor para registrar el embarque.");
     }
   }
 
