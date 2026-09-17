@@ -842,13 +842,20 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             // Guardar en cola de espera individual (si no se seleccionó conductor)
             try {
+                // 🛡️ BLINDAJE ABSOLUTO: Leer directamente del DOM ignorando cualquier caché o memoria previa
+                const domTelefono = document.getElementById("desTelefono")?.value.trim() || "";
+                const domNombre   = document.getElementById("desNombre")?.value.trim() || "";
+                const domOrigen   = document.getElementById("desOrigen")?.value.trim() || "";
+                const domDestino  = document.getElementById("desDestino")?.value.trim() || "";
+                const domTarifa   = document.getElementById("tarifaClienteUnico")?.value.trim() || "0";
+
                 const payloadCola = {
-                    cliente_id: parseInt(clienteIdFinal),
-                    telefono: telefonoInput?.value.trim(),
-                    nombre: nomInput?.value.trim(),
-                    origen: oriInput?.value.trim(),
-                    destino: desInput?.value.trim(),
-                    tarifa: parseFloat(tarifaInput?.value || 0)
+                    cliente_id: parseInt(clienteIdFinal) || null,
+                    telefono: domTelefono,
+                    nombre: domNombre,
+                    origen: domOrigen,     
+                    destino: domDestino,   
+                    tarifa: parseFloat(domTarifa) || 0
                 };
 
                 const resCola = await apiFetch("/cola_despachos/", {
@@ -863,6 +870,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.clienteIdActual = null;
                     clienteListoParaEnviar = null;
                     window.idColaEnEdicion = null;
+                    window.memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; // Limpiar memoria por si acaso
 
                     if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
                     if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
