@@ -524,7 +524,7 @@ def vista_conductor(codigo):
 def notificar_gps_manual(id_conductor):
     try:
         from models.conductores import Conductor
-        from routes.telegram_bot import enviar_mensaje
+        from services.telegram_service import enviar_mensaje  # 👈 CORREGIDO AQUÍ
 
         conductor = Conductor.query.get(id_conductor)
         if not conductor or not conductor.telegram_id:
@@ -541,7 +541,6 @@ def notificar_gps_manual(id_conductor):
 
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
-
 
 @conductores_bp.route('/diagnostico-texto/<string:codigo>', methods=['GET'])
 def diagnostico_texto(codigo):
