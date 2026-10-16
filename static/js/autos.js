@@ -1,3 +1,4 @@
+let validandoPlaca = false;
 let bloqueoGuardar = false;
 let buscandoPlaca = false; // 🛡️ Bandera para el Enter de búsqueda
 function seleccionarAuto(auto) {
@@ -148,9 +149,9 @@ async function guardarAuto(e) {
     } catch (error) {
         console.error("Error:", error);
     } finally {
-        // Solo reactivamos el botón después de que todo termine
         boton.disabled = false;
         boton.innerHTML = textoOriginal;
+        bloqueoGuardar = false; // 🔓 Aseguramos que se libere siempre al terminar
     }
 }
 function resetearFormAuto(limpiarPlaca = true) {

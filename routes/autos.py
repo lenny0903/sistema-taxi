@@ -103,7 +103,7 @@ def modificar_auto(id):
         if "tipo_auto" in data: auto.tipo_auto = data["tipo_auto"]
         if "marca" in data: auto.marca = data["marca"]
         if "modelo" in data: auto.modelo = data["modelo"]
-
+        auto.estado = "disponible"
         db.session.commit()
         return jsonify(auto.to_dict()), 200
 
