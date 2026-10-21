@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, request, redirect, session, jsonify
 from datetime import datetime, timedelta
 from sqlalchemy import text
@@ -14,6 +15,19 @@ from utils.time import hora_local
 
 views_bp = Blueprint("views", __name__)
 
+import re
+
+def obtener_url_tunel():
+    log_path = "tunnel.log"  # Asegúrate de que esté en la carpeta raíz del proyecto
+    try:
+        with open(log_path, 'r') as f:
+            contenido = f.read()
+            match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', contenido)
+            if match:
+                return match.group(0)
+    except FileNotFoundError:
+        pass
+    return "http://localhost:5000"  # Respaldo si el log no existe
 @views_bp.route("/login_alt")
 def login_page_alt():
     return render_template("login.html", title="Login")
@@ -42,19 +56,27 @@ def panel_operador():
     tarifas = MatrizTarifa.query.all()
     destinos_lista = [{"destino": t.destino, "precio_cop": t.precio_cop, "municipio": t.municipio} for t in tarifas]
     
-    return render_template("panel_operador.html", title="Panel Operador", despachos=despachos, destinos=destinos_lista)
-
+    # 🚀 Lee directamente la variable del archivo .env (con respaldo a localhost)
+    dominio_publico = obtener_url_tunel()
+    
+    return render_template(
+        "panel_operador.html", 
+        title="Panel Operador", 
+        despachos=despachos, 
+        destinos=destinos_lista, 
+        dominio_publico=dominio_publico
+    )
 @views_bp.route("/panel_admin")
 def panel_admin():
     despachos = Despacho.query.all()
     destinos_query = MatrizTarifa.query.all()
     
     print(f"DEBUG: Se encontraron {len(destinos_query)} registros en la matriz.")
-    
+    dominio_publico = obtener_url_tunel()
     return render_template("panel_admin.html", 
                            title="Panel Administrador", 
                            despachos=despachos, 
-                           destinos=destinos_query)
+                           destinos=destinos_query, dominio_publico=dominio_publico)
 
 @views_bp.route("/actualizar_tarifa", methods=["POST"])
 def actualizar_tarifa():

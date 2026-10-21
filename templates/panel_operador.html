@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
+<script>
+    window.DOMINIO_PUBLICO = "{{ dominio_publico }}";
+</script>
 <h2>Panel Operador</h2>
 <form method="post" action="/despachos/crear_html">
   <div class="mb-3">

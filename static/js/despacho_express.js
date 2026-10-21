@@ -63,6 +63,18 @@ window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
 
     console.log(`✅ Select Express poblado exitosamente con ${contador} conductor(es) en turno disponible(s).`);
 };
+async function obtenerEnlaceCorto(urlLarga) {
+    try {
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(urlLarga)}`);
+        if (response.ok) {
+            const urlCorta = await response.text();
+            return urlCorta; // Ej: https://tinyurl.com/2p9...
+        }
+    } catch (error) {
+        console.error("Error acortando enlace, usando largo por defecto:", error);
+    }
+    return urlLarga; // Si falla el internet, devuelve el largo como respaldo
+}
 // * 📡 Consulta autosuficiente para cargar únicamente los conductores EN TURNO
 
 async function refrescarSelectConductorUnico() { 
@@ -185,8 +197,11 @@ async function ejecutarDespachoDirecto({
 
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
-                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
+               // const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
                 const conductorValido = result.enlace_generado !== false;
+                const dominioPublico = window.DOMINIO_PUBLICO || window.location.origin;
+                //const urlLargaMonitoreo = `${dominioPublico}/monitoreo/${idDespachoActual}`;
+                const urlBotSeguimiento = `${dominioPublico}/s/${idDespachoActual}`;
                 console.log("🔍 idDespachoActual:", idDespachoActual);
                 console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
 

@@ -47,6 +47,30 @@ def configurar_webhook():
         resultado = response.json()
         if resultado.get('ok'):
             print(f"\n✅ ¡Éxito! Webhook configurado en: {url}")
+            
+            # 🚀 GUARDAR AUTOMÁTICAMENTE EN EL .ENV PARA FLASK
+            env_path = ".env"
+            dominio_base = url.split('/telegram/webhook')[0] # Extrae solo la parte de https://xxx.trycloudflare.com
+            
+            # Leer o crear contenido del .env
+            lineas = []
+            if os.path.exists(env_path):
+                with open(env_path, 'r') as f:
+                    lineas = f.readlines()
+            
+            # Actualizar o agregar CLOUDFLARE_URL
+            encontrado = False
+            for i, linea in enumerate(lineas):
+                if linea.startswith("CLOUDFLARE_URL="):
+                    lineas[i] = f"CLOUDFLARE_URL={dominio_base}\n"
+                    encontrado = True
+                    break
+            if not encontrado:
+                lineas.append(f"CLOUDFLARE_URL={dominio_base}\n")
+                
+            with open(env_path, 'w') as f:
+                f.writelines(lineas)
+            print(f"🔄 Variable CLOUDFLARE_URL actualizada en el archivo .env automáticamente.")
         else:
             print(f"\n❌ Error: {resultado.get('description')}")
     except Exception as e:

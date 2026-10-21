@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
+<script>
+    window.DOMINIO_PUBLICO = "{{ dominio_publico }}";
+</script>
 <a href="/panel.html" 
    class="btn btn-secondary position-fixed shadow" 
    style="top: 20px; right: 20px; z-index: 1050; border-radius: 50px; padding: 10px 20px;">

@@ -574,15 +574,83 @@
             const socket = io({
                 transports: ['websocket', 'polling'],
                 reconnection: true,
-                reconnectionAttempts: Infinity,   // 👈 Nunca deja de intentar reconectar
-                reconnectionDelay: 2000,          // Intenta cada 2 segundos al inicio
-                reconnectionDelayMax: 10000,      // Como máximo espera 10s entre reintentos
+                reconnectionAttempts: Infinity,   
+                reconnectionDelay: 2000,          
+                reconnectionDelayMax: 10000,      
                 timeout: 20000
             });
 
             // Listeners para depuración de conexión
             socket.on('connect', () => {
                 console.log('🔌 Socket.IO conectado');
+
+                // 🏠 1. Unirse a la Room privada si es vista de cliente
+                if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
+                    socket.emit('unirse_room', { despacho_id: ID_DESPACHO_ACTIVO });
+                    console.log(`🏠 Solicitando unirse a la sala del despacho: ${ID_DESPACHO_ACTIVO}`);
+                }
+
+                // 📍 2. SÓLO PARA EL CLIENTE: Geolocalización del pasajero
+                if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
+                    let marcadorCliente = null;
+                    let lineaRuta = null;
+
+                    if ("geolocation" in navigator) {
+                        navigator.geolocation.watchPosition(
+                            (position) => {
+                                const latCliente = position.coords.latitude;
+                                const lonCliente = position.coords.longitude;
+                                const coordsCliente = [latCliente, lonCliente];
+
+                                // Dibujar o actualizar el marcador del cliente en el mapa
+                                if (!marcadorCliente) {
+                                    marcadorCliente = L.marker(coordsCliente, {
+                                        icon: L.divIcon({
+                                            className: 'etiqueta-cliente-custom',
+                                            html: `<div style="background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">Tu ubicación 📍</div>`,
+                                            iconSize: [80, 30],
+                                            iconAnchor: [40, 15]
+                                        })
+                                    }).addTo(map);
+                                } else {
+                                    marcadorCliente.setLatLng(coordsCliente);
+                                }
+
+                                // Enviar la posición del cliente al servidor para que el conductor también la vea
+                                socket.emit('actualizar_gps_cliente', {
+                                    despacho_id: ID_DESPACHO_ACTIVO,
+                                    lat: latCliente,
+                                    lon: lonCliente
+                                });
+                            },
+                            (error) => {
+                                console.warn("⚠️ Error obteniendo GPS del cliente:", error.message);
+                                mostrarToast("⚠️ Activa el GPS para ver tu ruta exacta en el mapa.");
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                maximumAge: 5000,
+                                timeout: 10000
+                            }
+                        );
+                    }
+                }
+            });
+
+            // Escuchar la posición específica del conductor asignado
+            socket.on('posicion_conductor', (data) => {
+                console.log('🚗 Posición en tiempo real del conductor:', data);
+                
+                const coords = [parseFloat(data.lat), parseFloat(data.lon)];
+                
+                if (window.marcadorTaxiCliente) {
+                    window.marcadorTaxiCliente.setLatLng(coords);
+                } else {
+                    window.marcadorTaxiCliente = L.marker(coords).addTo(map);
+                    window.marcadorTaxiCliente.bindPopup(`<b>Unidad: #${data.codigo}</b><br>En camino a buscarle.`).openPopup();
+                }
+                
+                map.setView(coords, 17);
             });
 
             socket.on('disconnect', () => {

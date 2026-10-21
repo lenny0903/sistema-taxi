@@ -281,12 +281,68 @@ def _manejar_ubicacion(chat_id, msg, update):
 
     db.session.commit()
     
-    emitir_al_panel('nueva_ubicacion', {
+    # 🔍 Buscar si el conductor tiene un despacho activo en este momento
+    despacho_activo = Despacho.query.filter_by(
+        conductor_id=conductor.id_conductor, 
+        estado_despacho='en_curso' # o el estado que manejes para viajes activos
+    ).first()
+
+    datos_ubicacion = {
         'conductor_id': conductor.id_conductor,
         'codigo': conductor.codigo,
         'nombre': getattr(conductor, 'nombre', 'Conductor'),
         'lat': conductor.latitud,
         'lon': conductor.longitud,
         'ultima_actualizacion': ahora.isoformat()
-    })
+    }
+
+    # Emitir de forma global para el panel de la central (como ya lo hace)
+    emitir_al_panel('nueva_ubicacion', datos_ubicacion)
+
+    # 🚀 Emitir específicamente a la Room privada del cliente si hay un viaje en curso
+    if despacho_activo:
+        try:
+            socketio.emit('posicion_conductor', datos_ubicacion, room=str(despacho_activo.id_despacho))
+            print(f"📡 Coordenada retransmitida a la Room del despacho #{despacho_activo.id_despacho}")
+        except Exception as e:
+            print(f"❌ Error al emitir a la room del cliente: {e}")
+
     return {"status": "loc_actualizada"}, 200
+
+def notificar_despacho_a_conductor(id_despacho):
+    """
+    Envia un mensaje privado al Telegram del conductor asignado
+    con el boton para abrir el mapa del viaje.
+    """
+    despacho = Despacho.query.get(id_despacho)
+    if not despacho or not despacho.conductor_id:
+        print(f"⚠️ Despacho #{id_despacho} no tiene conductor asignado.")
+        return False
+
+    conductor = Conductor.query.get(despacho.conductor_id)
+    if not conductor or not conductor.telegram_id:
+        print(f"⚠️ El conductor #{despacho.conductor_id} no tiene Telegram vinculado.")
+        return False
+
+    # Generamos la URL externa del mapa para el conductor
+    dominio_actual = os.getenv('CLOUDFLARE_URL', 'http://127.0.0.1:5000')
+    url_mapa = f"{dominio_actual}/monitoreo/{id_despacho}"
+
+    teclado = {
+        "inline_keyboard": [
+            [{"text": "🗺️ Abrir Mapa del Viaje", "url": url_mapa}]
+        ]
+    }
+
+    mensaje = (
+        f"🚖 *¡NUEVO SERVICIO ASIGNADO!*\n\n"
+        f"📋 *Despacho:* #{id_despacho}\n"
+        f"👤 *Cliente:* {getattr(despacho, 'nombre_cliente', 'Cliente')}\n"
+        f"📍 *Origen:* {getattr(despacho, 'origen', 'Dirección de recogida')}\n"
+        f"🏁 *Destino:* {getattr(despacho, 'destino', 'Punto de llegada')}\n\n"
+        f"👉 Presiona el botón para ver la ruta en el mapa y recuerda **compartir tu ubicación en tiempo real** en este chat."
+    )
+
+    enviar_mensaje_con_teclado_inline(conductor.telegram_id, mensaje, teclado)
+    print(f"📲 Notificación enviada al conductor {conductor.codigo} para el Despacho #{id_despacho}")
+    return True

@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3  
 from engineio import payload
-from flask import Blueprint, app, request, jsonify
+from flask import Blueprint, app, request, jsonify, redirect, url_for
 from extensions import db
 from models.cola_notificaciones import ColaNotificaciones
 from models import despachos
@@ -13,6 +13,7 @@ from models.clientes import Cliente
 from models.conductores import Conductor
 from models.autos import Auto
 from datetime import datetime
+from services.telegram_service import notificar_despacho_a_conductor 
 from utils.auth import rol_requerido
 from flask import render_template
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.cola_despachos import ColaDespacho
 from utils.notificaciones import enviar_encuesta_satisfaccion
-
+from routes.telegram_bot import publicar_en_canal
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
 from models.lista_espera import ListaEspera
@@ -154,7 +155,16 @@ def crear_despacho():
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
         db.session.commit()
+        publicar_en_canal(nuevo_despacho.id_despacho)
+        
+        # 📲 Notificar en privado al conductor asignado con su enlace de mapa
+        try:
+            notificar_despacho_a_conductor(nuevo_despacho.id_despacho)
+        except Exception as err_notif:
+            print(f"⚠️ Error al notificar al conductor por Telegram: {err_notif}")
 
+        # 🗺️ Generar el enlace absoluto del mapa usando tu túnel de Cloudflare
+        url_mapa_cliente = url_for('views.pagina_mapa_despacho', id_despacho=nuevo_despacho.id_despacho, _external=True, _scheme='https')
         # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
@@ -164,7 +174,8 @@ def crear_despacho():
             "msg": mensaje_respuesta,
             "id_despacho": nuevo_despacho.id_despacho,
             "cliente_telefono": c_tel,
-            "enlace_generado": conductor_valido
+            "enlace_generado": conductor_valido,
+            "url_mapa": url_mapa_cliente  # 👈 ¡Aquí está el enlace listo para WhatsApp!
         }), 201
 
     except Exception as e:

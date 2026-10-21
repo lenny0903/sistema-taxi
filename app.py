@@ -185,6 +185,7 @@ def create_app():
     def login_redirect():
         return redirect(url_for("home"))
 
+    from routes.views import obtener_url_tunel  
     @app.route("/panel.html")
     def panel_html():
         tarifas = MatrizTarifa.query.all()
@@ -195,7 +196,7 @@ def create_app():
                 "municipio": t.municipio
             } for t in tarifas
         ]
-        return render_template("dashboard.html", destinos=destinos_lista)
+        return render_template("dashboard.html", destinos=destinos_lista, dominio_publico=obtener_url_tunel())
 
     @app.route('/obtener_tarifas', methods=['GET'])
     def obtener_tarifas():
@@ -243,7 +244,42 @@ def create_app():
         # Aquí puedes buscar el ID en tu BD si lo necesitas, o armar el start dinámico
         url_telegram = f"https://t.me/taxilospatriotastest_bot?start=srv-{id_servicio}"
         return redirect(url_telegram, code=302)
+
+    @app.route('/s', methods=['GET'])
+    @app.route('/s/<id_despacho>', methods=['GET'])
+    def enlace_corto_parametro(id_despacho=None):
+        # Si entra por ?id=... o por ruta limpia /s/19663
+        if not id_despacho:
+            id_despacho = request.args.get('id')
+        
+        return redirect(f"/monitoreo/{id_despacho}")
+    from werkzeug.middleware.proxy_fix import ProxyFix
     
+    # 🟢 1. IMPORTAR join_room aquí o arriba con las demás utilidades de socketio
+    from flask_socketio import join_room
+
+    # 🟢 2. REGISTRAR EL EVENTO DE SOCKET.IO PARA LA ROOM PRIVADA
+    @socketio.on('unirse_room')
+    def handle_unirse_room(data):
+        despacho_id = data.get('despacho_id')
+        if despacho_id:
+            room = str(despacho_id)
+            join_room(room)
+            print(f"✅ Cliente unido exitosamente a la Room privada: {room}")
+    @socketio.on('actualizar_gps_cliente')
+    def handle_actualizar_gps_cliente(data):
+        despacho_id = data.get('despacho_id')
+        lat = data.get('lat')
+        lon = data.get('lon')
+        
+        if despacho_id and lat and lon:
+            room = str(despacho_id)
+            # Reenviar la ubicación del cliente a todos los miembros de la sala (incluyendo al conductor si está conectado)
+            socketio.emit('posicion_cliente', {
+                'lat': lat,
+                'lon': lon
+            }, room=room)
+            print(f"📍 Coordenada GPS del cliente recibida y retransmitida en la Room #{room}: ({lat}, {lon})")        
     app.wsgi_app = ProxyFix(
         app.wsgi_app, 
         x_for=1, 
@@ -255,6 +291,7 @@ def create_app():
     return app
 
 from werkzeug.middleware.proxy_fix import ProxyFix
+
 if __name__ == "__main__":
     app = create_app()
     
