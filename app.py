@@ -197,7 +197,20 @@ def create_app():
             } for t in tarifas
         ]
         return render_template("dashboard.html", destinos=destinos_lista, dominio_publico=obtener_url_tunel())
+    @app.route('/s', methods=['GET'])
+    @app.route('/s/<id_despacho>', methods=['GET'])
+    def enlace_corto_parametro(id_despacho=None):
+        if not id_despacho:
+            id_despacho = request.args.get('id')
+        
+        dominio_base = obtener_url_tunel()
+        
+        if "127.0.0.1" in dominio_base or "localhost" in dominio_base:
+            if "127.0.0.1" not in request.host and "localhost" not in request.host:
+                dominio_base = f"{request.scheme}://{request.host}"
 
+        url_destino = f"{dominio_base.rstrip('/')}/monitoreo/{id_despacho}"
+        return redirect(url_destino, code=302)
     @app.route('/obtener_tarifas', methods=['GET'])
     def obtener_tarifas():
         try:
@@ -245,14 +258,7 @@ def create_app():
         url_telegram = f"https://t.me/taxilospatriotastest_bot?start=srv-{id_servicio}"
         return redirect(url_telegram, code=302)
 
-    @app.route('/s', methods=['GET'])
-    @app.route('/s/<id_despacho>', methods=['GET'])
-    def enlace_corto_parametro(id_despacho=None):
-        # Si entra por ?id=... o por ruta limpia /s/19663
-        if not id_despacho:
-            id_despacho = request.args.get('id')
-        
-        return redirect(f"/monitoreo/{id_despacho}")
+    
     from werkzeug.middleware.proxy_fix import ProxyFix
     
     # 🟢 1. IMPORTAR join_room aquí o arriba con las demás utilidades de socketio

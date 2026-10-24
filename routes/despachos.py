@@ -26,6 +26,8 @@ from routes.telegram_bot import publicar_en_canal
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
 from models.lista_espera import ListaEspera
+from utils.url_helpers import acortar_url_cuttly
+from routes.views import obtener_url_tunel
 despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 
 from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de bloqueos
@@ -163,8 +165,18 @@ def crear_despacho():
         except Exception as err_notif:
             print(f"⚠️ Error al notificar al conductor por Telegram: {err_notif}")
 
-        # 🗺️ Generar el enlace absoluto del mapa usando tu túnel de Cloudflare
-        url_mapa_cliente = url_for('views.pagina_mapa_despacho', id_despacho=nuevo_despacho.id_despacho, _external=True, _scheme='https')
+        # 🗺️ Generar el enlace absoluto usando el túnel activo de Cloudflare
+        dominio_activo = obtener_url_tunel()
+        
+        # Si por alguna razón devuelve localhost, intentamos usar el host actual si viene de una petición externa
+        if "127.0.0.1" in dominio_activo or "localhost" in dominio_activo:
+            if "127.0.0.1" not in request.host and "localhost" not in request.host:
+                dominio_activo = f"{request.scheme}://{request.host}"
+
+        url_mapa_cliente = f"{dominio_activo.rstrip('/')}/monitoreo/{nuevo_despacho.id_despacho}"
+        # ✂️ Acortar la URL con Cuttly solo si el conductor es válido
+        url_corta = acortar_url_cuttly(url_mapa_cliente) if conductor_valido else url_mapa_cliente
+
         # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
@@ -175,7 +187,8 @@ def crear_despacho():
             "id_despacho": nuevo_despacho.id_despacho,
             "cliente_telefono": c_tel,
             "enlace_generado": conductor_valido,
-            "url_mapa": url_mapa_cliente  # 👈 ¡Aquí está el enlace listo para WhatsApp!
+            "url_mapa": url_corta,  # 👈 ¡Cambiamos 'url_mapa_cliente' por 'url_corta'!
+            "url_corta": url_corta # 👈 También la enviamos aquí para mantener compatibilidad con tu JS
         }), 201
 
     except Exception as e:

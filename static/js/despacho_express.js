@@ -1,5 +1,6 @@
 // ==================== Bloque 1: Flujo rápido (alta demanda) ====================
 let memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} };
+
 // * 🟢 Función Global para llenar el selectConductorUnico
 // * Mapea resilientemente los campos del backend (codigo/numero_control, id_conductor, nombre)
 // */
@@ -195,15 +196,50 @@ async function ejecutarDespachoDirecto({
                 //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
                 
 
-                // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
+               // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
                // const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
-                const conductorValido = result.enlace_generado !== false;
-                const dominioPublico = window.DOMINIO_PUBLICO || window.location.origin;
-                //const urlLargaMonitoreo = `${dominioPublico}/monitoreo/${idDespachoActual}`;
-                const urlBotSeguimiento = `${dominioPublico}/s/${idDespachoActual}`;
-                console.log("🔍 idDespachoActual:", idDespachoActual);
-                console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
+               const conductorValido = result.enlace_generado !== false;
+
+                // 1. Si Cuttly dio respuesta, usamos esa URL corta
+                let urlBotSeguimiento = result.url_corta;
+
+                // 2. Si no hay acortador, construimos la URL usando obligatoriamente el túnel público
+                if (!urlBotSeguimiento) {
+                    let dominioBase = window.DOMINIO_PUBLICO || "";
+
+                    // Limpiamos y aseguramos que tenga protocolo
+                    if (dominioBase && !dominioBase.startsWith("http")) {
+                        dominioBase = "https://" + dominioBase;
+                    }
+
+                    // Si tenemos un dominio válido de Cloudflare, lo usamos
+                    if (dominioBase && dominioBase.includes("trycloudflare.com")) {
+                        urlBotSeguimiento = `${dominioBase}/s/${idDespachoActual}`;
+                    } 
+                    else {
+                        // ⚠️ RESPALDO DE EMERGENCIA PARA EL CLIENTE:
+                        // Si por alguna razón window.DOMINIO_PUBLICO vino vacío, 
+                        // NUNCA usamos 127.0.0.1 porque el cliente está afuera. 
+                        // Forzamos un aviso o intentamos usar el host actual solo si es una IP pública/red local,
+                        // pero lo ideal es exigir que el túnel esté activo.
+                        console.error("❌ ERROR CRÍTICO: No hay túnel de Cloudflare activo en window.DOMINIO_PUBLICO");
+                        
+                        // Como último recurso para que no reviente, si estás en red local (ej. 192.168.x.x) se usa, 
+                        // pero si estás en 127.0.0.1, advertimos al operador:
+                        let hostActual = window.location.hostname;
+                        let puertoActual = window.location.port ? ":" + window.location.port : "";
+                        
+                        if (hostActual === "127.0.0.1" || hostActual === "localhost") {
+                            alert("⚠️ ¡Atención! No se detectó el túnel de Cloudflare. El enlace de WhatsApp saldrá con errores para el cliente. Revisa que el túnel esté corriendo.");
+                        }
+                        
+                        urlActual = `${window.location.protocol}//${hostActual}${puertoActual}`;
+                        urlBotSeguimiento = `${urlActual}/s/${idDespachoActual}`;
+                    }
+                }
+
+                console.log("🔍 Enlace final generado:", urlBotSeguimiento);
 
                 const msgCliente = conductorValido ? (
                     `🚖 ¡Hola! Su servicio está confirmado.\n\n` +
@@ -356,27 +392,28 @@ async function ejecutarDespachoDirecto({
                     }
                 });
 
-                // 💬 Evento dinámico para el botón del cliente
+               // 💬 Evento dinámico para el botón del cliente
                 bannerDiv.querySelector('#btnTextoCli').addEventListener('click', async (e) => {
                     e.preventDefault();
                     if (!conductorValido) {
-                        alert("⚠️ ATENCIÓN: Este despacho se registró con una unidad inactiva o con el tiempo de GPS expirado. El enlace de rastreo no está disponible. Debe reasignar el servicio si desea enviar un seguimiento.");
+                        alert("⚠️ ATENCIÓN: Este despacho se registró con una unidad inactiva o con el tiempo de GPS expirado. El enlace de rastreo no está disponible.");
                         return;
                     }
-                    try {
-                        await navigator.clipboard.writeText(msgCliente);
+                    const exito = await copiarTextoAlPortapapeles(msgCliente);
+                    if (exito) {
                         mostrarToast("📋 Mensaje cliente copiado", "success");
-                    } catch (err) {
+                    } else {
                         mostrarToast("⚠️ No se pudo copiar el texto", "error");
                     }
                 });
 
+                // 🚗 Evento para el botón del conductor
                 bannerDiv.querySelector('#btnCond').addEventListener('click', async (e) => {
                     e.preventDefault();
-                    try {
-                        await navigator.clipboard.writeText(msgConductor);
+                    const exito = await copiarTextoAlPortapapeles(msgConductor);
+                    if (exito) {
                         mostrarToast("📋 Mensaje conductor copiado", "success");
-                    } catch (err) {
+                    } else {
                         mostrarToast("⚠️ No se pudo copiar", "error");
                     }
                 });
@@ -418,6 +455,36 @@ async function ejecutarDespachoDirecto({
         console.error("❌ Error en Despacho:", err);
         mostrarToast("❌ Error de conexión o del servidor", "error");
         window.isDespachandoFlag = false;
+        return false;
+    }
+}
+// 🛡️ Función auxiliar universal para copiar texto en HTTP/HTTPS
+async function copiarTextoAlPortapapeles(texto) {
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(texto);
+            return true;
+        } catch (err) {
+            console.warn("Clipboard API falló, intentando método clásico:", err);
+        }
+    }
+
+    // Método de respaldo para HTTP / IP local (0.0.0.0)
+    try {
+        const textArea = document.createElement("textarea");
+        textArea.value = texto;
+        textArea.style.position = "fixed";
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const exito = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        return exito;
+    } catch (err) {
+        console.error("Error en fallback de copia:", err);
         return false;
     }
 }
@@ -793,6 +860,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 formDespacho.reset();
+                // 🛡️ Asegurar que el selector de tipo de despacho regrese al modo individual
+                const selectTipoDespacho = document.getElementById("tipoDespacho");
+                if (selectTipoDespacho) {
+                    selectTipoDespacho.selectedIndex = 0; // Vuelve a la opción 1 (Normal / Individual)
+                }
                 window.clienteIdActual = null;
                 clienteListoParaEnviar = null;
                 window.idColaEnEdicion = null;
