@@ -17,17 +17,36 @@ views_bp = Blueprint("views", __name__)
 
 import re
 
+# Variables globales para caché en memoria
+_url_tunel_cache = None
+_ultimo_tiempo_lectura = 0
+
 def obtener_url_tunel():
-    log_path = "tunnel.log"  # Asegúrate de que esté en la carpeta raíz del proyecto
-    try:
-        with open(log_path, 'r') as f:
-            contenido = f.read()
-            match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', contenido)
-            if match:
-                return match.group(0)
-    except FileNotFoundError:
-        pass
-    return "http://localhost:5000"  # Respaldo si el log no existe
+    global _url_tunel_cache, _ultimo_tiempo_lectura
+    tiempo_actual = time.time()
+    
+    # Si ya leímos el archivo hace menos de 30 segundos, devolvemos el valor guardado al instante (sin tocar el disco)
+    if _url_tunel_cache and (tiempo_actual - _ultimo_tiempo_lectura < 30):
+        return _url_tunel_cache
+
+    posibles_logs = ["tunel_log.txt", "tunnel.log"]
+    
+    for log_path in posibles_logs:
+        if os.path.exists(log_path):
+            try:
+                # Usamos una lectura rápida del final o del archivo completo si es pequeño
+                with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    contenido = f.read()
+                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', contenido)
+                    if match:
+                        _url_tunel_cache = match.group(0)
+                        _ultimo_tiempo_lectura = tiempo_actual
+                        return _url_tunel_cache
+            except Exception:
+                continue
+                
+    # Respaldo por defecto si ninguno existe
+    return "http://localhost:5000"
 @views_bp.route("/login_alt")
 def login_page_alt():
     return render_template("login.html", title="Login")

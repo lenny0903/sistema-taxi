@@ -1000,6 +1000,12 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 });
+window.cerrarModalCola = function() {
+    const modalCola = document.getElementById("modalColaClientes") || document.getElementById("modalCola");
+    if (modalCola) {
+        modalCola.classList.add("hidden");
+    }
+};
 const btnCerrarCola = document.getElementById("btnCerrarCola");
 if (btnCerrarCola) {
   btnCerrarCola.addEventListener("click", cerrarModalCola);
