@@ -1,4 +1,3 @@
-from curses import window
 import sys
 import io
 
