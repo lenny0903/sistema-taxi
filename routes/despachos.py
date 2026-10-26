@@ -30,6 +30,7 @@ despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de bloqueos
 
 @despachos_bp.route("/", methods=["POST"])
+@despachos_bp.route("/", methods=["POST"])
 def crear_despacho():
     try:
         data = request.get_json()
@@ -67,7 +68,22 @@ def crear_despacho():
             }), 400
         # ====================================================================
 
-       # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
+        # ====================================================================
+        # 🛑 BLOQUEO CRÍTICO: Verificar al conductor ANTES de crear el despacho
+        # ====================================================================
+        conductor_obj = Conductor.query.get(conductor_id)
+        if not conductor_obj:
+            return jsonify({"error": "Conductor no encontrado"}), 404
+
+        con_cod = conductor_obj.codigo
+
+        if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
+            return jsonify({
+                "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está activo ni conectado en Telegram en este momento. No se puede crear el despacho."
+            }), 400
+        # ====================================================================
+
+        # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
         with db.session.no_autoflush:
             ahora = hora_local()
             nuevo_despacho = Despacho(
@@ -85,34 +101,30 @@ def crear_despacho():
             db.session.add(nuevo_despacho)
             db.session.flush() # Genera el ID del nuevo despacho
             
-            # --- OBTENCIÓN SEGURA DE DATOS ---
+            # --- OBTENCIÓN DE RESTO DE DATOS ---
             cliente_obj = Cliente.query.get(cliente_id)
-            conductor_obj = Conductor.query.get(conductor_id)
             
             c_tel = data.get("cliente_telefono") or (cliente_obj.telefono if cliente_obj else "0000000")
             c_nom = cliente_obj.nombre if cliente_obj else "Cliente"
-            con_tel = data.get("conductor_telefono") or (conductor_obj.nro_telefono if conductor_obj else "0000000")
-            con_nom = conductor_obj.nombre if conductor_obj else "Conductor"
-            con_cod = conductor_obj.codigo if conductor_obj else "S/C"
+            con_tel = data.get("conductor_telefono") or conductor_obj.nro_telefono
+            con_nom = conductor_obj.nombre
 
             # ====================================================================
-            # 🛡️ VALIDACIÓN DE VIGENCIA DEL CONDUCTOR PARA EL ENLACE/NOTIFICACIÓN
+            # 🛡️ VALIDACIÓN DE VIGENCIA DEL GPS (Para enlace y notificación)
             # ====================================================================
             conductor_valido = True
-            if not conductor_obj:
+            
+            # Normalizar la expiración del GPS para evitar choques de zonas horarias
+            exp_gps = conductor_obj.expiracion_gps
+            if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
+                exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
+
+            # Validar si el GPS expiró a pesar de estar conectado
+            if exp_gps and exp_gps < ahora:
                 conductor_valido = False
-            else:
-                # Normalizar la expiración del GPS para evitar choques de zonas horarias
-                exp_gps = conductor_obj.expiracion_gps
-                if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
-                    exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
+                print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} tiene el GPS expirado. No se generará el enlace automático.")
 
-                # Validación segura única
-                if conductor_obj.estado_red != 'conectado' or (exp_gps and exp_gps < ahora):
-                    conductor_valido = False
-                    print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} está inactivo o con GPS expirado. No se generará el enlace automático.")
-
-            # Solo construimos la notificación y el enlace si el conductor es válido
+            # Solo construimos la notificación y el enlace si el GPS sigue vigente
             if conductor_valido:
                 codigo_minicla = con_cod.lower()
                 url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
@@ -158,7 +170,7 @@ def crear_despacho():
         # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
-            mensaje_respuesta += " (⚠️ Advertencia: Conductor inactivo o GPS expirado, no se generó enlace de WhatsApp)."
+            mensaje_respuesta += " (⚠️ Advertencia: GPS expirado, no se generó enlace de WhatsApp)."
 
         return jsonify({
             "msg": mensaje_respuesta,
@@ -171,7 +183,7 @@ def crear_despacho():
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-        
+            
 @despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID

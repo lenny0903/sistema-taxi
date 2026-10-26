@@ -1,7 +1,7 @@
-from flask import Blueprint, app, request, jsonify
+from flask import Blueprint, request, jsonify
 from extensions import db
 from models import ColaDespacho, Cliente
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import current_app 
 
 cola_despachos_bp = Blueprint("cola_despachos", __name__)
@@ -37,6 +37,17 @@ def cola_despachos():
                 db.session.add(cliente)
                 db.session.commit()
 
+            # 🛡️ PROTECCIÓN ANTI-DUPLICADOS RECIENTE (Evita doble registro en menos de 5 segundos)
+            limite_tiempo = datetime.utcnow() - timedelta(seconds=5)
+            duplicado_reciente = ColaDespacho.query.filter_by(
+                id_cliente=cliente.id_cliente,
+                origen=origen_actual,
+                estado="En espera"
+            ).filter(ColaDespacho.fecha_creacion >= limite_tiempo).first()
+
+            if duplicado_reciente:
+                return jsonify({"error": "Este despacho ya fue registrado hace un instante."}), 400
+
             # Crear entrada en la cola registrando la tarifa y guardando en BD (Persistente)
             cola = ColaDespacho(
                 id_cliente=cliente.id_cliente,
@@ -59,7 +70,7 @@ def cola_despachos():
 
     elif request.method == "GET":
         try:
-            # Consultamos directamente a la base de datos SQLite con seguridad ante errores
+            # Consultamos directamente a la base de datos con seguridad ante errores
             colas = ColaDespacho.query.order_by(ColaDespacho.fecha_creacion.asc()).all()
             return jsonify([c.to_dict() for c in colas]), 200
         except Exception as e:
@@ -106,6 +117,17 @@ def webhook_wa():
         # 2. Determinar el origen (Regla base de datos / mensaje)
         origen_final = mensaje if (mensaje and len(mensaje) > 3) else cliente.direccion
 
+        # 🛡️ Opcional: Protección anti-duplicados también para WhatsApp
+        limite_tiempo = datetime.utcnow() - timedelta(seconds=5)
+        duplicado_wa = ColaDespacho.query.filter_by(
+            id_cliente=cliente.id_cliente,
+            origen=origen_final,
+            estado="En espera"
+        ).filter(ColaDespacho.fecha_creacion >= limite_tiempo).first()
+
+        if duplicado_wa:
+            return jsonify({"status": "error", "message": "Mensaje duplicado de WhatsApp reciente"}), 400
+
         # 3. Crear entrada persistente en la cola
         nueva_cola = ColaDespacho(
             id_cliente=cliente.id_cliente,
@@ -137,20 +159,21 @@ def registrar_lote_despachos():
     if not datos:
         return jsonify({"error": "No hay datos para procesar"}), 400
 
-    # Debes abrir el cursor a partir de tu conexión o de db
-    cursor = db.cursor() # O la variable de conexión que uses
     try:
-        for despacho in datos:
-            cursor.execute("""
-                INSERT INTO cola_despachos (cliente_id, telefono, nombre, origen, destino, tarifa, estado)
-                VALUES (%(cliente_id)s, %(telefono)s, %(nombre)s, %(origen)s, %(destino)s, %(tarifa)s, %(estado)s)
-            """, despacho)
+        for item in datos:
+            nuevo_lote = ColaDespacho(
+                id_cliente=item.get('cliente_id'),
+                origen=item.get('origen'),
+                destino=item.get('destino', ''),
+                tarifa=item.get('tarifa', 0),
+                estado=item.get('estado', 'En espera'),
+                fecha_creacion=datetime.utcnow()
+            )
+            db.session.add(nuevo_lote)
         
-        db.commit() # ✔ Guardado masivo exitoso
+        db.session.commit() # ✔ Guardado masivo con SQLAlchemy de forma segura
         return jsonify({"status": "success", "message": f"Lote de {len(datos)} unidades procesado"}), 201
 
     except Exception as e:
-        db.rollback() # 🔄 Reversión total si ocurre un fallo
+        db.session.rollback() # 🔄 Reversión total si ocurre un fallo
         return jsonify({"error": "Fallo en la transacción: " + str(e)}), 500
-    finally:
-        cursor.close() # Siempre es buena práctica cerrar el cursor

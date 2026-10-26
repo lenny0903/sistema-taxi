@@ -25,7 +25,19 @@ def confirmar_clic(callback_id):
 
 def procesar_update_telegram(update):
     """Encargado de enrutar si es un callback (botón inline), un texto o una ubicación."""
-    
+    msg = update.get('message') or update.get('edited_message')
+    if not msg:
+        return {"status": "sin_mensaje"}, 200
+
+    user_from = msg.get('from')
+    chat_id = str(user_from['id'])
+
+    # NUEVO: Si el usuario compartió su contacto mediante el botón
+    if 'contact' in msg:
+        return _manejar_contacto(chat_id, msg['contact'])
+
+    if 'text' in msg:
+        return _manejar_texto(chat_id, msg['text'].strip())
     # 0. BOTONES INLINE (CALLBACK QUERIES)
     callback = update.get('callback_query')
     if callback:
@@ -196,21 +208,29 @@ def _manejar_texto(chat_id, texto):
         enviar_menu_botones(chat_id)
         return {"status": "esperando_codigo"}, 200
 
-    # Validación de Código Bxx
+    # Validación de Código Bxx (Paso 1: Solicitar contacto para verificar)
     if texto.upper().startswith('B') and len(texto) >= 2:
         conductor_c = Conductor.query.filter_by(codigo=texto.upper()).first()
         if conductor_c:
-            if conductor_c.telegram_id and conductor_c.telegram_id != chat_id:
-                enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.")
-            else:
-                conductor_c.telegram_id = chat_id
-                db.session.commit()
-                enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada.")
-            enviar_menu_botones(chat_id)
+            # Guardamos temporalmente en memoria qué conductor quiere activar este chat_id
+            usuarios_reportando[chat_id] = f"activando_{conductor_c.id_conductor}"
+            
+            # Creamos un botón nativo de Telegram para compartir contacto
+            teclado_contacto = {
+                "keyboard": [[{"text": "📱 Compartir mi número de teléfono", "request_contact": True}]],
+                "resize_keyboard": True,
+                "one_time_keyboard": True
+            }
+            # Usas tu función de envío con teclado normal (no inline)
+            from utils.notificaciones import _enviar_peticion
+            _enviar_peticion("sendMessage", {
+                "chat_id": chat_id,
+                "text": f"⚠️ Para vincular la unidad {conductor_c.codigo}, por favor comparte tu número de teléfono oficial usando el botón de abajo:",
+                "reply_markup": teclado_contacto
+            })
         else:
             enviar_mensaje(chat_id, "🚫 Código no encontrado.")
-            enviar_menu_botones(chat_id)
-        return {"status": "resultado_vinculacion"}, 200
+        return {"status": "esperando_contacto_verificacion"}, 200
 
     if conductor_activo:
         enviar_menu_botones(chat_id)
@@ -290,3 +310,40 @@ def _manejar_ubicacion(chat_id, msg, update):
         'ultima_actualizacion': ahora.isoformat()
     })
     return {"status": "loc_actualizada"}, 200
+
+def _manejar_contacto(chat_id, contact):
+    # Verificamos si este chat estaba en proceso de activación
+    estado_temp = usuarios_reportando.get(chat_id)
+    if not estado_temp or not estado_temp.startswith("activando_"):
+        enviar_mensaje(chat_id, "⚠️ No hay ninguna activación pendiente.")
+        return {"status": "contacto_sin_proceso"}, 200
+
+    conductor_id = int(estado_temp.split("_")[1])
+    conductor = Conductor.query.get(conductor_id)
+    
+    if not conductor:
+        enviar_mensaje(chat_id, "🚫 Conductor no encontrado.")
+        return {"status": "conductor_no_encontrado"}, 200
+
+    # Teléfono que envió Telegram (limpiando símbolos)
+    telefono_telegram = contact.get('phone_number', '').replace('+', '').strip()
+    # Teléfono registrado en tu base de datos
+    telefono_bd = str(conductor.telefono).replace('+', '').strip()
+
+    # Validar coincidencia de números
+    if telefono_telegram in telefono_bd or telefono_bd in telefono_telegram:
+        # ¡Coinciden! Es el teléfono real del titular
+        conductor.telegram_id = chat_id
+        db.session.commit()
+        
+        # Limpiar estado temporal
+        usuarios_reportando.pop(chat_id, None)
+        
+        enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor.nombre}! Cuenta activada correctamente.")
+        enviar_menu_botones(chat_id)
+        return {"status": "vinculacion_exitosa"}, 200
+    else:
+        # No coinciden: la cuenta de Telegram es de otra persona o número
+        usuarios_reportando.pop(chat_id, None)
+        enviar_mensaje(chat_id, "❌ **Acceso denegado**: El número de esta cuenta de Telegram no coincide con el teléfono registrado para esta unidad en el sistema.")
+        return {"status": "vinculacion_rechazada_por_telefono"}, 200
