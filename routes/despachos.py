@@ -29,7 +29,7 @@ despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 
 from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de bloqueos
 
-@despachos_bp.route("/", methods=["POST"])
+
 @despachos_bp.route("/", methods=["POST"])
 def crear_despacho():
     try:

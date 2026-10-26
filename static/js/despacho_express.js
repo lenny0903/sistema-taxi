@@ -234,7 +234,6 @@ async function ejecutarDespachoDirecto({
                     `💰 *Tarifa:* ${pesosTarifa ? pesosTarifa.toLocaleString('es-VE') + ' COP (' + bolivaresTexto + ')' : 'A convenir'}\n` +
                     `👤 *Cliente:* ${nombreCliente}\n` +
                     `📞 *Teléfono:* ${telefonoCliente}\n\n` +
-                    `👉 ${urlBotSeguimiento}\n\n` +
                     `¡Buen viaje! 🚀`;
 
                 // Crear el Banner Flotante
