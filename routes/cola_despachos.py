@@ -152,7 +152,7 @@ def webhook_wa():
         print(f"❌ Error en Webhook WA: {e}")
         return jsonify({"error": str(e)}), 500
 
-@cola_despachos_bp.route('/cola_despachos/lote', methods=['POST'])
+@cola_despachos_bp.route('/lote', methods=['POST'])
 def registrar_lote_despachos():
     datos = request.json.get('despachos', [])
 

@@ -69,7 +69,7 @@ def crear_despacho():
         # ====================================================================
 
         # ====================================================================
-        # 🛑 BLOQUEO CRÍTICO: Verificar al conductor ANTES de crear el despacho
+        # 🛑 BLOQUEO OBLIGATORIO: Verificar que el conductor esté conectado en Telegram
         # ====================================================================
         conductor_obj = Conductor.query.get(conductor_id)
         if not conductor_obj:
@@ -79,7 +79,7 @@ def crear_despacho():
 
         if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
             return jsonify({
-                "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está activo ni conectado en Telegram en este momento. No se puede crear el despacho."
+                "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está conectado en Telegram. No se puede crear el despacho."
             }), 400
         # ====================================================================
 
@@ -110,21 +110,18 @@ def crear_despacho():
             con_nom = conductor_obj.nombre
 
             # ====================================================================
-            # 🛡️ VALIDACIÓN DE VIGENCIA DEL GPS (Para enlace y notificación)
+            # 🛡️ VALIDACIÓN DE VIGENCIA DEL GPS
             # ====================================================================
             conductor_valido = True
             
-            # Normalizar la expiración del GPS para evitar choques de zonas horarias
             exp_gps = conductor_obj.expiracion_gps
             if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
                 exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
 
-            # Validar si el GPS expiró a pesar de estar conectado
             if exp_gps and exp_gps < ahora:
                 conductor_valido = False
-                print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} tiene el GPS expirado. No se generará el enlace automático.")
+                print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} tiene el GPS expirado.")
 
-            # Solo construimos la notificación y el enlace si el GPS sigue vigente
             if conductor_valido:
                 codigo_minicla = con_cod.lower()
                 url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
@@ -160,14 +157,12 @@ def crear_despacho():
                 )
                 db.session.add(notificacion)
             
-            # Borrado de Cola (si aplica)
             cola_id = data.get("id_notificacion")
             if cola_id:
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
         db.session.commit()
 
-        # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
             mensaje_respuesta += " (⚠️ Advertencia: GPS expirado, no se generó enlace de WhatsApp)."
@@ -183,7 +178,6 @@ def crear_despacho():
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-            
 @despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID

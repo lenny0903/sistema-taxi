@@ -415,7 +415,22 @@ async function ejecutarDespachoDirecto({
         }
     } catch (err) {
         console.error("❌ Error en Despacho:", err);
-        mostrarToast("❌ Error de conexión o del servidor", "error");
+        
+        // 🛠️ Extraer el mensaje exacto enviado por el servidor (Flask)
+        let mensajeError = err.message || "Error de conexión o del servidor";
+        
+        // Si el mensaje viene en formato JSON o trae texto estructurado, intentamos limpiarlo
+        try {
+            if (mensajeError.includes("{")) {
+                const jsonInicio = mensajeError.indexOf("{");
+                const objError = JSON.parse(mensajeError.substring(jsonInicio));
+                mensajeError = objError.error || objError.msg || mensajeError;
+            }
+        } catch (e) {
+            // Se mantiene el mensaje por defecto si no es JSON
+        }
+
+        mostrarToast("❌ " + mensajeError, "error");
         window.isDespachandoFlag = false;
         return false;
     }
@@ -788,9 +803,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const origen   = oriInput?.value.trim() || "";
                 const esDiferentesDestinos = tipoSeleccionado.includes("_dif");
 
-                const destino  = esDiferentesDestinos ? "PENDIENTE (Diferente Destino)" : (desInput?.value.trim() || "");
+                const destinoComun = desInput?.value.trim() || "";
                 const tarifaBase = tarifaInput ? parseFloat(tarifaInput.value) || 0 : 0;
-                const tarifa   = esDiferentesDestinos ? 0 : tarifaBase;
 
                 if (!origen) {
                     if (typeof mostrarToast === "function") mostrarToast("⚠️ Por favor ingresa el origen.", "warning");
@@ -798,34 +812,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 try {
-                    let errores = 0;
+                    // Construir el array de despachos para enviarlo de un solo golpe al backend (Ruta /lote)
+                    const despachosLote = [];
                     for (let i = 0; i < cantidad; i++) {
-                        const destinoFinal = esDiferentesDestinos ? "" : destino;
-                        const tarifaFinal = esDiferentesDestinos ? 0 : tarifa;
+                        const destinoFinal = esDiferentesDestinos ? "PENDIENTE (Diferente Destino)" : destinoComun;
+                        const tarifaFinal = esDiferentesDestinos ? 0 : tarifaBase;
 
-                        const payload = {
+                        despachosLote.push({
                             cliente_id: parseInt(clienteIdFinal),
-                            telefono,
-                            nombre: `${nombre} [Unidad ${i + 1}/${cantidad}]`,
-                            origen,
+                            origen: origen,
                             destino: destinoFinal,
-                            tarifa: tarifaFinal
-                        };
-
-                        const result = await apiFetch("/cola_despachos/", {
-                            method: "POST",
-                            body: JSON.stringify(payload)
+                            tarifa: tarifaFinal,
+                            estado: "En espera"
                         });
-
-                        if (!result || result.error) errores++;
                     }
 
-                    if (errores > 0) {
-                        if (typeof mostrarToast === "function") mostrarToast(`❌ Hubo errores en ${errores} registros`, "error");
-                    } else {
+                    const result = await apiFetch("/cola_despachos/lote", {
+                        method: "POST",
+                        body: JSON.stringify({ despachos: despachosLote })
+                    });
+
+                    if (result && result.status === "success") {
                         if (typeof mostrarToast === "function") {
                             mostrarToast(`✅ Cola múltiple de ${cantidad} unidades creada con éxito`, "success");
                         }
+                    } else {
+                        if (typeof mostrarToast === "function") mostrarToast(`❌ Error: ${result.error || "No se pudo procesar el lote"}`, "error");
                     }
 
                     formDespacho.reset();
