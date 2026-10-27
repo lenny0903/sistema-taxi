@@ -1227,32 +1227,51 @@ function prepararAsignacion(idCola, idCliente) {
 }
 let motivoSuspensionGlobal = "";
 
+// 🛡️ Controlador global para abortar búsquedas anteriores al escribir o pegar rápido
+let controllerBusquedaCliente = null;
+
 async function validarClienteExpreso() {
     const telInput = document.getElementById('desTelefono');
     if (!telInput) return { valido: false, motivo: "Input no encontrado" };
     const tel = telInput.value.trim();
     if (!tel) return { valido: false, motivo: "Teléfono vacío" };
-    if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "";
-    if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = "";
+
+    // 🛑 1. ABORTAR INMEDIATAMENTE cualquier petición anterior que siga volando en la red
+    if (controllerBusquedaCliente) {
+        controllerBusquedaCliente.abort();
+    }
+    controllerBusquedaCliente = new AbortController();
+
+    // Limpieza visual preventiva para evitar mostrar datos viejos de otro cliente
+    if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "Buscando...";
+    if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = "Buscando...";
     if (document.getElementById('desDestino')) document.getElementById('desDestino').value = "";
+
     try {
-        console.log(`📡 [NUEVO] Buscando cliente con teléfono: ${tel}`);
+        console.log(`📡 [ANTI-ESTRÉS] Buscando cliente con teléfono: ${tel}`);
         
         const token = localStorage.getItem("token");
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
+        // ⏱️ Timeout de seguridad de 6 segundos para liberar la pantalla si la red parpadea
+        const timeoutId = setTimeout(() => controllerBusquedaCliente.abort(), 6000);
+
         const response = await fetch(`/clientes/buscar?telefono=${tel}&t=${Date.now()}`, {
             method: "GET",
-            headers: headers
+            headers: headers,
+            signal: controllerBusquedaCliente.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
+            restablecerCamposBusqueda();
             return { valido: false, motivo: "Error en el servidor al buscar cliente" };
         }
 
         const dataCliente = await response.json();
-        console.log("🔍 [NUEVO] Datos crudos del cliente:", dataCliente);
+        console.log("🔍 [ANTI-ESTRÉS] Datos crudos del cliente:", dataCliente);
 
         const cliente = Array.isArray(dataCliente) ? dataCliente[0] : dataCliente;
         
@@ -1276,72 +1295,79 @@ async function validarClienteExpreso() {
             window.telefonoClienteGlobal = cliente.telefono || "";
             window.clienteIdActual = cliente.id_cliente || cliente.id || cliente.cliente_id;
 
-            // 🛑 Consultar e interpretar incidencias ANTES de continuar
-            try {
-                // 🛡️ Asegurar headers con JWT token
-                const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-                const misHeaders = {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                };
+            // 🚀 2. VERIFICACIÓN DE INCIDENCIAS EN SEGUNDO PLANO (No bloquea la UI del operador)
+            setTimeout(async () => {
+                try {
+                    const tokenInc = localStorage.getItem('token') || localStorage.getItem('access_token');
+                    const misHeaders = {
+                        'Content-Type': 'application/json',
+                        ...(tokenInc ? { 'Authorization': `Bearer ${tokenInc}` } : {})
+                    };
 
-                // 🎯 RUTA CORRECTA SEGÚN TU BACKEND FLASK: /incidencias/verificar_cliente/ID
-                // (Si tu Blueprint está registrado con prefijo '/incidencias', usa '/incidencias/verificar_cliente/...')
-                const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
-                    headers: misHeaders 
-                });
-                
-                if (resIncidencias.ok) {
-                    const check = await resIncidencias.json();
-                    console.log("🛑 Resumen de incidencias recibido del backend:", check);
+                    const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
+                        headers: misHeaders,
+                        signal: controllerBusquedaCliente.signal 
+                    });
+                    
+                    if (resIncidencias.ok) {
+                        const check = await resIncidencias.json();
+                        console.log("🛑 Resumen de incidencias recibido del backend:", check);
 
-                    // 1. Bloqueo Absoluto (VETO GENERAL / NO PAGO)
-                    if (check && check.tiene_veto_general === true) {
-                        window.semaforoRojo = true; // 🔴 Bloquea despacho
-                        const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
-                        
-                        if (typeof crearToastEmergencia === "function") {
-                            crearToastEmergencia(msgVeto);
-                        } else if (typeof mostrarToast === "function") {
-                            mostrarToast(msgVeto, "error");
-                        }
-                    } else {
-                        window.semaforoRojo = false; // 🔓 Paso libre
-
-                        // 2. ⚠️ Advertencia visual para Incidencias / Exclusiones
-                        if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
-                            const cat = check.categoria ? `[${check.categoria}] ` : '';
-                            const det = check.descripcion || '';
-                            const textoAlerta = `⚠️ ATENCIÓN CLIENTE: ${cat}${det}`;
-                            
-                            console.warn("📢 Disparando alerta visual de incidencias:", textoAlerta);
-
-                            if (typeof mostrarToast === "function") {
-                                mostrarToast(textoAlerta, "error");
-                            } else if (typeof crearToastEmergencia === "function") {
-                                crearToastEmergencia(textoAlerta);
+                        if (check && check.tiene_veto_general === true) {
+                            window.semaforoRojo = true;
+                            const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
+                            if (typeof crearToastEmergencia === "function") {
+                                crearToastEmergencia(msgVeto);
+                            } else if (typeof mostrarToast === "function") {
+                                mostrarToast(msgVeto, "error");
+                            }
+                        } else {
+                            window.semaforoRojo = false;
+                            if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
+                                const cat = check.categoria ? `[${check.categoria}] ` : '';
+                                const det = check.descripcion || '';
+                                const textoAlerta = `⚠️ ATENCIÓN CLIENTE: ${cat}${det}`;
+                                if (typeof mostrarToast === "function") {
+                                    mostrarToast(textoAlerta, "error");
+                                } else if (typeof crearToastEmergencia === "function") {
+                                    crearToastEmergencia(textoAlerta);
+                                }
                             }
                         }
+                    } else {
+                        window.semaforoRojo = false;
                     }
-                } else {
-                    console.warn("⚠️ Error en endpoint de incidencias. Status:", resIncidencias.status);
+                } catch (eErr) {
+                    if (eErr.name !== 'AbortError') {
+                        console.error("❌ Error grave al verificar incidencias:", eErr);
+                    }
                     window.semaforoRojo = false;
                 }
-            } catch (eErr) {
-                console.error("❌ Error grave al verificar incidencias:", eErr);
-                window.semaforoRojo = false;
-            }
+            }, 10);
 
             console.log("✅ Validación completa. Siguiente Enter enviará.");
             return { valido: true, cliente: cliente };
         }
 
+        restablecerCamposBusqueda();
         return { valido: false, motivo: "Cliente no registrado" };
 
     } catch (err) {
-        console.error("❌ Error grave en validarClienteExpreso:", err);
-        return { valido: false, motivo: "Error de conexión" };
+        if (err.name === 'AbortError') {
+            console.log("ℹ️ Búsqueda anterior cancelada correctamente por una nueva interacción del operador.");
+        } else {
+            console.error("❌ Error grave en validarClienteExpreso:", err);
+            restablecerCamposBusqueda();
+        }
+        return { valido: false, motivo: "Cancelado o error de red" };
     }
+}
+
+function restablecerCamposBusqueda() {
+    const nom = document.getElementById('desNombre');
+    const ori = document.getElementById('desOrigen');
+    if (nom && nom.value === "Buscando...") nom.value = "";
+    if (ori && ori.value === "Buscando...") ori.value = "";
 }
 
 function crearToastEmergencia(mensaje, tipo = "VETO") {
@@ -1566,27 +1592,35 @@ function normalizarTelefonoVenezolano(textoRaw) {
     };
 }
 
-// 🎯 Captura en el Pegado (Ctrl+V)
+// 🎯 Captura en el Pegado (Ctrl+V) con control de re-entradas
+let isProcesandoPaste = false;
+
 document.addEventListener("paste", function(e) {
     const target = e.target;
     if (target && target.id === "desTelefono") {
         e.preventDefault();
         e.stopPropagation();
 
+        if (isProcesandoPaste) return;
+        isProcesandoPaste = true;
+
         const textoClipboard = (e.clipboardData || window.clipboardData).getData("text");
         const resultado = normalizarTelefonoVenezolano(textoClipboard);
 
-        // Inyectamos SIEMPRE el número transformado y limpio (Ej: 04167739099)
+        // Inyectamos SIEMPRE el número transformado y limpio
         target.value = resultado.numero;
 
         if (resultado.valido) {
             console.log(`✅ [INTEGRIDAD OK] Pegado limpio: "${textoClipboard}" ➔ BD: "${resultado.numero}"`);
             
-            // Disparar búsqueda del cliente en la BD
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-            const eventoEnter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
-            target.dispatchEvent(eventoEnter);
+            setTimeout(() => {
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                validarClienteExpreso().finally(() => {
+                    isProcesandoPaste = false;
+                });
+            }, 50);
         } else {
+            isProcesandoPaste = false;
             console.warn(`⚠️ Teléfono inválido tras normalizar: "${resultado.numero}"`);
             if (typeof mostrarToast === 'function') {
                 mostrarToast("⚠️ El número debe ser un celular (04...) o fijo (0276...)", "error");
@@ -1594,7 +1628,6 @@ document.addEventListener("paste", function(e) {
         }
     }
 }, true);
-
 // ⚡ Evaluador de estado del formulario Express
 function verificarEstadoFormularioExpress() {
     const btnEnviar = document.getElementById("btnEnviarDespacho");

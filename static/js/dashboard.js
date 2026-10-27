@@ -929,19 +929,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>${item.nombre_conductor}</td>
                     <td>${item.origen}</td>
                     <td>${item.destino}</td>
+                    <td>${item.tarifa}</td>
                     <td>${item.ultima_fecha}</td>
                 </tr>`;
             });
             tbody.innerHTML = filas;
             } else {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+            // 💡 Corregido a colspan="5" para que cubra las 5 columnas nuevas
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron registros</td></tr>`;
             }
         } catch (err) {
             console.error("❌ Error:", err);
             alert(err.message);
         }
-        }); // Cierre del listener
-     } // Cierre del if  
+        }); 
+     } 
+     
     // -------------------------------
     // 📌 Atajo de teclado Alt+T (solo admins)
     document.addEventListener("keydown", (e) => {
