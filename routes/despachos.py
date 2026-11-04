@@ -76,11 +76,11 @@ def crear_despacho():
             return jsonify({"error": "Conductor no encontrado"}), 404
 
         con_cod = conductor_obj.codigo
-
-        if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
-            return jsonify({
-                "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está conectado en Telegram. No se puede crear el despacho."
-            }), 400
+        # Validación de telegram omitida para permitir despachos sin conexión de Telegram
+        #if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
+        #    return jsonify({
+        #        "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está conectado en Telegram. No se puede crear el despacho."
+        #    }), 400
         # ====================================================================
 
         # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
