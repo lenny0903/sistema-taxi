@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Carrera - Taxis Los Patriotas</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .paso { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .paso.activo { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        h2 { color: #1e40af; text-align: center; margin-top: 0; margin-bottom: 20px; }
+        .pregunta { font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 20px; line-height: 1.4; text-align: center; }
+        .direccion-destacada { color: #2563eb; background: #eff6ff; padding: 4px 8px; border-radius: 6px; display: inline-block; margin-top: 8px; font-size: 15px; }
+        
+        .btn-opcion { width: 100%; padding: 16px; margin-bottom: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; background: white; color: #334155; transition: 0.2s; }
+        .btn-opcion:hover { border-color: #2563eb; background: #f8fafc; }
+        .btn-opcion.si { border-color: #16a34a; color: #16a34a; }
+        .btn-opcion.no { border-color: #dc2626; color: #dc2626; }
+        
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { font-weight: 600; display: block; margin-bottom: 6px; color: #334155; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: #fff; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; }
+        
+        .btn-siguiente { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-confirmar { background: #16a34a; }
+        .btn-atras { background: transparent; color: #64748b; border: none; font-size: 14px; cursor: pointer; margin-top: 15px; width: 100%; text-decoration: underline; }
+        
+        /* Estilos del menú inicial */
+        .btn-menu { width: 100%; padding: 18px; margin-bottom: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-inmediato { background: #16a34a; }
+        .btn-reserva { background: #2563eb; }
+        .btn-humano { background: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🚖 Taxis Los Patriotas</h2>
+
+        <!-- ================= MENÚ INICIAL ================= -->
+        <div id="menu-inicial" class="paso activo text-center">
+            <p style="color:#666; margin-bottom: 20px;">¿Qué desea hacer hoy?</p>
+            <button type="button" class="btn-menu btn-inmediato" onclick="iniciarFlujo('inmediato')">🚖 Solicitar Servicio (Ahora)</button>
+            <button type="button" class="btn-menu btn-reserva" onclick="iniciarFlujo('reserva')">📅 Reservar para más tarde</button>
+            <button type="button" class="btn-menu btn-humano" onclick="mostrarHumano()">👨‍💻 Hablar con un operador</button>
+        </div>
+
+        <!-- ================= MENSAJE HUMANO ================= -->
+        <div id="pantalla-humano" class="paso text-center">
+            <div style="font-size: 50px; margin-bottom: 10px;">💬</div>
+            <h3 style="color: #334155;">Atención Personalizada</h3>
+            <p style="color: #64748b; line-height: 1.5;">Regrese a su chat de <strong>WhatsApp</strong> y envíe un mensaje. Un operador le atenderá de inmediato.</p>
+            <button type="button" class="btn-atras" onclick="volverMenu()">Volver al menú</button>
+        </div>
+
+        <!-- ================= FORMULARIO PASO A PASO ================= -->
+        <form method="POST" id="formSolicitud">
+            <input type="hidden" name="tipo_solicitud" id="inputTipoSolicitud" value="inmediato">
+            
+                        <!-- PASO 1: ORIGEN -->
+            <div id="paso-origen" class="paso">
+                
+                {% if direccion %}
+                    <!-- CASO A: El cliente SÍ tiene dirección registrada -->
+                    <div class="pregunta">
+                        ¡Hola, {{ nombre }}! 👋<br>
+                        ¿Te buscamos en tu residencia?
+                        <br><span class="direccion-destacada">📍 {{ direccion }}</span>
+                    </div>
+                    
+                    <input type="hidden" name="es_misma_direccion" id="inputEsMisma" value="SI">
+                    
+                    <button type="button" class="btn-opcion si" onclick="elegirOrigen('SI')">✅ Sí, estoy allí</button>
+                    <button type="button" class="btn-opcion no" onclick="elegirOrigen('NO')">📍 No, estoy en otra dirección</button>
+
+                    <!-- Campo que aparece si dice NO -->
+                    <div id="divNuevaDireccion" style="display:none; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Escribe tu dirección actual:</label>
+                            <!-- ✅ Aquí ya tiene el name correcto -->
+                            <textarea name="nuevo_origen" id="txtNuevoOrigen" rows="2" placeholder="Ej: Calle 5 con Av. 3..."></textarea>
+                        </div>
+                        <button type="button" class="btn-siguiente" onclick="guardarNuevaDireccion()">Siguiente ➔</button>
+                    </div>
+                
+                {% else %}
+                    <!-- CASO B: El cliente NO tiene dirección registrada en la BD -->
+                    <div class="pregunta">
+                        ¡Hola, {{ nombre }}! 👋<br>
+                        ¿Dónde te recogemos?
+                    </div>
+                    
+                    <input type="hidden" name="es_misma_direccion" id="inputEsMisma" value="NO">
+                    
+                    <div class="form-group" style="margin-top: 15px; text-align:left;">
+                        <!-- ✅ Le agregamos el name y borramos el input hidden -->
+                        <textarea name="nuevo_origen" id="txtNuevoOrigen" rows="2" placeholder="Ej: Calle 5 con Av. 3..." required></textarea>
+                    </div>
+                    <button type="button" class="btn-siguiente" onclick="guardarNuevaDireccion()">Siguiente ➔</button>
+                {% endif %}
+                
+            </div>
+
+            <!-- PASO 2: CANTIDAD DE AUTOS -->
+            <div id="paso-cantidad" class="paso">
+                <div class="pregunta">¿Necesitas más de un auto?</div>
+                
+                <input type="hidden" name="cantidad_autos" id="inputCantidad" value="1">
+                
+                <button type="button" class="btn-opcion no" onclick="elegirCantidad(1)">🚗 No, solo uno</button>
+                <button type="button" class="btn-opcion si" onclick="mostrarCantidades()">🚕 Sí, varios autos</button>
+
+                <!-- Selector de cantidad -->
+                <div id="divSelectorCantidad" style="display:none; margin-top: 15px;">
+                    <div class="form-group">
+                        <label>¿Cuántos autos necesitas?</label>
+                        <select id="selCantidad" onchange="actualizarCantidad()">
+                            <option value="2">2 Autos</option>
+                            <option value="3">3 Autos</option>
+                            <option value="4">4 Autos (Máximo)</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-siguiente" onclick="irADestinos()">Siguiente ➔</button>
+                </div>
+            </div>
+
+            <!-- PASO 3: DESTINOS -->
+            <div id="paso-destinos" class="paso">
+                <div class="pregunta" id="preguntaDestino">¿Hacia dónde vas?</div>
+                
+                <!-- Pregunta si van al mismo destino (solo si son varios autos) -->
+                <div id="divPreguntaMismoDestino" style="display:none;">
+                    <input type="hidden" name="mismo_destino" id="inputMismoDestino" value="SI">
+                    <button type="button" class="btn-opcion si" onclick="elegirMismoDestino('SI')">✅ Todos van al mismo destino</button>
+                    <button type="button" class="btn-opcion no" onclick="elegirMismoDestino('NO')">📍 Cada uno va a un destino diferente</button>
+                </div>
+
+                <!-- Contenedor de inputs de destino -->
+                <div id="contenedorDestinos" style="margin-top: 15px;"></div>
+                <datalist id="listaDestinos"></datalist>
+
+                <!-- Botón de confirmación (se muestra al final) -->
+                <button type="submit" id="btnConfirmar" class="btn-siguiente btn-confirmar" style="display:none;">✅ Confirmar Solicitud</button>
+            </div>
+
+            <!-- PASO EXTRA: RESERVA (Solo si aplica) -->
+            <div id="paso-reserva" class="paso">
+                <div class="pregunta">📅 ¿Para qué fecha y hora es la reserva?</div>
+                <div class="form-group">
+                    <label>Fecha:</label>
+                    <input type="date" name="fecha_reserva" id="fecha_reserva">
+                </div>
+                <div class="form-group">
+                    <label>Hora:</label>
+                    <input type="time" name="hora_reserva" id="hora_reserva">
+                </div>
+                <button type="button" class="btn-siguiente" onclick="mostrarPaso('paso-origen')">Siguiente ➔</button>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+        // --- VARIABLES GLOBALES ---
+        const matrizTarifas = {{ tarifas | tojson }};
+        const datalist = document.getElementById('listaDestinos');
+        let tipoFlujo = 'inmediato';
+        let cantidadAutos = 1;
+
+        if (matrizTarifas && matrizTarifas.length > 0) {
+            datalist.innerHTML = matrizTarifas.map(t => `<option value="${t.destino}"></option>`).join('');
+        }
+
+        // --- CONTROL DE PANTALLAS ---
+        function mostrarPaso(idPaso) {
+            document.querySelectorAll('.paso').forEach(p => p.classList.remove('activo'));
+            document.getElementById(idPaso).classList.add('activo');
+        }
+
+        function iniciarFlujo(tipo) {
+            tipoFlujo = tipo;
+            document.getElementById('inputTipoSolicitud').value = tipo;
+            
+            if (tipo === 'reserva') {
+                mostrarPaso('paso-reserva');
+                const hoy = new Date().toISOString().split('T')[0];
+                document.getElementById('fecha_reserva').value = hoy;
+                document.getElementById('fecha_reserva').min = hoy;
+            } else {
+                mostrarPaso('paso-origen');
+            }
+        }
+
+        function mostrarHumano() {
+            document.getElementById('menu-inicial').classList.remove('activo');
+            document.getElementById('pantalla-humano').classList.add('activo');
+        }
+
+        function volverMenu() {
+            document.querySelectorAll('.paso').forEach(p => p.classList.remove('activo'));
+            document.getElementById('menu-inicial').classList.add('activo');
+        }
+
+                // --- LÓGICA PASO 1: ORIGEN ---
+        function elegirOrigen(respuesta) {
+            document.getElementById('inputEsMisma').value = respuesta;
+            
+            if (respuesta === 'SI') {
+                // 🛡️ Validar que la dirección de la BD no esté vacía
+                const direccionBD = "{{ direccion }}".trim();
+                if (!direccionBD) {
+                    alert("No tenemos una dirección registrada para ti. Por favor, selecciona 'No' y escribe una.");
+                    return;
+                }
+                mostrarPaso('paso-cantidad');
+            } else {
+                // Si dice que NO, mostramos el campo y obligamos a llenarlo
+                const divNueva = document.getElementById('divNuevaDireccion');
+                const textarea = document.getElementById('txtNuevoOrigen');
+                divNueva.style.display = 'block';
+                textarea.required = true;
+                textarea.focus();
+            }
+        }
+
+        function guardarNuevaDireccion() {
+            const textarea = document.getElementById('txtNuevoOrigen');
+            const nuevaDir = textarea.value.trim();
+            
+            // 🛡️ Bloquear el avance si está vacío
+            if (!nuevaDir) {
+                alert("Por favor, escribe tu dirección de recogida para continuar.");
+                textarea.focus();
+                return;
+            }
+            
+            // Si todo está bien, avanza
+            mostrarPaso('paso-cantidad');
+        }
+
+        // --- LÓGICA PASO 2: CANTIDAD ---
+        function mostrarCantidades() {
+            document.getElementById('divSelectorCantidad').style.display = 'block';
+        }
+
+        function elegirCantidad(cant) {
+            cantidadAutos = cant;
+            document.getElementById('inputCantidad').value = cant;
+            irADestinos();
+        }
+
+        function actualizarCantidad() {
+            cantidadAutos = parseInt(document.getElementById('selCantidad').value);
+            document.getElementById('inputCantidad').value = cantidadAutos;
+        }
+
+        // --- LÓGICA PASO 3: DESTINOS ---
+        function irADestinos() {
+            mostrarPaso('paso-destinos');
+            const pregunta = document.getElementById('preguntaDestino');
+            const divMismoDestino = document.getElementById('divPreguntaMismoDestino');
+            const contenedor = document.getElementById('contenedorDestinos');
+            const btnConfirmar = document.getElementById('btnConfirmar');
+            
+            // Limpiamos vistas previas
+            contenedor.innerHTML = '';
+            btnConfirmar.style.display = 'none';
+
+            if (cantidadAutos === 1) {
+                // FLUJO DE 1 SOLO AUTO
+                pregunta.innerText = "¿Hacia dónde vas?";
+                divMismoDestino.style.display = 'none';
+                document.getElementById('inputMismoDestino').value = 'SI';
+                
+                renderizarInputDestino('Destino', 'destino_1');
+                btnConfirmar.style.display = 'block';
+            } else {
+                // FLUJO DE VARIOS AUTOS
+                pregunta.innerText = "¿Van todos para el mismo destino?";
+                divMismoDestino.style.display = 'block';
+                // Ocultamos el botón hasta que elijan Sí o No
+            }
+        }
+
+        function elegirMismoDestino(respuesta) {
+            document.getElementById('inputMismoDestino').value = respuesta;
+            const contenedor = document.getElementById('contenedorDestinos');
+            const btnConfirmar = document.getElementById('btnConfirmar');
+            contenedor.innerHTML = '';
+
+            if (respuesta === 'SI') {
+                renderizarInputDestino(`Destino (Común para los ${cantidadAutos} autos)`, 'destino_1');
+            } else {
+                for (let i = 1; i <= cantidadAutos; i++) {
+                    renderizarInputDestino(`Destino del Auto ${i}`, `destino_${i}`);
+                }
+            }
+            btnConfirmar.style.display = 'block';
+        }
+
+        function renderizarInputDestino(labelText, inputName) {
+            const contenedor = document.getElementById('contenedorDestinos');
+            contenedor.innerHTML += `
+                <div class="form-group">
+                    <label>${labelText}:</label>
+                    <input type="text" name="${inputName}" list="listaDestinos" placeholder="Escribe el destino" required>
+                </div>
+            `;
+        }
+        // Evitar que presionar Enter envíe el formulario antes de tiempo
+        document.getElementById('formSolicitud').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') {
+                e.preventDefault(); 
+            }
+        });
+    </script>
+</body>
+</html>

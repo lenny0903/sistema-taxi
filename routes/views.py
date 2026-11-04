@@ -16,7 +16,7 @@ from utils.time import hora_local
 views_bp = Blueprint("views", __name__)
 
 import re
-
+import time
 # Variables globales para caché en memoria
 _url_tunel_cache = None
 _ultimo_tiempo_lectura = 0

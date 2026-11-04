@@ -146,6 +146,20 @@
                 </label>
             </div>
         </div>
+        <!-- Bloque del Modo Link Cliente (NUEVO) -->
+        <li class="mt-2 pt-2 border-t border-gray-200">
+            <div class="flex items-center justify-between px-2">
+                <span id="textModoLinkCliente" class="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                    📲 Link Cliente: OFF
+                </span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="switchModoLinkCliente" class="sr-only">
+                    <div id="bgModoLinkCliente" class="w-8 h-4 bg-gray-300 rounded-full transition-colors relative">
+                        <div id="circleModoLinkCliente" class="absolute top-[2px] left-[2px] bg-white rounded-full h-3 w-3 transition-transform"></div>
+                    </div>
+                </label>
+            </div>
+        </li>
          <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
         <li class="mt-2 pt-2 border-t border-gray-200">
             <button onclick="abrirWhatsAppWeb()" 
@@ -848,6 +862,7 @@
                 <th>Conductor</th>
                 <th>Origen</th>
                 <th>Destino</th>
+                <th>Tarifa</th>
                 <th>Fecha</th>
               </tr>
             </thead>

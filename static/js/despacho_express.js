@@ -453,7 +453,22 @@ async function ejecutarDespachoDirecto({
         }
     } catch (err) {
         console.error("❌ Error en Despacho:", err);
-        mostrarToast("❌ Error de conexión o del servidor", "error");
+        
+        // 🛠️ Extraer el mensaje exacto enviado por el servidor (Flask)
+        let mensajeError = err.message || "Error de conexión o del servidor";
+        
+        // Si el mensaje viene en formato JSON o trae texto estructurado, intentamos limpiarlo
+        try {
+            if (mensajeError.includes("{")) {
+                const jsonInicio = mensajeError.indexOf("{");
+                const objError = JSON.parse(mensajeError.substring(jsonInicio));
+                mensajeError = objError.error || objError.msg || mensajeError;
+            }
+        } catch (e) {
+            // Se mantiene el mensaje por defecto si no es JSON
+        }
+
+        mostrarToast("❌ " + mensajeError, "error");
         window.isDespachandoFlag = false;
         return false;
     }
@@ -1293,15 +1308,12 @@ async function validarClienteExpreso() {
 
             // 🛑 Consultar e interpretar incidencias ANTES de continuar
             try {
-                // 🛡️ Asegurar headers con JWT token
                 const token = localStorage.getItem('token') || localStorage.getItem('access_token');
                 const misHeaders = {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 };
 
-                // 🎯 RUTA CORRECTA SEGÚN TU BACKEND FLASK: /incidencias/verificar_cliente/ID
-                // (Si tu Blueprint está registrado con prefijo '/incidencias', usa '/incidencias/verificar_cliente/...')
                 const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
                     headers: misHeaders 
                 });
@@ -1310,9 +1322,8 @@ async function validarClienteExpreso() {
                     const check = await resIncidencias.json();
                     console.log("🛑 Resumen de incidencias recibido del backend:", check);
 
-                    // 1. Bloqueo Absoluto (VETO GENERAL / NO PAGO)
                     if (check && check.tiene_veto_general === true) {
-                        window.semaforoRojo = true; // 🔴 Bloquea despacho
+                        window.semaforoRojo = true;
                         const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
                         
                         if (typeof crearToastEmergencia === "function") {
@@ -1321,9 +1332,8 @@ async function validarClienteExpreso() {
                             mostrarToast(msgVeto, "error");
                         }
                     } else {
-                        window.semaforoRojo = false; // 🔓 Paso libre
+                        window.semaforoRojo = false;
 
-                        // 2. ⚠️ Advertencia visual para Incidencias / Exclusiones
                         if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
                             const cat = check.categoria ? `[${check.categoria}] ` : '';
                             const det = check.descripcion || '';
@@ -1348,6 +1358,34 @@ async function validarClienteExpreso() {
             }
 
             console.log("✅ Validación completa. Siguiente Enter enviará.");
+
+            // ============================================================
+            // 🆕 PRE-BANNER: Mostrar link de solicitud al cliente
+            // Se dispara SOLO si:
+            //   1. El switch "Modo Link Cliente" está ON
+            //   2. NO hay veto (semáforo verde)
+            //   3. La función mostrarBannerSolicitudLink existe
+            //   4. NO venimos desde "Asignar" de la cola (suprimirPreBanner)
+            // ============================================================
+            if (window.MODO_LINK_CLIENTE_ACTIVO 
+                && !window.semaforoRojo 
+                && !window.suprimirPreBanner
+                && typeof window.mostrarBannerSolicitudLink === "function") {
+                
+                console.log("📲 [PRE-BANNER] Disparando banner de link de solicitud");
+                
+                window.mostrarBannerSolicitudLink(
+                    cliente.telefono || cliente.nro_telefono || tel,
+                    cliente.nombre || ""
+                );
+            } else {
+                console.log("🔕 [PRE-BANNER] Omitido:", {
+                    switch_activo: window.MODO_LINK_CLIENTE_ACTIVO,
+                    semaforo_rojo: window.semaforoRojo,
+                    suprimir: window.suprimirPreBanner
+                });
+            }
+
             return { valido: true, cliente: cliente };
         }
 
@@ -1358,7 +1396,6 @@ async function validarClienteExpreso() {
         return { valido: false, motivo: "Error de conexión" };
     }
 }
-
 function crearToastEmergencia(mensaje, tipo = "VETO") {
     const alertaPrevia = document.getElementById("toast-emergencia");
     if (alertaPrevia) alertaPrevia.remove();

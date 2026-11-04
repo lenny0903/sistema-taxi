@@ -189,3 +189,49 @@ def verificar_cliente(cliente_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ====================================================================
+# 🛡️ FUNCIÓN AUXILIAR REUTILIZABLE PARA VERIFICAR EL VETO
+# ====================================================================
+def verificar_veto_cliente(cliente_id):
+    """
+    Consulta si un cliente tiene un veto general o incidencias graves.
+    Retorna un diccionario con el estado.
+    """
+    try:
+        # 1. Veto explícito por impago (BloqueoAfinidad)
+        veto = BloqueoAfinidad.query.filter_by(
+            cliente_id=cliente_id,
+            tipo_bloqueo="CLIENTE_GENERAL",
+            activo=True
+        ).first()
+
+        if veto:
+            return {
+                "tiene_veto_general": True,
+                "mensaje_veto": veto.nota_gerencial,
+                "tiene_incidencias": True
+            }
+
+        # 2. Veto absoluto SOLO para NO_PAGO (Incidencia)
+        incidencia_grave = Incidencia.query.filter(
+            Incidencia.cliente_id == cliente_id,
+            Incidencia.categoria.in_(["NO_PAGO"])
+        ).order_by(Incidencia.id.desc()).first()
+
+        if incidencia_grave:
+            return {
+                "tiene_veto_general": True,
+                "mensaje_veto": f"Reporte por {incidencia_grave.categoria}: {incidencia_grave.descripcion}",
+                "tiene_incidencias": True
+            }
+
+        # 3. Si no hay veto general, está limpio
+        return {
+            "tiene_veto_general": False,
+            "tiene_incidencias": False
+        }
+
+    except Exception as e:
+        print(f"❌ Error al verificar veto en BD: {e}")
+        return {"tiene_veto_general": False, "tiene_incidencias": False}    
