@@ -13,7 +13,8 @@ class ColaDespacho(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
     cliente = db.relationship("Cliente", backref=db.backref("cola_despachos", lazy=True))
-
+    origen_solicitud = db.Column(db.String(20), default="operador", nullable=True)
+    requiere_revision = db.Column(db.Boolean, default=False, nullable=True)
     def __repr__(self):
         return f"<ColaDespacho id_cola={self.id_cola}, id_cliente={self.id_cliente}, estado={self.estado}>"
 
@@ -26,5 +27,7 @@ class ColaDespacho(db.Model):
             "tarifa": float(self.tarifa) if self.tarifa is not None else 0, # 👈 Se incluye en el diccionario
             "estado": self.estado,
             "fecha_creacion": self.fecha_creacion.isoformat(),
-            "cliente": self.cliente.to_dict() if self.cliente else None
+            "cliente": self.cliente.to_dict() if self.cliente else None,
+            "origen_solicitud": self.origen_solicitud,
+            "requiere_revision": self.requiere_revision
         }

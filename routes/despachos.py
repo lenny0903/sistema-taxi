@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3  
 from engineio import payload
-from flask import Blueprint, app, request, jsonify, redirect, url_for
+from flask import Blueprint, app, request, jsonify
 from extensions import db
 from models.cola_notificaciones import ColaNotificaciones
 from models import despachos
@@ -13,7 +13,6 @@ from models.clientes import Cliente
 from models.conductores import Conductor
 from models.autos import Auto
 from datetime import datetime
-from services.telegram_service import notificar_despacho_a_conductor 
 from utils.auth import rol_requerido
 from flask import render_template
 from datetime import datetime, timezone
@@ -22,15 +21,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.cola_despachos import ColaDespacho
 from utils.notificaciones import enviar_encuesta_satisfaccion
-from routes.telegram_bot import publicar_en_canal
+
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
 from models.lista_espera import ListaEspera
-from utils.url_helpers import acortar_url_cuttly
-from routes.views import obtener_url_tunel
 despachos_bp = Blueprint("despachos", __name__, url_prefix="/despachos")
 
 from models.incidencias import BloqueoAfinidad # ⬅️ Importamos el modelo de bloqueos
+
 
 @despachos_bp.route("/", methods=["POST"])
 def crear_despacho():
@@ -70,7 +68,22 @@ def crear_despacho():
             }), 400
         # ====================================================================
 
-       # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
+        # ====================================================================
+        # 🛑 BLOQUEO OBLIGATORIO: Verificar que el conductor esté conectado en Telegram
+        # ====================================================================
+        conductor_obj = Conductor.query.get(conductor_id)
+        if not conductor_obj:
+            return jsonify({"error": "Conductor no encontrado"}), 404
+
+        con_cod = conductor_obj.codigo
+        
+        if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
+            return jsonify({
+                "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está conectado en Telegram. No se puede crear el despacho."
+            }), 400
+        # ====================================================================
+
+        # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
         with db.session.no_autoflush:
             ahora = hora_local()
             nuevo_despacho = Despacho(
@@ -88,34 +101,27 @@ def crear_despacho():
             db.session.add(nuevo_despacho)
             db.session.flush() # Genera el ID del nuevo despacho
             
-            # --- OBTENCIÓN SEGURA DE DATOS ---
+            # --- OBTENCIÓN DE RESTO DE DATOS ---
             cliente_obj = Cliente.query.get(cliente_id)
-            conductor_obj = Conductor.query.get(conductor_id)
             
             c_tel = data.get("cliente_telefono") or (cliente_obj.telefono if cliente_obj else "0000000")
             c_nom = cliente_obj.nombre if cliente_obj else "Cliente"
-            con_tel = data.get("conductor_telefono") or (conductor_obj.nro_telefono if conductor_obj else "0000000")
-            con_nom = conductor_obj.nombre if conductor_obj else "Conductor"
-            con_cod = conductor_obj.codigo if conductor_obj else "S/C"
+            con_tel = data.get("conductor_telefono") or conductor_obj.nro_telefono
+            con_nom = conductor_obj.nombre
 
             # ====================================================================
-            # 🛡️ VALIDACIÓN DE VIGENCIA DEL CONDUCTOR PARA EL ENLACE/NOTIFICACIÓN
+            # 🛡️ VALIDACIÓN DE VIGENCIA DEL GPS
             # ====================================================================
             conductor_valido = True
-            if not conductor_obj:
+            
+            exp_gps = conductor_obj.expiracion_gps
+            if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
+                exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
+
+            if exp_gps and exp_gps < ahora:
                 conductor_valido = False
-            else:
-                # Normalizar la expiración del GPS para evitar choques de zonas horarias
-                exp_gps = conductor_obj.expiracion_gps
-                if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
-                    exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
+                print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} tiene el GPS expirado.")
 
-                # Validación segura única
-                if conductor_obj.estado_red != 'conectado' or (exp_gps and exp_gps < ahora):
-                    conductor_valido = False
-                    print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} está inactivo o con GPS expirado. No se generará el enlace automático.")
-
-            # Solo construimos la notificación y el enlace si el conductor es válido
             if conductor_valido:
                 codigo_minicla = con_cod.lower()
                 url_flayer = f"/home/lenny/.n8n-files/{con_cod.lower()}.png"
@@ -151,51 +157,27 @@ def crear_despacho():
                 )
                 db.session.add(notificacion)
             
-            # Borrado de Cola (si aplica)
             cola_id = data.get("id_notificacion")
             if cola_id:
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
         db.session.commit()
-        publicar_en_canal(nuevo_despacho.id_despacho)
-        
-        # 📲 Notificar en privado al conductor asignado con su enlace de mapa
-        try:
-            notificar_despacho_a_conductor(nuevo_despacho.id_despacho)
-        except Exception as err_notif:
-            print(f"⚠️ Error al notificar al conductor por Telegram: {err_notif}")
 
-        # 🗺️ Generar el enlace absoluto usando el túnel activo de Cloudflare
-        dominio_activo = obtener_url_tunel()
-        
-        # Si por alguna razón devuelve localhost, intentamos usar el host actual si viene de una petición externa
-        if "127.0.0.1" in dominio_activo or "localhost" in dominio_activo:
-            if "127.0.0.1" not in request.host and "localhost" not in request.host:
-                dominio_activo = f"{request.scheme}://{request.host}"
-
-        url_mapa_cliente = f"{dominio_activo.rstrip('/')}/monitoreo/{nuevo_despacho.id_despacho}"
-        # ✂️ Acortar la URL con Cuttly solo si el conductor es válido
-        url_corta = acortar_url_cuttly(url_mapa_cliente) if conductor_valido else url_mapa_cliente
-
-        # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
-            mensaje_respuesta += " (⚠️ Advertencia: Conductor inactivo o GPS expirado, no se generó enlace de WhatsApp)."
+            mensaje_respuesta += " (⚠️ Advertencia: GPS expirado, no se generó enlace de WhatsApp)."
 
         return jsonify({
             "msg": mensaje_respuesta,
             "id_despacho": nuevo_despacho.id_despacho,
             "cliente_telefono": c_tel,
-            "enlace_generado": conductor_valido,
-            "url_mapa": url_corta,  # 👈 ¡Cambiamos 'url_mapa_cliente' por 'url_corta'!
-            "url_corta": url_corta # 👈 También la enviamos aquí para mantener compatibilidad con tu JS
+            "enlace_generado": conductor_valido
         }), 201
 
     except Exception as e:
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-        
 @despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID

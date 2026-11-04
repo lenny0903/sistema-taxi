@@ -763,6 +763,29 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.disabled = false;
         }
     });  
+    // -------------------------------
+    // Iniciar la carga del DOM para switche modo cliente
+    // -------------------------------
+    actualizarSwitchModoLinkCliente();
+    
+    const switchEl = document.getElementById('switchModoLinkCliente');
+    if (switchEl) {
+        switchEl.addEventListener('change', (e) => {
+            window.MODO_LINK_CLIENTE_ACTIVO = e.target.checked;
+            localStorage.setItem('modo_link_cliente', e.target.checked);
+            actualizarSwitchModoLinkCliente();
+            
+            if (typeof mostrarToast === 'function') {
+                mostrarToast(
+                    e.target.checked 
+                        ? "🟢 Modo Link Cliente ACTIVADO" 
+                        : "🔴 Modo Link Cliente DESACTIVADO", 
+                    "info"
+                );
+            }
+        });
+    }
+
 });  
   // -------------------------------
   // 📌 Funciones auxiliares
@@ -780,6 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
                 <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
                 <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Tarifa</th>
                 <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
                 
                 </tr>
@@ -804,7 +828,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
                         ${r.destino}
                     </td>
+                    <td class="border px-2 py-1 text-[10px] leading-tight">${r.tarifa}</td>
                     <td class="border px-2 py-1 text-[10px] leading-tight">${r.fecha}</td>
+                    
                 </tr>
                 `).join("")}
             </tbody>
@@ -918,12 +944,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>${item.nombre_conductor}</td>
                     <td>${item.origen}</td>
                     <td>${item.destino}</td>
+                    <td>${item.tarifa}</td>
                     <td>${item.ultima_fecha}</td>
                 </tr>`;
             });
             tbody.innerHTML = filas;
             } else {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center">No se encontraron registros</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron registros</td></tr>`;
             }
         } catch (err) {
             console.error("❌ Error:", err);
@@ -2286,6 +2313,26 @@ window.socket.on('turno_finalizado', function(data) {
     console.log("⚡ Evento 'turno_finalizado' recibido en el panel:", data);
     refrescarTodo(); // Dispara tu función global para actualizar todas las tablas
 });
+// 🚀 ESCUCHA EN TIEMPO REAL: Nuevo cliente desde formulario web
+window.socket.on('nueva_solicitud_cliente', (data) => {
+    console.log("🔔 [SOCKET] ¡Nuevo cliente desde el formulario web!", data);
+    
+    // 1. Recargar la tabla de la cola automáticamente
+    if (typeof window.cargarColaClientes === 'function') {
+        window.cargarColaClientes();
+    }
+    
+    // 2. Mostrar aviso visual al operador
+    if (typeof window.mostrarToast === 'function') {
+        window.mostrarToast("🔔 Nuevo cliente en la cola (Llenó el formulario web)", "success");
+    }
+
+    // 3. Reproducir un sonido (asegúrate de tener el archivo)
+    try {
+        const beep = new Audio('/static/sounds/notification.mp3');
+        beep.play().catch(e => console.log("Interacción de audio requerida para sonar"));
+    } catch (e) {}
+});
 
 // Listener para el botón y tecla Enter en el input de diagnóstico
 const inputDiag = document.getElementById("inputCodigoDiagnostico");
@@ -2305,3 +2352,158 @@ inputDiag?.addEventListener("keydown", (e) => {
         dispararConsultaDiagnostico();
     }
 });
+// ==================== SWITCH: Modo Link Cliente ====================
+window.MODO_LINK_CLIENTE_ACTIVO = localStorage.getItem('modo_link_cliente') === 'true';
+
+function actualizarSwitchModoLinkCliente() {
+    const switchEl = document.getElementById('switchModoLinkCliente');
+    const bg = document.getElementById('bgModoLinkCliente');
+    const circle = document.getElementById('circleModoLinkCliente');
+    const text = document.getElementById('textModoLinkCliente');
+    
+    if (!switchEl) return;
+    
+    switchEl.checked = window.MODO_LINK_CLIENTE_ACTIVO;
+    
+    if (window.MODO_LINK_CLIENTE_ACTIVO) {
+        text.innerText = "📲 Link Cliente: ON";
+        text.classList.remove('text-gray-500');
+        text.classList.add('text-blue-600');
+        bg.classList.remove('bg-gray-300');
+        bg.classList.add('bg-blue-600');
+        circle.classList.add('translate-x-4');
+    } else {
+        text.innerText = "📲 Link Cliente: OFF";
+        text.classList.remove('text-blue-600');
+        text.classList.add('text-gray-500');
+        bg.classList.remove('bg-blue-600');
+        bg.classList.add('bg-gray-300');
+        circle.classList.remove('translate-x-4');
+    }
+}
+// ==================== PRE-BANNER: Enviar link de solicitud al cliente ====================
+window.mostrarBannerSolicitudLink = async function(telefonoCliente, nombreCliente) {
+    // 1. Eliminar banner previo
+    const bannerAnterior = document.getElementById('bannerSolicitudLink');
+    if (bannerAnterior) bannerAnterior.remove();
+
+    if (!telefonoCliente) return;
+
+    // 2. Verificar que el túnel esté activo (bandera DOMINIO_PUBLICO)
+    let dominioBase = window.DOMINIO_PUBLICO || "";
+    if (dominioBase && !dominioBase.startsWith("http")) {
+        dominioBase = "https://" + dominioBase;
+    }
+    if (!dominioBase) {
+        console.warn("⚠️ DOMINIO_PUBLICO vacío. No se puede generar el link del formulario.");
+        if (typeof mostrarToast === "function") {
+            mostrarToast("⚠️ Túnel inactivo. No se puede generar el link del formulario.", "error");
+        }
+        return;
+    }
+
+    // 3. Crear el pre-banner (compacto, mismo estilo que el post-banner)
+    const banner = document.createElement('div');
+    banner.id = 'bannerSolicitudLink';
+    banner.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #1e1e2f; color: #fff; padding: 8px 14px; border-radius: 10px; z-index: 10000; box-shadow: 0 6px 16px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px; font-family: 'Segoe UI', sans-serif; border: 1px solid #444;";
+
+    banner.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-weight: bold; font-size: 12px; background: #2a2a3e; padding: 2px 8px; border-radius: 12px;">
+                ${nombreCliente || 'Cliente'}
+            </span>
+            <span style="font-size: 11px; color: #aaa;">${telefonoCliente}</span>
+        </div>
+        <button id="btnEnviarLinkSolicitud" type="button" tabindex="-1"
+                style="background: #2563eb; color: #fff; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;"
+                title="Copiar link para que el cliente llene origen y destino">
+            📲 Copiar Link de Solicitud
+        </button>
+        <button id="btnCerrarBannerSolicitud" type="button" tabindex="-1"
+                style="background: #3a3a4c; color: #fff; border: none; padding: 4px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; line-height: 1;"
+                title="Cerrar">✕</button>
+    `;
+    document.body.appendChild(banner);
+
+    // 4. Evento: Copiar link al portapapeles (SIN ABRIR VENTANA)
+    banner.querySelector('#btnEnviarLinkSolicitud').addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.innerText = "⏳ Generando...";
+
+        try {
+            // Pedir token al backend
+            const res = await apiFetch('/api/generar_link_solicitud', {
+                method: 'POST',
+                body: JSON.stringify({ telefono: telefonoCliente })
+            });
+
+            if (!res || !res.token) {
+                mostrarToast("⚠️ No se pudo generar el token del formulario", "error");
+                btn.disabled = false;
+                btn.innerText = "📲 Copiar Link de Solicitud";
+                return;
+            }
+
+            // Construir URL completa
+            const linkFormulario = `${dominioBase}/solicitar/${res.token}`;
+
+            // Preparar mensaje
+            const msgSolicitud = 
+                `¡Hola! 🚖 Gracias por contactar a Línea de Taxis Los Patriotas.\n\n` +
+                `Para agilizar su servicio, complete sus datos aquí:\n\n` +
+                `📋 ${linkFormulario}\n\n` +
+                `Un operador le asignará una unidad en cuanto esté disponible.`;
+
+            // 🚀 COPIAR AL PORTAPAPELES (Método nativo con respaldo)
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(msgSolicitud);
+                mostrarToast("📋 Mensaje copiado. Péguelo en WhatsApp (Ctrl+V).", "success");
+            } else {
+                // Respaldo para HTTP o navegadores viejos
+                const textArea = document.createElement("textarea");
+                textArea.value = msgSolicitud;
+                textArea.style.position = "fixed";
+                textArea.style.opacity = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                textArea.remove();
+                mostrarToast("📋 Mensaje copiado. Péguelo en WhatsApp.", "success");
+            }
+
+            // Restaurar botón
+            btn.disabled = false;
+            btn.innerText = "📲 Copiar Link de Solicitud";
+
+        } catch (err) {
+            console.error("❌ Error generando link:", err);
+            mostrarToast("⚠️ Error al generar el link del formulario", "error");
+            btn.disabled = false;
+            btn.innerText = "📲 Copiar Link de Solicitud";
+        }
+    });
+
+    // 5. Evento: Cerrar banner
+    banner.querySelector('#btnCerrarBannerSolicitud').addEventListener('click', (e) => {
+        e.preventDefault();
+        banner.remove();
+    });
+
+    // 6. Autodestruir el banner a los 60 segundos
+    if (window.bannerSolicitudTimeout) clearTimeout(window.bannerSolicitudTimeout);
+    window.bannerSolicitudTimeout = setTimeout(() => {
+        const b = document.getElementById('bannerSolicitudLink');
+        if (b) b.remove();
+    }, 60000);
+};
+
+window.cerrarBannerSolicitudLink = function() {
+    const b = document.getElementById('bannerSolicitudLink');
+    if (b) b.remove();
+    if (window.bannerSolicitudTimeout) clearTimeout(window.bannerSolicitudTimeout);
+};
