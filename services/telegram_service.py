@@ -333,6 +333,12 @@ def _manejar_contacto(chat_id, contact):
     # Validar coincidencia de números
     if telefono_telegram in telefono_bd or telefono_bd in telefono_telegram:
         # ¡Coinciden! Es el teléfono real del titular
+        # 🛡️ VERIFICAR QUE EL CHAT_ID NO ESTÉ YA REGISTRADO EN OTRO CONDUCTOR
+        otro_conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
+        if otro_conductor and otro_conductor.id_conductor != conductor.id_conductor:
+            enviar_mensaje(chat_id, "❌ Este Telegram ya está vinculado a otra unidad. Contacta al administrador.")
+            usuarios_reportando.pop(chat_id, None)
+            return {"status": "telegram_ya_vinculado"}, 200
         conductor.telegram_id = chat_id
         db.session.commit()
         

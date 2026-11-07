@@ -336,9 +336,8 @@ def actualizar_ubicacion():
     lat = data.get('latitud')
     lon = data.get('longitud')
 
-    conductor = Conductor.query.filter(
-        (Conductor.codigo == codigo) | (Conductor.id_conductor == codigo)
-    ).first()
+    codigo_limpio = str(codigo).strip().upper()
+    conductor = Conductor.query.filter_by(codigo=codigo_limpio).first()
 
     if not conductor:
         return jsonify({"error": f"Conductor con código {codigo} no encontrado"}), 404
@@ -486,7 +485,12 @@ def obtener_ubicaciones():
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
         # 🧠 USAR DIRECTAMENTE EL ESTADO DE RED CALCULADO EN LA BD (SIN RE-EVALUACIONES CONFLICTIVAS)
-        estado_red_calculado = getattr(c, 'estado_red', 'desconectado')
+        # 🧠 CALCULAR ESTADO DE RED EN TIEMPO REAL (Ignorar el valor de la BD si está obsoleto)
+        estado_red_calculado = 'desconectado'
+        if c.ultima_actualizacion:
+            diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion).total_seconds() / 60
+            if diferencia_minutos <= 5: # Si reportó hace menos de 5 min, está conectado
+                estado_red_calculado = 'conectado'
 
         resultado.append({  
             "id_conductor": c.id_conductor,  

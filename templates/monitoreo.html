@@ -207,16 +207,17 @@
             }
             function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision) {
                 let colorIcono = "#27ae60"; // Verde
+                let iconoAdvertencia = "";
+                
                 if (estaDesactualizado) {
                     colorIcono = "#7f8c8d"; // Gris
+                    iconoAdvertencia = `<div style="font-size: 14px; margin-top: -8px;">⚠️</div>`;
                 } else if (precision > 50) {
                     colorIcono = "#e67e22"; // Naranja
                 }
                 
-                // Detectar si es vista de cliente
                 const esVistaCliente = (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '');
                 
-                // Tamaños según el tipo de vista (¡ahora sí se usan!)
                 const tamañoTaxi = esVistaCliente ? '64px' : '24px';
                 const tamañoTexto = esVistaCliente ? '18px' : '11px';
                 const paddingTexto = esVistaCliente ? '6px 14px' : '2px 6px';
@@ -247,6 +248,7 @@
                                 text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
                                 margin-top: 2px;
                                 display: inline-block;"></i>
+                            ${iconoAdvertencia}
                         </div>
                     `,
                     iconSize: tamañoIcono,
@@ -267,7 +269,7 @@
                 });
             }
 
-                        function procesarYRenderizarFlota(data) {
+            function procesarYRenderizarFlota(data) {
                 const codigosServidor = data.map(c => c.codigo);
 
                 Object.keys(marcadores).forEach(codigo => {
@@ -460,12 +462,27 @@
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
                         const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
 
+                        // 🛑 CONTROL DE MARCADORES EN EL MAPA SEGÚN TIEMPO SIN SEÑAL
                         if (minutosSinReportar > TOLERANCIA_MAXIMA) {
+                            // Si supera los 15 minutos sin reportar, ELIMINAMOS el marcador
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
                                 delete marcadores[c.codigo];
                             }
                         } else {
+                            // Si está dentro del tiempo permitido, validamos el Anti-Drift antes de actualizar
+                            if (marcadores[c.codigo]) {
+                                const coordsViejas = marcadores[c.codigo].getLatLng();
+                                const distanciaKm = map.distance(coordsViejas, coords) / 1000;
+                                
+                                // Si se movió más rápido que 120 km/h (ej. 1.5 km en 30s), es un error del GPS
+                                if (distanciaKm > 1.5) {
+                                    console.warn(`🚨 [GPS DRIFT] Salto detectado en ${c.codigo}. Ignorando posición.`);
+                                    return; // Ignora esta actualización y mantiene el carro donde estaba
+                                }
+                            }
+                            
+                            // Si pasó el filtro anti-drift, actualizamos el marcador
                             if (!marcadores[c.codigo]) {
                                 marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
                             } else {
