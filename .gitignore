@@ -28,3 +28,5 @@ test_bot.py
 app.log
 __pycache__/
 static/img/flayers/app.log
+app.log
+estructura_proyecto.txt
