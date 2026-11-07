@@ -15,7 +15,7 @@ from models.autos import Auto
 from datetime import datetime
 from utils.auth import rol_requerido
 from flask import render_template
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -69,18 +69,13 @@ def crear_despacho():
         # ====================================================================
 
         # ====================================================================
-        # 🛑 BLOQUEO OBLIGATORIO: Verificar que el conductor esté conectado en Telegram
+        # 🛑 VALIDACIÓN: Conductor existe
         # ====================================================================
         conductor_obj = Conductor.query.get(conductor_id)
         if not conductor_obj:
             return jsonify({"error": "Conductor no encontrado"}), 404
 
         con_cod = conductor_obj.codigo
-        # Validación de telegram omitida para permitir despachos sin conexión de Telegram
-        #if not conductor_obj.telegram_id or conductor_obj.estado_red != 'conectado':
-        #    return jsonify({
-        #        "error": f"Acción denegada: El conductor #{con_cod} ({conductor_obj.nombre}) no está conectado en Telegram. No se puede crear el despacho."
-        #    }), 400
         # ====================================================================
 
         # --- USAMOS NO_AUTOFLUSH PARA EVITAR EL ERROR ---
@@ -99,7 +94,7 @@ def crear_despacho():
                 grupo_id=data.get("grupo_id")
             )
             db.session.add(nuevo_despacho)
-            db.session.flush() # Genera el ID del nuevo despacho
+            db.session.flush()  # Genera el ID del nuevo despacho
             
             # --- OBTENCIÓN DE RESTO DE DATOS ---
             cliente_obj = Cliente.query.get(cliente_id)
@@ -110,17 +105,55 @@ def crear_despacho():
             con_nom = conductor_obj.nombre
 
             # ====================================================================
-            # 🛡️ VALIDACIÓN DE VIGENCIA DEL GPS
+            # 🛡️ VALIDACIÓN GPS: 5 ESCENARIOS REALES (NO solo Telegram conectado)
             # ====================================================================
             conductor_valido = True
-            
+            motivo_invalido = ""
+
+            # Normalizar zonas horarias
             exp_gps = conductor_obj.expiracion_gps
             if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
                 exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
 
-            if exp_gps and exp_gps < ahora:
+            ult_act = conductor_obj.ultima_actualizacion
+            if ult_act and ult_act.tzinfo is None and ahora.tzinfo is not None:
+                ult_act = ult_act.replace(tzinfo=ahora.tzinfo)
+
+            opcion_gps = str(getattr(conductor_obj, 'opcion_gps', '') or '').strip()
+            tolerancia_min = getattr(conductor_obj, 'tolerancia_dinamica_minutos', 5) or 5
+
+            # 🔍 VALIDACIÓN EN CASCADA (la primera que falle, marca inválido)
+            if not conductor_obj.telegram_id:
                 conductor_valido = False
-                print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} tiene el GPS expirado.")
+                motivo_invalido = "sin cuenta de Telegram vinculada"
+
+            elif getattr(conductor_obj, 'estado_red', 'desconectado') != 'conectado':
+                conductor_valido = False
+                motivo_invalido = "Telegram desconectado (no recibe señal del bot)"
+
+            elif conductor_obj.latitud is None or conductor_obj.longitud is None:
+                conductor_valido = False
+                motivo_invalido = "sin coordenadas de ubicación registradas"
+
+            elif not ult_act or (ahora - ult_act) > timedelta(minutes=tolerancia_min):
+                minutos_sin_reportar = int((ahora - ult_act).total_seconds() / 60) if ult_act else 9999
+                conductor_valido = False
+                motivo_invalido = f"ubicación desactualizada ({minutos_sin_reportar} min sin reportar, tolerancia: {tolerancia_min} min)"
+
+            elif exp_gps and exp_gps < ahora:
+                conductor_valido = False
+                motivo_invalido = "tiempo de compartición GPS expirado"
+
+            elif opcion_gps in ["Expirado", "Finalizado", "Detenido"]:
+                conductor_valido = False
+                motivo_invalido = f"modo GPS: {opcion_gps}"
+
+            # 📊 Log de auditoría
+            if not conductor_valido:
+                print(f"⚠️ [GPS INACTIVO] Despacho #{nuevo_despacho.id_despacho} creado, pero unidad {con_cod} ({con_nom}): {motivo_invalido}")
+            else:
+                print(f"✅ [GPS ACTIVO] Despacho #{nuevo_despacho.id_despacho} con unidad {con_cod} compartiendo ubicación.")
+            # ====================================================================
 
             if conductor_valido:
                 codigo_minicla = con_cod.lower()
@@ -165,20 +198,20 @@ def crear_despacho():
 
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
-            mensaje_respuesta += " (⚠️ Advertencia: GPS expirado, no se generó enlace de WhatsApp)."
+            mensaje_respuesta += f" (⚠️ Advertencia: {motivo_invalido})"
 
         return jsonify({
             "msg": mensaje_respuesta,
             "id_despacho": nuevo_despacho.id_despacho,
             "cliente_telefono": c_tel,
-            "enlace_generado": conductor_valido
+            "enlace_generado": conductor_valido,
+            "motivo_invalido": motivo_invalido  # 👈 NUEVO: Enviamos el motivo al frontend
         }), 201
 
     except Exception as e:
         db.session.rollback()
         print("❌ Error en DB:", str(e))
-        return jsonify({"error": "Error interno: " + str(e)}), 500
-@despachos_bp.route("/", methods=["GET"])
+        return jsonify({"error": "Error interno: " + str(e)}), 500@despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID
     d = Despacho.query.get_or_404(id)

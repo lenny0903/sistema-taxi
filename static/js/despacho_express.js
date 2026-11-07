@@ -162,8 +162,18 @@ async function ejecutarDespachoDirecto({
         });
 
         if (result && !result.error) {
-            mostrarToast(`✅ Despacho creado con éxito`, "success");
+            // 🛡️ 1. VERIFICAR CONDUCTOR GPS ANTES DE MOSTRAR EL TOAST
+            
+            const conductorValido = result.enlace_generado !== false;
+            const motivoInvalido = result.motivo_invalido || "GPS no disponible";
 
+            if (conductorValido) {
+                mostrarToast(`✅ Despacho creado con éxito. Conductor con GPS activo.`, "success");
+            } else {
+                // 🎯 Mensaje específico con el motivo real del backend
+                mostrarToast(`⚠️ Despacho creado. Conductor sin GPS: ${motivoInvalido}`, "warning");
+            }
+            
             // 📲 3. GENERAR BANNER FLOTANTE (Protegido en bloque independiente)
             try {
                 const inputNombre = document.getElementById("desNombre") || document.getElementById("modalNombreCliente");
@@ -188,21 +198,7 @@ async function ejecutarDespachoDirecto({
                 // Dentro de tu función de despacho en el frontend de JavaScript:
                 const idDespachoActual = result.id_despacho || window.despachoIdCreado; 
                 console.log("ID actual:", idDespachoActual);
-
-               // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
-                // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
-                // Cambiar Taxilospatriotastest_bot a minúsculas:
-                // Cambiar Taxilospatriotastest_bot a minúsculas:
-                //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
-                
-
-               // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
-               // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
-               // const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
-               // 🔗 Enlace directo y limpio al bot de Telegram (estándar de producción)
-                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
-                const conductorValido = result.enlace_generado !== false;
-
+                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`;
                 const msgCliente = conductorValido ? (
                     `🚖 ¡Hola! Su servicio está confirmado.\n\n` +
                     `📍 Vea a su taxi acercarse en tiempo real:\n` +
@@ -465,6 +461,86 @@ async function copiarTextoAlPortapapeles(texto) {
         return false;
     }
 }
+// 🚀 FUNCIÓN AUXILIAR: Aplica los datos del cliente a la UI y HABILITA EL LÁPIZ
+function aplicarDatosClienteUI(resultado, telActual) {
+    const nomInput = document.getElementById("desNombre");
+    const oriInput = document.getElementById("desOrigen");
+    const desInput = document.getElementById("desDestino");
+    const btnMod = document.getElementById("btnModificarCliente");
+    const btnEnviar = document.getElementById("btnEnviarDespacho");
+
+    if (resultado && resultado.valido === true && resultado.cliente) {
+        const c = resultado.cliente;
+
+        if (nomInput) {
+            nomInput.value = c.nombre || "";
+            nomInput.readOnly = true;
+            nomInput.style.backgroundColor = "#f3f4f6"; 
+        }
+        if (oriInput) {
+            oriInput.value = c.direccion || "";
+            oriInput.disabled = false;
+            oriInput.readOnly = false;
+            oriInput.style.backgroundColor = "#f3f4f6";
+        }
+        if (desInput) {
+            desInput.disabled = false;
+            desInput.readOnly = false;
+            desInput.style.backgroundColor = "#ffffff";
+            desInput.value = ""; 
+            desInput.focus(); 
+        }
+
+        // 🖍️ AQUÍ SE HABILITA EL LÁPIZ
+        if (btnMod) {
+            btnMod.disabled = false;
+            btnMod.style.opacity = "1";
+            btnMod.onclick = () => {
+                if (!c.id_cliente) c.id_cliente = c.cliente_id || c.id;
+                abrirModalCliente(telActual, c); 
+            };
+        }
+
+        if (btnEnviar) {
+            btnEnviar.disabled = false;
+            btnEnviar.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+
+        window.clienteListoParaEnviar = telActual; // Para el semáforo
+        return true;
+    } else {
+        // Cliente nuevo
+        if (nomInput) {
+            nomInput.disabled = false;     
+            nomInput.readOnly = false;     
+            nomInput.value = "";
+            nomInput.style.backgroundColor = "#ffffff";
+        }
+        if (oriInput) {
+            oriInput.disabled = false;     
+            oriInput.readOnly = false;
+            oriInput.value = "";
+            oriInput.style.backgroundColor = "#ffffff";
+        }
+        if (desInput) {
+            desInput.disabled = false;
+            desInput.readOnly = false;
+        }
+        window.clienteIdActual = null;
+        
+        if (typeof mostrarToast === 'function') {
+            mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
+        }
+
+        setTimeout(() => {
+            if (nomInput) {
+                nomInput.focus();
+                nomInput.select();
+            }
+        }, 50);
+        return false;
+    }
+}
 document.addEventListener("DOMContentLoaded", () => {
     // --------------------------------------------------------------------------
     // 1. REFERENCIAS AL DOM
@@ -603,7 +679,7 @@ document.addEventListener("DOMContentLoaded", () => {
             event.preventDefault();
             event.stopImmediatePropagation();
 
-            // 🛡️ CORRECCIÓN: Normalizar automáticamente antes de validar y buscar
+            // 🛡️ 1. Normalizar y validar (tu código original)
             const resultadoNormalizacion = normalizarTelefonoVenezolano(telRaw);
             if (resultadoNormalizacion.valido) {
                 telefonoInput.value = resultadoNormalizacion.numero;
@@ -616,11 +692,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 return; 
             }
 
-            if (clienteListoParaEnviar === telActual && nomInput && nomInput.value.trim() !== "") {
+            // 🛡️ 2. Condición corregida: Solo salta si el lápiz YA está habilitado
+            const btnModCheck = document.getElementById("btnModificarCliente");
+            if (clienteListoParaEnviar === telActual && nomInput && nomInput.value.trim() !== "" && btnModCheck && !btnModCheck.disabled) {
                 if (desInput) desInput.focus();
                 return;
             }
 
+            // 🛡️ 3. Feedback visual mientras busca
             if (nomInput) nomInput.value = "Buscando..."; 
             if (oriInput) oriInput.value = "Buscando..."; 
             if (desInput) desInput.value = ""; 
@@ -628,80 +707,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof refrescarSelectConductorUnico === "function") {
                 refrescarSelectConductorUnico();
             }
-            const resultado = await validarClienteExpreso();
             
-            if (resultado && resultado.valido === true && resultado.cliente) {
-                const c = resultado.cliente;
-                
-                if (nomInput) {
-                    nomInput.value = c.nombre || "";
-                    nomInput.readOnly = true;
-                    nomInput.style.backgroundColor = "#f3f4f6"; 
-                }
-                if (oriInput) {
-                    oriInput.value = c.direccion || "";
-                    oriInput.disabled = false;
-                    oriInput.readOnly = false;
-                    oriInput.style.backgroundColor = "#f3f4f6";
-                }
-
-                const btnMod = document.getElementById("btnModificarCliente"); 
-                if (btnMod) {
-                    btnMod.disabled = false;
-                    btnMod.style.opacity = "1";
-                    btnMod.onclick = () => {
-                        if (!c.id_cliente) c.id_cliente = c.cliente_id || c.id;
-                        abrirModalCliente(telActual, c); 
-                    };
-                }
-               
-                if (desInput) {
-                    desInput.disabled = false;
-                    desInput.readOnly = false;
-                    desInput.style.backgroundColor = "#ffffff";
-                    desInput.value = ""; 
-                    desInput.focus(); 
-                }
-
-                clienteListoParaEnviar = telActual; 
-                if (btnEnviar) activarBotonEnviar(btnEnviar);
-
-            } else {
-                if (typeof mostrarToast === 'function') {
-                    mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
-                }
-
-                if (nomInput) {
-                    nomInput.disabled = false;     
-                    nomInput.readOnly = false;     
-                    nomInput.value = "";
-                    nomInput.style.backgroundColor = "#ffffff";
-                }
-
-                if (oriInput) {
-                    oriInput.disabled = false;     
-                    oriInput.readOnly = false;
-                    oriInput.value = "";
-                    oriInput.style.backgroundColor = "#ffffff";
-                }
-
-                if (desInput) {
-                    desInput.disabled = false;
-                    desInput.readOnly = false;
-                }
-
-                window.clienteIdActual = null;
-                clienteListoParaEnviar = telActual; 
-                if (btnEnviar) activarBotonEnviar(btnEnviar);
-
-                telefonoInput.blur();
-                setTimeout(() => {
-                    if (nomInput) {
-                        nomInput.focus();
-                        nomInput.select();
-                    }
-                }, 50);
-            }
+            // 🛡️ 4. Llamar al backend y aplicar el resultado con UNA SOLA LÍNEA
+            const resultado = await validarClienteExpreso();
+            aplicarDatosClienteUI(resultado, telActual);
         }
     });
 
@@ -885,16 +894,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 if (exito) {
-                    if (window.idColaEnEdicion) {
-                        try {
-                            await apiFetch(`/cola_despachos/${window.idColaEnEdicion}`, { method: "DELETE" });
-                        } catch (e) { console.error("Error al eliminar de cola:", e); }
-                        window.idColaEnEdicion = null;
-                    }
-
+                   
                     formDespacho.reset();
                     window.clienteIdActual = null;
                     clienteListoParaEnviar = null;
+                    window.idColaEnEdicion = null; // Limpiamos la referencia local
 
                     if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
                     if (typeof cargarDespachosActivos === "function") cargarDespachosActivos();
@@ -1607,19 +1611,22 @@ document.addEventListener("paste", function(e) {
         const textoClipboard = (e.clipboardData || window.clipboardData).getData("text");
         const resultado = normalizarTelefonoVenezolano(textoClipboard);
 
-        // Inyectamos SIEMPRE el número transformado y limpio
         target.value = resultado.numero;
 
         if (resultado.valido) {
             console.log(`✅ [INTEGRIDAD OK] Pegado limpio: "${textoClipboard}" ➔ BD: "${resultado.numero}"`);
             
-            setTimeout(() => {
+            setTimeout(async () => {
                 target.dispatchEvent(new Event('input', { bubbles: true }));
-                validarClienteExpreso().finally(() => {
+                try {
+                    const resValidacion = await validarClienteExpreso();
+                    aplicarDatosClienteUI(resValidacion, resultado.numero);
+                } finally {
                     isProcesandoPaste = false;
-                });
+                }
             }, 50);
         } else {
+            // 🛑 LIBERAR EL CANDADO SI EL TELÉFONO ES INVÁLIDO
             isProcesandoPaste = false;
             console.warn(`⚠️ Teléfono inválido tras normalizar: "${resultado.numero}"`);
             if (typeof mostrarToast === 'function') {
@@ -1627,8 +1634,7 @@ document.addEventListener("paste", function(e) {
             }
         }
     }
-}, true);
-// ⚡ Evaluador de estado del formulario Express
+}, true);// ⚡ Evaluador de estado del formulario Express
 function verificarEstadoFormularioExpress() {
     const btnEnviar = document.getElementById("btnEnviarDespacho");
     const tel = document.getElementById("desTelefono")?.value.trim();

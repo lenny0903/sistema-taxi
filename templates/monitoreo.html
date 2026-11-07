@@ -267,7 +267,7 @@
                 });
             }
 
-            function procesarYRenderizarFlota(data) {
+                        function procesarYRenderizarFlota(data) {
                 const codigosServidor = data.map(c => c.codigo);
 
                 Object.keys(marcadores).forEach(codigo => {
@@ -286,56 +286,38 @@
                 });
 
                 data.forEach(c => {
-                    // 🛑 FILTRO PARA CLIENTES: Si hay un despacho activo, ignorar cualquier otro conductor
-                    if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
-                        if (parseInt(c.id_despacho) !== parseInt(ID_DESPACHO_ACTIVO)) {
-                            return; // Salta este carro y no lo dibuja en el mapa
-                        }
+                    // 🛑 FILTRO BLINDADO PARA CLIENTES (Evita que se oculte la flota al operador)
+                    const idActivo = parseInt(ID_DESPACHO_ACTIVO);
+                    const esVistaCliente = ID_DESPACHO_ACTIVO !== '' 
+                                        && ID_DESPACHO_ACTIVO !== '0' 
+                                        && ID_DESPACHO_ACTIVO !== 'undefined' 
+                                        && ID_DESPACHO_ACTIVO !== 'null' 
+                                        && !isNaN(idActivo) 
+                                        && idActivo > 0;
+                    
+                    if (esVistaCliente && parseInt(c.id_despacho) !== idActivo) {
+                        return; // Solo en vista cliente salta a los demás
                     }
+
                     console.log(`🔍 ${c.codigo}: estado="${c.estado}", opcion_gps="${c.opcion_gps}", lat=${c.latitud}, lon=${c.longitud}`);
                     let tr = tbody.querySelector(`tr[data-codigo="${c.codigo}"]`);
                     
                     const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
-                    // Eliminamos 'desactiv' de aquí para que "hasta que se desactive" no se confunda con cierre
-                    
                     const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
-                    // Si está disponible pero NO por haber finalizado la compartición de GPS:
-                    if (c.estado === 'disponible' && !estaFinalizado) {
+                    // 🛑 REGLA DE ORO CORREGIDA: Si está disponible O finalizó su GPS, SE ELIMINA DEL MAPA Y DEL PANEL
+                    if (c.estado === 'disponible' || estaFinalizado) {
                         if (marcadores[c.codigo]) { 
                             map.removeLayer(marcadores[c.codigo]); 
                             delete marcadores[c.codigo]; 
                         }
-                        if (tr) tr.remove();
+                        if (tr) tr.remove(); // 👈 Esto es lo que quita el "fantasma" del panel lateral
                         delete cronometrosActivos[c.codigo];
                         return;
                     }
 
-                    // 🛑 Si el conductor dejó de compartir (Finalizado / Detenido):
-                    if (estaFinalizado) {
-                        if (marcadores[c.codigo]) {
-                            map.removeLayer(marcadores[c.codigo]);
-                            delete marcadores[c.codigo];
-                        }
-                        delete cronometrosActivos[c.codigo];
-
-                        if (!tr) {
-                            tr = document.createElement('tr');
-                            tr.setAttribute('data-codigo', c.codigo);
-                            tbody.appendChild(tr);
-                        }
-                        tr.style.backgroundColor = '#f8d7da'; // Color rojo claro de alerta
-                        tr.innerHTML = `
-                            <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
-                            <td style="padding: 6px; vertical-align: top; color: #721c24;">
-                                🛑 Finalizado por el conductor
-                                
-                            </td>
-                        `;
-                        return;
-                    }
-
-                   if (c.estado === 'activo' || c.estado === 'en curso') {
+                    // A partir de aquí solo llegan los estados 'activo' o 'en curso'
+                    if (c.estado === 'activo' || c.estado === 'en curso') {
                         if (c.latitud === null || c.longitud === null) {
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
@@ -409,7 +391,6 @@
                             const fechaUltima = obtenerTimestampLocal(c.ultima_actualizacion);
                             minutosSinReportar = (Date.now() - fechaUltima) / (1000 * 60);
                             
-                            // Forzar inactividad si excede la tolerancia individual O la tolerancia máxima de 15 min
                             estaDesactualizado = isNaN(minutosSinReportar) || 
                                                  minutosSinReportar > toleranciaIndividual || 
                                                  minutosSinReportar > TOLERANCIA_MAXIMA;
@@ -444,7 +425,7 @@
                             `;
                             tr.style.backgroundColor = '#f8d7da';
                         } else if (estaDesactualizado) {
-                            tr.style.backgroundColor = '#fff3cd'; // Resaltar fila de alerta en el panel
+                            tr.style.backgroundColor = '#fff3cd'; 
                             const minTexto = isNaN(minutosSinReportar) ? '?' : Math.round(minutosSinReportar);
                             etiquetaEstado = `
                                 <span style="color: orange; font-weight: bold;">⚠️ Sin señal (${minTexto}m)</span><br>
@@ -479,15 +460,12 @@
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
                         const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
 
-                        // 🛑 CONTROL DE MARCADORES EN EL MAPA SEGÚN TIEMPO SIN SEÑAL
                         if (minutosSinReportar > TOLERANCIA_MAXIMA) {
-                            // Si supera los 15 minutos sin reportar, ELIMINAMOS el marcador del mapa para no mostrar posiciones viejas
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
                                 delete marcadores[c.codigo];
                             }
                         } else {
-                            // Si está dentro del tiempo permitido, creamos o actualizamos la posición
                             if (!marcadores[c.codigo]) {
                                 marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
                             } else {
@@ -495,10 +473,9 @@
                                 marcadores[c.codigo].setIcon(iconoVehiculo);
                             }
                             
-                            // Atenuar marcador si está levemente desactualizado pero aún dentro del límite
                             marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
                             
-                            if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '' && parseInt(c.id_despacho) === parseInt(ID_DESPACHO_ACTIVO)) {
+                            if (esVistaCliente && parseInt(c.id_despacho) === idActivo) {
                                 map.setView(coords, 17);
                             }
                         }
