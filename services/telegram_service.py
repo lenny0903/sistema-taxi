@@ -256,6 +256,8 @@ def _manejar_ubicacion(chat_id, msg, update):
         ahora = hora_local()
         conductor.expiracion_gps = ahora
         conductor.opcion_gps = "Finalizado"
+        conductor.estado = "disponible" # 👈 IMPORTANTE: Asegúrate de tener esto para que se quite del mapa
+        
         if hasattr(conductor, "turno_activo") and conductor.turno_activo:
             conductor.turno_activo.expiracion_gps = ahora
             conductor.turno_activo.opcion_gps = "Finalizado"
@@ -271,6 +273,17 @@ def _manejar_ubicacion(chat_id, msg, update):
         enviar_menu_botones(chat_id)
         return {"status": "ubicacion_estatica_rechazada"}, 200
 
+    # 🚨 FILTRO ANTI-RÁFAGA (Ignorar el pasado) 🚨
+    tiempo_captura = msg.get("date", 0)
+    tiempo_actual = int(time.time())
+    
+    # Si el punto tiene más de 2 minutos (120 segundos) de antigüedad, se ignora y no se guarda
+    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 120:
+        print(f"⚠️ Ignorando punto viejo de {conductor.codigo} (capturado hace {tiempo_actual - tiempo_captura} seg)")
+        return {"status": "ubicacion_vieja_ignorada"}, 200
+    # --------------------------------------------------
+
+    # A partir de aquí solo pasan los puntos GPS recientes (el presente)
     ahora = hora_local().replace(microsecond=0)
     conductor.latitud = msg["location"]["latitude"]
     conductor.longitud = msg["location"]["longitude"]
@@ -310,7 +323,6 @@ def _manejar_ubicacion(chat_id, msg, update):
         'ultima_actualizacion': ahora.isoformat()
     })
     return {"status": "loc_actualizada"}, 200
-
 def _manejar_contacto(chat_id, contact):
     # Verificamos si este chat estaba en proceso de activación
     estado_temp = usuarios_reportando.get(chat_id)

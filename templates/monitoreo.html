@@ -590,7 +590,16 @@
             });
 
             // Eventos de negocio (ubicaciones, inactivos)
-            socket.on('nueva_ubicacion', () => actualizarMapa());
+            let timeoutActualizacion = null;
+
+            socket.on('nueva_ubicacion', () => {
+                // Si llegan muchos eventos seguidos, cancelamos el anterior y esperamos 500ms
+                if (timeoutActualizacion) clearTimeout(timeoutActualizacion);
+                
+                timeoutActualizacion = setTimeout(() => {
+                    actualizarMapa();
+                }, 500); // Solo consulta la BD medio segundo después del último aviso
+            });
             socket.on('conductor_inactivo', () => actualizarMapa());
 
             setInterval(actualizarMapa, 30000);

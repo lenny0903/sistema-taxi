@@ -436,7 +436,7 @@ def obtener_ubicaciones():
     db.session.expire_all()
     
     conductores = Conductor.query.filter(  
-        Conductor.estado.in_(['esperando', 'disponible', 'activo', 'solicitando_cierre'])  
+        Conductor.estado.in_(['esperando', 'activo', 'solicitando_cierre'])  
     ).all()
       
     resultado = []  
