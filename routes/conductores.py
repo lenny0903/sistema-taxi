@@ -428,132 +428,139 @@ def confirmar_turno(id_conductor):
     return jsonify({"status": "éxito", "mensaje": "Conductor habilitado para turno"})
 
 
-@conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
-def obtener_ubicaciones():  
-    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
-    evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
+@conductores_bp.route("/ubicaciones_activas", methods=["GET"])
+def obtener_ubicaciones():
+    TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN")
+    evaluar_estado_flota_backend(db.session, TOKEN_BOT)
     db.session.expire_all()
     
     conductores = Conductor.query.filter(  
         Conductor.estado.in_(['esperando', 'activo', 'solicitando_cierre'])  
     ).all()
-      
-    resultado = []  
-      
-    for c in conductores:  
-        turno_activo = Turno.query.filter_by(
-            conductor_id=c.id_conductor, 
-            estado='activo'
-        ).first()
-
-        id_despacho_actual = None
-        try:
-            despacho_activo = Despacho.query.filter_by(
-                conductor_id=c.id_conductor, 
-                estado_despacho='en curso'
-            ).first()
-            if despacho_activo:
-                id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
-        except Exception:
-            id_despacho_actual = None
-
-        # 🟢 LÓGICA DE ESTADO GPS LIMPIA Y SEGURA
-        # 🟢 Extracción unificada y segura
-        # 🟢 Prioridad absoluta al turno activo; si no hay, usa el del conductor
-        opcion_val = (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None) or getattr(c, 'opcion_gps', None)
-        
-        # 🛡️ PROTECCIÓN BLINDADA DE TURNO NUEVO:
-        if turno_activo and opcion_val and "finalizado" in str(opcion_val).lower():
-            limpiar_finalizado = False
-            if not c.ultima_actualizacion:
-                limpiar_finalizado = True
-            elif c.latitud is None: # 👈 ¡ESTE ES EL ESCUDO NUEVO! Si no tiene coordenadas, es un turno nuevo seguro
-                limpiar_finalizado = True
-            elif turno_activo.inicio:
-                try:
-                    t_inicio = turno_activo.inicio.replace(tzinfo=None) if hasattr(turno_activo.inicio, 'replace') else turno_activo.inicio
-                    t_ult = c.ultima_actualizacion.replace(tzinfo=None) if hasattr(c.ultima_actualizacion, 'replace') else c.ultima_actualizacion
-                    if t_ult < t_inicio:
-                        limpiar_finalizado = True
-                except Exception:
-                    limpiar_finalizado = True
-            
-            if limpiar_finalizado:
-                opcion_val = "hasta que desactive" # 👈 Cambiado a un valor por defecto limpio en vez de None
-                # Limpiamos agresivamente en la base de datos tanto al conductor como al turno
-                try:
-                    c.opcion_gps = "hasta que desactive"
-                    if turno_activo:
-                        turno_activo.opcion_gps = "hasta que desactive"
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-        exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
-
-        if isinstance(exp_gps, str):
-            try:
-                exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                exp_gps = None
-
-        opcion_str = str(opcion_val or '').strip().lower()
-        es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
-
-        if es_indefinido:
-            opcion_gps_label = "Hasta que se desactive"
-            exp_gps = None        
-            exp_timestamp = 0     
-        else:
-            opcion_gps_label = str(opcion_val)
-            exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
-        
-    # 🟢 LÓGICA DE ESTADO GPS INTELIGENTE CON TOLERANCIA DINÁMICA
-    estado_red_calculado = 'desconectado'
-    minutos_sin_senal = 0
     
-    if c.ultima_actualizacion:
-        diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion).total_seconds() / 60
-        minutos_sin_senal = int(diferencia_minutos)
-        
-        # 🎯 UMBRAL DINÁMICO SEGÚN CONFIGURACIÓN GPS
-        opcion_gps_lower = str(opcion_val or '').strip().lower()
-        
-        # Si eligió 8 horas o indefinido, toleramos hasta 30 minutos de quietud (Punto de espera)
-        if "8 horas" in opcion_gps_lower or "desactive" in opcion_gps_lower or "indefinido" in opcion_gps_lower:
-            if diferencia_minutos <= 30:
-                estado_red_calculado = 'conectado'
-            elif diferencia_minutos <= 60:
-                estado_red_calculado = 'senial_debil' # Estado intermedio (Amarillo)
-        # Si eligió 1 hora, toleramos 10 minutos
-        elif "1 hora" in opcion_gps_lower:
-            if diferencia_minutos <= 10:
-                estado_red_calculado = 'conectado'
-        # Si eligió 15 minutos o no especificó, somos estrictos (5 minutos)
-        else:
-            if diferencia_minutos <= 5:
-                estado_red_calculado = 'conectado'
-
-        resultado.append({  
-            "id_conductor": c.id_conductor,  
-            "codigo": c.codigo,  
-            "nombre": c.nombre,  
-            "latitud": c.latitud,  
-            "longitud": c.longitud,  
-            "estado": c.estado,  
-            "modo": "gps" if c.latitud is not None else "manual",  
-            "expiracion_gps": exp_gps.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(exp_gps, datetime) else None,
-            "exp_timestamp": exp_timestamp,
-            "opcion_gps": opcion_gps_label,
-            "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
-            "minutos_sin_senal": minutos_sin_senal,
-            "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
-            "id_despacho": id_despacho_actual,
-            "bateria": getattr(c, 'nivel_bateria', None),
-            "estado_red": estado_red_calculado
-        })  
-      
-    return jsonify(resultado), 200
-@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
+    resultado = []  
+    
+    for c in conductores:
+        try:  # 👈 PROTECCIÓN: Si un conductor falla, los demás siguen apareciendo
+            turno_activo = Turno.query.filter_by(
+                conductor_id=c.id_conductor, 
+                estado='activo'
+            ).first()
+            
+            id_despacho_actual = None
+            try:
+                despacho_activo = Despacho.query.filter_by(
+                    conductor_id=c.id_conductor, 
+                    estado_despacho='en curso'
+                ).first()
+                if despacho_activo:
+                    id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
+            except Exception:
+                id_despacho_actual = None
+            
+            # Extracción segura de opcion_gps
+            opcion_val = (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None) or getattr(c, 'opcion_gps', None)
+            
+            # Limpieza de "finalizado"
+            if turno_activo and opcion_val and "finalizado" in str(opcion_val).lower():
+                limpiar_finalizado = False
+                if not c.ultima_actualizacion:
+                    limpiar_finalizado = True
+                elif c.latitud is None:
+                    limpiar_finalizado = True
+                elif turno_activo.inicio:
+                    try:
+                        t_inicio = turno_activo.inicio.replace(tzinfo=None) if hasattr(turno_activo.inicio, 'replace') else turno_activo.inicio
+                        t_ult = c.ultima_actualizacion.replace(tzinfo=None) if hasattr(c.ultima_actualizacion, 'replace') else c.ultima_actualizacion
+                        if t_ult < t_inicio:
+                            limpiar_finalizado = True
+                    except Exception:
+                        limpiar_finalizado = True
+                
+                if limpiar_finalizado:
+                    opcion_val = "hasta que desactive"
+                    try:
+                        c.opcion_gps = "hasta que desactive"
+                        if turno_activo:
+                            turno_activo.opcion_gps = "hasta que desactive"
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+            
+            # Procesamiento de expiración GPS
+            exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
+            if isinstance(exp_gps, str):
+                try:
+                    exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    exp_gps = None
+            
+            opcion_str = str(opcion_val or '').strip().lower()
+            es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
+            
+            if es_indefinido:
+                opcion_gps_label = "Hasta que se desactive"
+                exp_gps = None        
+                exp_timestamp = 0     
+            else:
+                opcion_gps_label = str(opcion_val)
+                exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
+            
+            # 🟢 LÓGICA DE ESTADO GPS CON TOLERANCIA DINÁMICA
+            estado_red_calculado = 'desconectado'
+            minutos_sin_senal = 0
+            
+            if c.ultima_actualizacion:
+                try:
+                    diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion.replace(tzinfo=None) if hasattr(c.ultima_actualizacion, 'replace') else c.ultima_actualizacion).total_seconds() / 60
+                    minutos_sin_senal = int(diferencia_minutos)
+                    
+                    # Tolerancia dinámica según opción GPS
+                    if "8 horas" in opcion_str or "desactive" in opcion_str or "indefinido" in opcion_str:
+                        if diferencia_minutos <= 120:  # 2 horas
+                            estado_red_calculado = 'conectado'
+                        elif diferencia_minutos <= 180:  # 3 horas
+                            estado_red_calculado = 'senial_debil'
+                    elif "1 hora" in opcion_str:
+                        if diferencia_minutos <= 30:
+                            estado_red_calculado = 'conectado'
+                        elif diferencia_minutos <= 60:
+                            estado_red_calculado = 'senial_debil'
+                    else:
+                        if diferencia_minutos <= 10:
+                            estado_red_calculado = 'conectado'
+                        elif diferencia_minutos <= 20:
+                            estado_red_calculado = 'senial_debil'
+                except Exception as e:
+                    print(f"⚠️ Error calculando diferencia de minutos para {c.codigo}: {e}")
+            
+            resultado.append({  
+                "id_conductor": c.id_conductor,  
+                "codigo": c.codigo,  
+                "nombre": c.nombre,  
+                "latitud": c.latitud,  
+                "longitud": c.longitud,  
+                "estado": c.estado,  
+                "modo": "gps" if c.latitud is not None else "manual",  
+                "expiracion_gps": exp_gps.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(exp_gps, datetime) else None,
+                "exp_timestamp": exp_timestamp,
+                "opcion_gps": opcion_gps_label,
+                "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
+                "minutos_sin_senal": minutos_sin_senal,
+                "tolerancia_dinamica_minutos": 120 if "8 horas" in opcion_str or "desactive" in opcion_str else 15,
+                "id_despacho": id_despacho_actual,
+                "bateria": getattr(c, 'nivel_bateria', None),
+                "estado_red": estado_red_calculado
+            })
+            
+        except Exception as e:
+            # Si un conductor falla, lo registramos pero continuamos con los demás
+            print(f"❌ Error procesando conductor {c.codigo} ({c.nombre}): {str(e)}")
+            import traceback
+            traceback.print_exc()
+            continue  # 👈 Continúa con el siguiente conductor
+    
+    return jsonify(resultado), 200@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)
     # Si estaba esperando, lo pasamos a activo para que el monitoreo lo pinte de una vez
