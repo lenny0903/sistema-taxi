@@ -507,9 +507,29 @@ def obtener_ubicaciones():
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
-        estado_red_calculado = 'desconectado'
-        if c.ultima_actualizacion:
-            diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion).total_seconds() / 60
+    # 🟢 LÓGICA DE ESTADO GPS INTELIGENTE CON TOLERANCIA DINÁMICA
+    estado_red_calculado = 'desconectado'
+    minutos_sin_senal = 0
+    
+    if c.ultima_actualizacion:
+        diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion).total_seconds() / 60
+        minutos_sin_senal = int(diferencia_minutos)
+        
+        # 🎯 UMBRAL DINÁMICO SEGÚN CONFIGURACIÓN GPS
+        opcion_gps_lower = str(opcion_val or '').strip().lower()
+        
+        # Si eligió 8 horas o indefinido, toleramos hasta 30 minutos de quietud (Punto de espera)
+        if "8 horas" in opcion_gps_lower or "desactive" in opcion_gps_lower or "indefinido" in opcion_gps_lower:
+            if diferencia_minutos <= 30:
+                estado_red_calculado = 'conectado'
+            elif diferencia_minutos <= 60:
+                estado_red_calculado = 'senial_debil' # Estado intermedio (Amarillo)
+        # Si eligió 1 hora, toleramos 10 minutos
+        elif "1 hora" in opcion_gps_lower:
+            if diferencia_minutos <= 10:
+                estado_red_calculado = 'conectado'
+        # Si eligió 15 minutos o no especificó, somos estrictos (5 minutos)
+        else:
             if diferencia_minutos <= 5:
                 estado_red_calculado = 'conectado'
 
@@ -525,6 +545,7 @@ def obtener_ubicaciones():
             "exp_timestamp": exp_timestamp,
             "opcion_gps": opcion_gps_label,
             "ultima_actualizacion": c.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S-04:00') if isinstance(c.ultima_actualizacion, datetime) else str(c.ultima_actualizacion or ''),
+            "minutos_sin_senal": minutos_sin_senal,
             "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
             "id_despacho": id_despacho_actual,
             "bateria": getattr(c, 'nivel_bateria', None),

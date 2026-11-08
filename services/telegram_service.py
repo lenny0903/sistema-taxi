@@ -265,7 +265,7 @@ def _manejar_ubicacion(chat_id, msg, update):
     tiempo_actual = int(time.time())
     
     # Si el punto tiene más de 5 minutos (300 segundos) de antigüedad, se ignora de forma segura
-    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 300:
+    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 600:
         print(f"⚠️ Ignorando punto viejo de {conductor.codigo} (capturado hace {tiempo_actual - tiempo_captura} seg)")
         return {"status": "ubicacion_vieja_ignorada"}, 200
 
