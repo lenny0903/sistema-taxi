@@ -534,6 +534,7 @@ def obtener_ubicaciones():
                 except Exception as e:
                     print(f"⚠️ Error calculando diferencia de minutos para {c.codigo}: {e}")
             
+            # 👈 IMPORTANTE: Este append está FUERA del if c.ultima_actualizacion
             resultado.append({  
                 "id_conductor": c.id_conductor,  
                 "codigo": c.codigo,  
@@ -560,7 +561,7 @@ def obtener_ubicaciones():
             traceback.print_exc()
             continue  # 👈 Continúa con el siguiente conductor
     
-    return jsonify(resultado), 200@conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
+    return jsonify(resultado), 200
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)
     # Si estaba esperando, lo pasamos a activo para que el monitoreo lo pinte de una vez
