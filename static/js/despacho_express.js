@@ -149,7 +149,17 @@ async function ejecutarDespachoDirecto({
         });
 
         if (result && !result.error) {
-            mostrarToast(`✅ Despacho creado con éxito`, "success");
+            // 🛡️ 1. VERIFICAR CONDUCTOR GPS ANTES DE MOSTRAR EL TOAST
+            
+            const conductorValido = result.enlace_generado !== false;
+            const motivoInvalido = result.motivo_invalido || "GPS no disponible";
+
+            if (conductorValido) {
+                mostrarToast(`✅ Despacho creado con éxito. Conductor con GPS activo.`, "success");
+            } else {
+                // 🎯 Mensaje específico con el motivo real del backend
+                mostrarToast(`⚠️ Despacho creado. Conductor sin GPS: ${motivoInvalido}`, "warning");
+            }
 
             // 📲 3. GENERAR BANNER FLOTANTE (Protegido en bloque independiente)
             try {
@@ -186,7 +196,7 @@ async function ejecutarDespachoDirecto({
                 // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
                // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
                 const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
-                const conductorValido = result.enlace_generado !== false;
+                //const conductorValido = result.enlace_generado !== false;
                 console.log("🔍 idDespachoActual:", idDespachoActual);
                 console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
 
@@ -819,25 +829,23 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             if (exito) {
-                if (window.idColaEnEdicion) {
-                    try {
-                        await apiFetch(`/cola_despachos/${window.idColaEnEdicion}`, { method: "DELETE" });
-                    } catch (e) { console.error("Error al eliminar de cola:", e); }
-                    window.idColaEnEdicion = null;
+                   
+                    formDespacho.reset();
+                    window.clienteIdActual = null;
+                    clienteListoParaEnviar = null;
+                    window.idColaEnEdicion = null; // Limpiamos la referencia local
+
+                    if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                    if (typeof cargarDespachosActivos === "function") cargarDespachosActivos();
+
+                    telefonoInput?.focus();
                 }
 
-                formDespacho.reset();
-                window.clienteIdActual = null;
-                clienteListoParaEnviar = null;
+                if (btnEnviar) {
+                    btnEnviar.disabled = false;
+                    btnEnviar.innerText = "Enviar Despacho";
+                }
 
-                if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
-                if (typeof cargarDespachosActivos === "function") cargarDespachosActivos();
-
-                telefonoInput?.focus();
-            }
-
-            btnEnviar.disabled = false;
-            btnEnviar.innerText = "Enviar Despacho";
 
         } else {
             // Guardar en cola de espera individual (si no se seleccionó conductor)
@@ -913,10 +921,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 });
-const btnCerrarCola = document.getElementById("btnCerrarCola");
-if (btnCerrarCola) {
-  btnCerrarCola.addEventListener("click", cerrarModalCola);
-}
+
 
 // ==================== Cola de Clientes (Modal Editable) ====================
 window.memoriaEdicionCola1 = window.memoriaEdicionCola1 || {
@@ -1538,3 +1543,16 @@ function verificarEstadoFormularioExpress() {
     }
 }
 window.verificarEstadoFormularioExpress = verificarEstadoFormularioExpress;
+// 🧹 1. Definir primero la función global para cerrar el modal de cola
+window.cerrarModalCola = function() {
+    const modalCola = document.getElementById("modalColaClientes") || document.getElementById("modalCola");
+    if (modalCola) {
+        modalCola.classList.add("hidden");
+    }
+};
+
+// 🖱️ 2. Luego asociarla de forma segura al botón si existe en el DOM
+const btnCerrarCola = document.getElementById("btnCerrarCola");
+if (btnCerrarCola) {
+  btnCerrarCola.addEventListener("click", window.cerrarModalCola);
+}

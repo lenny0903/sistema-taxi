@@ -96,22 +96,33 @@ def crear_despacho():
             con_cod = conductor_obj.codigo if conductor_obj else "S/C"
 
             # ====================================================================
-            # 🛡️ VALIDACIÓN DE VIGENCIA DEL CONDUCTOR PARA EL ENLACE/NOTIFICACIÓN
+            # 🛡️ VALIDACIÓN DETALLADA DE ESTADOS DEL CONDUCTOR
             # ====================================================================
             conductor_valido = True
+            motivo_invalido = None
+
             if not conductor_obj:
                 conductor_valido = False
+                motivo_invalido = "Conductor no encontrado en el sistema"
             else:
-                # Normalizar la expiración del GPS para evitar choques de zonas horarias
+                # 1. Verificar si tiene Telegram registrado
+                telegram_id = getattr(conductor_obj, 'telegram_id', None)
+                
+                # 2. Normalizar la expiración del GPS
                 exp_gps = conductor_obj.expiracion_gps
                 if exp_gps and exp_gps.tzinfo is None and ahora.tzinfo is not None:
                     exp_gps = exp_gps.replace(tzinfo=ahora.tzinfo)
 
-                # Validación segura única
-                if conductor_obj.estado_red != 'conectado' or (exp_gps and exp_gps < ahora):
+                # 3. Validaciones específicas en orden de prioridad
+                if not telegram_id or str(telegram_id).strip() == "":
                     conductor_valido = False
-                    print(f"⚠️ [ALERTA] Despacho #{nuevo_despacho.id_despacho} creado, pero el conductor {con_cod} está inactivo o con GPS expirado. No se generará el enlace automático.")
-
+                    motivo_invalido = "El conductor no tiene Telegram"
+                elif conductor_obj.estado_red != 'conectado':
+                    conductor_valido = False
+                    motivo_invalido = f"Conductor sin señal / desconectado (Red: {conductor_obj.estado_red})"
+                elif exp_gps and exp_gps < ahora:
+                    conductor_valido = False
+                    motivo_invalido = f"Su sesión terminó / GPS expirado (Venció a las {exp_gps.strftime('%H:%M')})"
             # Solo construimos la notificación y el enlace si el conductor es válido
             if conductor_valido:
                 codigo_minicla = con_cod.lower()
@@ -158,20 +169,21 @@ def crear_despacho():
         # Respuesta indicando el estado del despacho y si se encoló el mensaje
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
-            mensaje_respuesta += " (⚠️ Advertencia: Conductor inactivo o GPS expirado, no se generó enlace de WhatsApp)."
+            mensaje_respuesta += f" (⚠️ Advertencia: {motivo_invalido})."
 
         return jsonify({
             "msg": mensaje_respuesta,
             "id_despacho": nuevo_despacho.id_despacho,
             "cliente_telefono": c_tel,
-            "enlace_generado": conductor_valido
+            "enlace_generado": conductor_valido,
+            "motivo_invalido": motivo_invalido  # 👈 Enviado al frontend para activar el toast naranja
         }), 201
 
     except Exception as e:
         db.session.rollback()
         print("❌ Error en DB:", str(e))
         return jsonify({"error": "Error interno: " + str(e)}), 500
-        
+            
 @despachos_bp.route("/", methods=["GET"])
 def obtener_despacho(id):
     # 1. Obtenemos el despacho específico por su ID

@@ -269,6 +269,7 @@ def reporte_por_cliente():
                 Conductor.nombre,
                 Despacho.origen_despacho,
                 Despacho.destino_despacho,
+                Despacho.tarifa,
                 Despacho.fecha_hora_fin
             )
             .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
@@ -287,6 +288,7 @@ def reporte_por_cliente():
                 "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
                 "origen": r.origen_despacho,
                 "destino": r.destino_despacho,
+                "tarifa": float(r.tarifa) if r.tarifa else 0.0,
                 "ultima_fecha": ultima
             })
 
