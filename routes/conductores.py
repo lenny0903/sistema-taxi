@@ -421,6 +421,8 @@ def confirmar_turno(id_conductor):
     
     # Simplemente lo ponemos en disponible para que el API principal lo acepte
     conductor.estado = "disponible"
+    conductor.opcion_gps = None   
+    conductor.expiracion_gps = None
     db.session.commit()
     
     return jsonify({"status": "éxito", "mensaje": "Conductor habilitado para turno"})
@@ -428,11 +430,8 @@ def confirmar_turno(id_conductor):
 
 @conductores_bp.route("/ubicaciones_activas", methods=["GET"])  
 def obtener_ubicaciones():  
-    # 🟢 1. INVOCACIÓN DE LA EVALUACIÓN AUTOMÁTICA DE FLOTA
     TOKEN_BOT = os.getenv("TELEGRAM_BOT_TOKEN") 
     evaluar_estado_flota_backend(db.session, TOKEN_BOT) 
-    
-    # 🔄 ¡OBLIGAR A SQLALCHEMY A DESCARTAR EL CACHÉ Y LEER DE NUEVO LA BD!
     db.session.expire_all()
     
     conductores = Conductor.query.filter(  
@@ -453,18 +452,44 @@ def obtener_ubicaciones():
                 conductor_id=c.id_conductor, 
                 estado_despacho='en curso'
             ).first()
-            
             if despacho_activo:
                 id_despacho_actual = getattr(despacho_activo, 'id_despacho', None) or getattr(despacho_activo, 'id', None)
-        except Exception as e:
-            print(f"⚠️ Error consultando despacho para conductor {c.codigo}: {e}")
+        except Exception:
             id_despacho_actual = None
 
+        # 🟢 LÓGICA DE ESTADO GPS LIMPIA Y SEGURA
         # 🟢 Extracción unificada y segura
-        opcion_val = getattr(c, 'opcion_gps', None) or (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None)
+        # 🟢 Prioridad absoluta al turno activo; si no hay, usa el del conductor
+        opcion_val = (getattr(turno_activo, 'opcion_gps', None) if turno_activo else None) or getattr(c, 'opcion_gps', None)
+        
+        # 🛡️ PROTECCIÓN BLINDADA DE TURNO NUEVO:
+        if turno_activo and opcion_val and "finalizado" in str(opcion_val).lower():
+            limpiar_finalizado = False
+            if not c.ultima_actualizacion:
+                limpiar_finalizado = True
+            elif c.latitud is None: # 👈 ¡ESTE ES EL ESCUDO NUEVO! Si no tiene coordenadas, es un turno nuevo seguro
+                limpiar_finalizado = True
+            elif turno_activo.inicio:
+                try:
+                    t_inicio = turno_activo.inicio.replace(tzinfo=None) if hasattr(turno_activo.inicio, 'replace') else turno_activo.inicio
+                    t_ult = c.ultima_actualizacion.replace(tzinfo=None) if hasattr(c.ultima_actualizacion, 'replace') else c.ultima_actualizacion
+                    if t_ult < t_inicio:
+                        limpiar_finalizado = True
+                except Exception:
+                    limpiar_finalizado = True
+            
+            if limpiar_finalizado:
+                opcion_val = "hasta que desactive" # 👈 Cambiado a un valor por defecto limpio en vez de None
+                # Limpiamos agresivamente en la base de datos tanto al conductor como al turno
+                try:
+                    c.opcion_gps = "hasta que desactive"
+                    if turno_activo:
+                        turno_activo.opcion_gps = "hasta que desactive"
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
         exp_gps = getattr(c, 'expiracion_gps', None) or (getattr(turno_activo, 'expiracion_gps', None) if turno_activo else None)
 
-        # Limpieza y conversión de fecha si viene como texto
         if isinstance(exp_gps, str):
             try:
                 exp_gps = datetime.strptime(exp_gps.split('.')[0], "%Y-%m-%d %H:%M:%S")
@@ -472,8 +497,6 @@ def obtener_ubicaciones():
                 exp_gps = None
 
         opcion_str = str(opcion_val or '').strip().lower()
-
-        # 🎯 DETECCIÓN DE MODO INDEFINIDO
         es_indefinido = not opcion_str or "desactive" in opcion_str or opcion_str == "en vivo" or "hasta" in opcion_str
 
         if es_indefinido:
@@ -484,12 +507,10 @@ def obtener_ubicaciones():
             opcion_gps_label = str(opcion_val)
             exp_timestamp = int(exp_gps.timestamp() * 1000) if isinstance(exp_gps, datetime) else 0
         
-        # 🧠 USAR DIRECTAMENTE EL ESTADO DE RED CALCULADO EN LA BD (SIN RE-EVALUACIONES CONFLICTIVAS)
-        # 🧠 CALCULAR ESTADO DE RED EN TIEMPO REAL (Ignorar el valor de la BD si está obsoleto)
         estado_red_calculado = 'desconectado'
         if c.ultima_actualizacion:
             diferencia_minutos = (hora_local().replace(tzinfo=None) - c.ultima_actualizacion).total_seconds() / 60
-            if diferencia_minutos <= 5: # Si reportó hace menos de 5 min, está conectado
+            if diferencia_minutos <= 5:
                 estado_red_calculado = 'conectado'
 
         resultado.append({  
@@ -507,11 +528,10 @@ def obtener_ubicaciones():
             "tolerancia_dinamica_minutos": getattr(c, 'tolerancia_dinamica_minutos', 15),
             "id_despacho": id_despacho_actual,
             "bateria": getattr(c, 'nivel_bateria', None),
-            "estado_red": estado_red_calculado  # 👈 Respetamos fielmente lo que decidió la base de datos y el helper
+            "estado_red": estado_red_calculado
         })  
       
     return jsonify(resultado), 200
-
 @conductores_bp.route("/habilitar/<int:id_conductor>", methods=["POST"])
 def habilitar_conductor(id_conductor):
     conductor = Conductor.query.get_or_404(id_conductor)

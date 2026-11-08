@@ -166,6 +166,7 @@ def _manejar_texto(chat_id, texto):
         else:
             if conductor_activo:
                 conductor_activo.estado_red = 'conectado'
+                conductor_activo.opcion_gps = None
                 db.session.commit()
                 emitir_al_panel('estado_red_cambiado')
                 enviar_menu_botones(chat_id)
@@ -252,37 +253,21 @@ def _manejar_ubicacion(chat_id, msg, update):
     if not conductor:
         return {"status": "ubicacion_ignorada_sin_registro"}, 200
 
-    es_cierre_manual = "edited_message" in update and "live_period" not in msg["location"]
-    if es_cierre_manual:
-        ahora = hora_local()
-        conductor.expiracion_gps = ahora
-        conductor.opcion_gps = "Finalizado"
-        conductor.estado = "disponible" # 👈 IMPORTANTE: Asegúrate de tener esto para que se quite del mapa
-        
-        if hasattr(conductor, "turno_activo") and conductor.turno_activo:
-            conductor.turno_activo.expiracion_gps = ahora
-            conductor.turno_activo.opcion_gps = "Finalizado"
-        db.session.commit()
-        
-        emitir_al_panel('conductor_inactivo', {'conductor_id': conductor.id_conductor, 'codigo': conductor.codigo})
-        enviar_mensaje(chat_id, "🛑 Sesión de GPS finalizada correctamente.")
-        enviar_menu_botones(chat_id)
-        return {"status": "loc_finalizada_manual"}, 200
-
-    if "edited_message" not in update and "live_period" not in msg["location"]:
-        enviar_mensaje(chat_id, "⚠️ Debes compartir tu **'Ubicación en tiempo real'**.")
-        enviar_menu_botones(chat_id)
-        return {"status": "ubicacion_estatica_rechazada"}, 200
+    # 🛡️ PROTECCIÓN DE FLOTA: Eliminamos la detección automática de cierre por 'edited_message'.
+    # El cierre de GPS ahora solo ocurre por expiración del tiempo o por orden explícita del operador.
+    
+    # Validar que el mensaje tenga coordenadas reales
+    if "location" not in msg or not msg["location"]:
+        return {"status": "ubicacion_sin_datos"}, 200
 
     # 🚨 FILTRO ANTI-RÁFAGA (Ignorar el pasado) 🚨
     tiempo_captura = msg.get("date", 0)
     tiempo_actual = int(time.time())
     
-    # Si el punto tiene más de 2 minutos (120 segundos) de antigüedad, se ignora y no se guarda
-    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 120:
+    # Si el punto tiene más de 5 minutos (300 segundos) de antigüedad, se ignora de forma segura
+    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 300:
         print(f"⚠️ Ignorando punto viejo de {conductor.codigo} (capturado hace {tiempo_actual - tiempo_captura} seg)")
         return {"status": "ubicacion_vieja_ignorada"}, 200
-    # --------------------------------------------------
 
     # A partir de aquí solo pasan los puntos GPS recientes (el presente)
     ahora = hora_local().replace(microsecond=0)

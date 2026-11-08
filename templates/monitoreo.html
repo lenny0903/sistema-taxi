@@ -269,7 +269,7 @@
                 });
             }
 
-            function procesarYRenderizarFlota(data) {
+           function procesarYRenderizarFlota(data) {
                 const codigosServidor = data.map(c => c.codigo);
 
                 Object.keys(marcadores).forEach(codigo => {
@@ -307,59 +307,84 @@
                     const opcionGpsTexto = (c.opcion_gps || '').toLowerCase().trim();
                     const estaFinalizado = c.opcion_gps && (opcionGpsTexto.includes('finalizado') || opcionGpsTexto.includes('detenido'));
 
-                    // 🛑 REGLA DE ORO CORREGIDA: Si está disponible O finalizó su GPS, SE ELIMINA DEL MAPA Y DEL PANEL
-                    if (c.estado === 'disponible' || estaFinalizado) {
+                    // 1. Si está disponible pero NO por haber finalizado la compartición de GPS:
+                    if (c.estado === 'disponible' && !estaFinalizado) {
                         if (marcadores[c.codigo]) { 
                             map.removeLayer(marcadores[c.codigo]); 
                             delete marcadores[c.codigo]; 
                         }
-                        if (tr) tr.remove(); // 👈 Esto es lo que quita el "fantasma" del panel lateral
+                        if (tr) tr.remove();
                         delete cronometrosActivos[c.codigo];
                         return;
                     }
 
-                    // A partir de aquí solo llegan los estados 'activo' o 'en curso'
-                    if (c.estado === 'activo' || c.estado === 'en curso') {
-                        if (c.latitud === null || c.longitud === null) {
-                            if (marcadores[c.codigo]) {
-                                map.removeLayer(marcadores[c.codigo]);
-                                delete marcadores[c.codigo];
-                            }
-                            delete cronometrosActivos[c.codigo];
+                    // 2. 🛑 Si el conductor dejó de compartir (Finalizado / Detenido por Telegram):
+                    if (estaFinalizado) {
+                        if (marcadores[c.codigo]) {
+                            map.removeLayer(marcadores[c.codigo]);
+                            delete marcadores[c.codigo];
+                        }
+                        delete cronometrosActivos[c.codigo];
 
-                            if (!tr) {
-                                tr = document.createElement('tr');
-                                tr.setAttribute('data-codigo', c.codigo);
-                                tbody.appendChild(tr);
-                            }
-                            tr.style.backgroundColor = '#fff3cd';
+                        if (!tr) {
+                            tr = document.createElement('tr');
+                            tr.setAttribute('data-codigo', c.codigo);
+                            tbody.appendChild(tr);
+                        }
+                        tr.style.backgroundColor = '#f8d7da'; // Color rojo claro de alerta
+                        tr.innerHTML = `
+                            <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                            <td style="padding: 6px; vertical-align: top;">
+                                <span style="color: #c0392b; font-weight: bold;">🔴 Desconectado</span><br>
+                                <small style="color: #555;">GPS Finalizado</small>
+                            </td>
+                        `;
+                        return;
+                    }
 
-                            let iconoBateria = '🔋 ?';
-                            if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
-                                let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
-                                iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
-                            }
+                    // 3. ⚠️ Turno nuevo creado por el operador o sin coordenadas aún (Amarillo con diagnóstico completo):
+                    if (c.latitud === null || c.longitud === null) {
+                        if (marcadores[c.codigo]) {
+                            map.removeLayer(marcadores[c.codigo]);
+                            delete marcadores[c.codigo];
+                        }
+                        delete cronometrosActivos[c.codigo];
 
-                            const fechaUltimaCheck = obtenerTimestampLocal(c.ultima_actualizacion);
-                            const minsSinReportarCheck = (Date.now() - fechaUltimaCheck) / (1000 * 60);
-                            const tieneRedActiva = c.estado_red === 'conectado' || (c.ultima_actualizacion !== null && minsSinReportarCheck <= 3);
+                        if (!tr) {
+                            tr = document.createElement('tr');
+                            tr.setAttribute('data-codigo', c.codigo);
+                            tbody.appendChild(tr);
+                        }
+                        tr.style.backgroundColor = '#fff3cd'; // Fondo amarillo claro
 
-                            let badgeRed = tieneRedActiva
-                                ? '<span style="color: #27ae60; font-weight: bold;">🟢 Conectado</span>' 
-                                : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
-                            let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
-
-                            tr.innerHTML = `
-                                <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
-                                <td style="padding: 6px; vertical-align: top;">
-                                    <span style="color: #856404; font-weight: bold;">⚠️ Sin Ubicación</span><br>
-                                    <small style="color: #555;">Esperando coordenadas...</small>
-                                    ${indicadorDiagnostico}
-                                </td>
-                            `;
-                            return;
+                        let iconoBateria = '🔋 ?';
+                        if (c.nivel_bateria !== null && c.nivel_bateria !== undefined) {
+                            let colorBat = c.nivel_bateria < 20 ? '#d63031' : (c.nivel_bateria < 50 ? '#e67e22' : '#27ae60');
+                            iconoBateria = `<span style="color: ${colorBat}; font-weight: bold;">🔋 ${c.nivel_bateria}%</span>`;
                         }
 
+                        const fechaUltimaCheck = obtenerTimestampLocal(c.ultima_actualizacion);
+                        const minsSinReportarCheck = (Date.now() - fechaUltimaCheck) / (1000 * 60);
+                        const tieneRedActiva = c.estado_red === 'conectado' || (c.ultima_actualizacion !== null && minsSinReportarCheck <= 3);
+
+                        let badgeRed = tieneRedActiva
+                            ? '<span style="color: #27ae60; font-weight: bold;">🟢 Conectado</span>' 
+                            : '<span style="color: #6c757d; font-weight: bold;">🔴 Desconectado</span>';
+                        let indicadorDiagnostico = `<div style="font-size: 11px; margin-top: 4px;">${iconoBateria} | ${badgeRed}</div>`;
+
+                        tr.innerHTML = `
+                            <td style="padding: 6px; font-weight: bold; vertical-align: top;">${c.codigo}</td>
+                            <td style="padding: 6px; vertical-align: top;">
+                                <span style="color: #856404; font-weight: bold;">⚠️ Sin Ubicación</span><br>
+                                <small style="color: #555;">Esperando coordenadas...</small>
+                                ${indicadorDiagnostico}
+                            </td>
+                        `;
+                        return;
+                    }
+
+                    // 4. A partir de aquí procesamos unidades con coordenadas activas ('activo' o 'en curso')
+                    if (c.estado === 'activo' || c.estado === 'en curso') {
                         if (!tr) {
                             tr = document.createElement('tr');
                             tr.setAttribute('data-codigo', c.codigo);
@@ -464,25 +489,11 @@
 
                         // 🛑 CONTROL DE MARCADORES EN EL MAPA SEGÚN TIEMPO SIN SEÑAL
                         if (minutosSinReportar > TOLERANCIA_MAXIMA) {
-                            // Si supera los 15 minutos sin reportar, ELIMINAMOS el marcador
                             if (marcadores[c.codigo]) {
                                 map.removeLayer(marcadores[c.codigo]);
                                 delete marcadores[c.codigo];
                             }
                         } else {
-                            // Si está dentro del tiempo permitido, validamos el Anti-Drift antes de actualizar
-                            if (marcadores[c.codigo]) {
-                                const coordsViejas = marcadores[c.codigo].getLatLng();
-                                const distanciaKm = map.distance(coordsViejas, coords) / 1000;
-                                
-                                // Si se movió más rápido que 120 km/h (ej. 1.5 km en 30s), es un error del GPS
-                                if (distanciaKm > 1.5) {
-                                    console.warn(`🚨 [GPS DRIFT] Salto detectado en ${c.codigo}. Ignorando posición.`);
-                                    return; // Ignora esta actualización y mantiene el carro donde estaba
-                                }
-                            }
-                            
-                            // Si pasó el filtro anti-drift, actualizamos el marcador
                             if (!marcadores[c.codigo]) {
                                 marcadores[c.codigo] = L.marker(coords, { icon: iconoVehiculo }).addTo(map);
                             } else {
@@ -492,7 +503,7 @@
                             
                             marcadores[c.codigo].setOpacity(estaDesactualizado || estaExpirado ? 0.35 : 1.0);
                             
-                            if (esVistaCliente && parseInt(c.id_despacho) === idActivo) {
+                            if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '' && parseInt(c.id_despacho) === parseInt(ID_DESPACHO_ACTIVO)) {
                                 map.setView(coords, 17);
                             }
                         }

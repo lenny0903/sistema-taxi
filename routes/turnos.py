@@ -83,7 +83,13 @@ def crear_turno():
             estado="activo"
         )
         # Capturar la opción de GPS seleccionada (si no viene, usa 'hasta que desactive' por defecto)
-        opcion_gps = data.get("opcion_gps", "hasta que desactive")
+        opcion_gps_raw = data.get("opcion_gps", "hasta que desactive")
+        
+        # 🛡️ BLINDAJE ABSOLUTO: Un turno nuevo NACE limpio, jamás finalizado
+        if not opcion_gps_raw or "finalizado" in str(opcion_gps_raw).lower():
+            opcion_gps = "hasta que desactive"
+        else:
+            opcion_gps = opcion_gps_raw
         ahora = hora_local()
         expiracion_gps = None
 
