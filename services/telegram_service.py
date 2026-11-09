@@ -1,5 +1,4 @@
 import os
-import time
 import requests
 from datetime import datetime, timedelta
 from flask import url_for
@@ -26,19 +25,7 @@ def confirmar_clic(callback_id):
 
 def procesar_update_telegram(update):
     """Encargado de enrutar si es un callback (botón inline), un texto o una ubicación."""
-    msg = update.get('message') or update.get('edited_message')
-    if not msg:
-        return {"status": "sin_mensaje"}, 200
-
-    user_from = msg.get('from')
-    chat_id = str(user_from['id'])
-
-    # NUEVO: Si el usuario compartió su contacto mediante el botón
-    if 'contact' in msg:
-        return _manejar_contacto(chat_id, msg['contact'])
-
-    if 'text' in msg:
-        return _manejar_texto(chat_id, msg['text'].strip())
+    
     # 0. BOTONES INLINE (CALLBACK QUERIES)
     callback = update.get('callback_query')
     if callback:
@@ -166,7 +153,6 @@ def _manejar_texto(chat_id, texto):
         else:
             if conductor_activo:
                 conductor_activo.estado_red = 'conectado'
-                conductor_activo.opcion_gps = None
                 db.session.commit()
                 emitir_al_panel('estado_red_cambiado')
                 enviar_menu_botones(chat_id)
@@ -210,29 +196,21 @@ def _manejar_texto(chat_id, texto):
         enviar_menu_botones(chat_id)
         return {"status": "esperando_codigo"}, 200
 
-    # Validación de Código Bxx (Paso 1: Solicitar contacto para verificar)
+    # Validación de Código Bxx
     if texto.upper().startswith('B') and len(texto) >= 2:
         conductor_c = Conductor.query.filter_by(codigo=texto.upper()).first()
         if conductor_c:
-            # Guardamos temporalmente en memoria qué conductor quiere activar este chat_id
-            usuarios_reportando[chat_id] = f"activando_{conductor_c.id_conductor}"
-            
-            # Creamos un botón nativo de Telegram para compartir contacto
-            teclado_contacto = {
-                "keyboard": [[{"text": "📱 Compartir mi número de teléfono", "request_contact": True}]],
-                "resize_keyboard": True,
-                "one_time_keyboard": True
-            }
-            # Usas tu función de envío con teclado normal (no inline)
-            from utils.notificaciones import _enviar_peticion
-            _enviar_peticion("sendMessage", {
-                "chat_id": chat_id,
-                "text": f"⚠️ Para vincular la unidad {conductor_c.codigo}, por favor comparte tu número de teléfono oficial usando el botón de abajo:",
-                "reply_markup": teclado_contacto
-            })
+            if conductor_c.telegram_id and conductor_c.telegram_id != chat_id:
+                enviar_mensaje(chat_id, "⚠️ Este código ya está vinculado a otra cuenta.")
+            else:
+                conductor_c.telegram_id = chat_id
+                db.session.commit()
+                enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor_c.nombre}! Cuenta activada.")
+            enviar_menu_botones(chat_id)
         else:
             enviar_mensaje(chat_id, "🚫 Código no encontrado.")
-        return {"status": "esperando_contacto_verificacion"}, 200
+            enviar_menu_botones(chat_id)
+        return {"status": "resultado_vinculacion"}, 200
 
     if conductor_activo:
         enviar_menu_botones(chat_id)
@@ -253,23 +231,26 @@ def _manejar_ubicacion(chat_id, msg, update):
     if not conductor:
         return {"status": "ubicacion_ignorada_sin_registro"}, 200
 
-    # 🛡️ PROTECCIÓN DE FLOTA: Eliminamos la detección automática de cierre por 'edited_message'.
-    # El cierre de GPS ahora solo ocurre por expiración del tiempo o por orden explícita del operador.
-    
-    # Validar que el mensaje tenga coordenadas reales
-    if "location" not in msg or not msg["location"]:
-        return {"status": "ubicacion_sin_datos"}, 200
+    es_cierre_manual = "edited_message" in update and "live_period" not in msg["location"]
+    if es_cierre_manual:
+        ahora = hora_local()
+        conductor.expiracion_gps = ahora
+        conductor.opcion_gps = "Finalizado"
+        if hasattr(conductor, "turno_activo") and conductor.turno_activo:
+            conductor.turno_activo.expiracion_gps = ahora
+            conductor.turno_activo.opcion_gps = "Finalizado"
+        db.session.commit()
+        
+        emitir_al_panel('conductor_inactivo', {'conductor_id': conductor.id_conductor, 'codigo': conductor.codigo})
+        enviar_mensaje(chat_id, "🛑 Sesión de GPS finalizada correctamente.")
+        enviar_menu_botones(chat_id)
+        return {"status": "loc_finalizada_manual"}, 200
 
-    # 🚨 FILTRO ANTI-RÁFAGA (Ignorar el pasado) 🚨
-    tiempo_captura = msg.get("date", 0)
-    tiempo_actual = int(time.time())
-    
-    # Si el punto tiene más de 5 minutos (300 segundos) de antigüedad, se ignora de forma segura
-    if tiempo_captura > 0 and (tiempo_actual - tiempo_captura) > 600:
-        print(f"⚠️ Ignorando punto viejo de {conductor.codigo} (capturado hace {tiempo_actual - tiempo_captura} seg)")
-        return {"status": "ubicacion_vieja_ignorada"}, 200
+    if "edited_message" not in update and "live_period" not in msg["location"]:
+        enviar_mensaje(chat_id, "⚠️ Debes compartir tu **'Ubicación en tiempo real'**.")
+        enviar_menu_botones(chat_id)
+        return {"status": "ubicacion_estatica_rechazada"}, 200
 
-    # A partir de aquí solo pasan los puntos GPS recientes (el presente)
     ahora = hora_local().replace(microsecond=0)
     conductor.latitud = msg["location"]["latitude"]
     conductor.longitud = msg["location"]["longitude"]
@@ -309,45 +290,3 @@ def _manejar_ubicacion(chat_id, msg, update):
         'ultima_actualizacion': ahora.isoformat()
     })
     return {"status": "loc_actualizada"}, 200
-def _manejar_contacto(chat_id, contact):
-    # Verificamos si este chat estaba en proceso de activación
-    estado_temp = usuarios_reportando.get(chat_id)
-    if not estado_temp or not estado_temp.startswith("activando_"):
-        enviar_mensaje(chat_id, "⚠️ No hay ninguna activación pendiente.")
-        return {"status": "contacto_sin_proceso"}, 200
-
-    conductor_id = int(estado_temp.split("_")[1])
-    conductor = Conductor.query.get(conductor_id)
-    
-    if not conductor:
-        enviar_mensaje(chat_id, "🚫 Conductor no encontrado.")
-        return {"status": "conductor_no_encontrado"}, 200
-
-    # Teléfono que envió Telegram (limpiando símbolos)
-    telefono_telegram = contact.get('phone_number', '').replace('+', '').strip()
-    # Teléfono registrado en tu base de datos
-    telefono_bd = str(conductor.telefono).replace('+', '').strip()
-
-    # Validar coincidencia de números
-    if telefono_telegram in telefono_bd or telefono_bd in telefono_telegram:
-        # ¡Coinciden! Es el teléfono real del titular
-        # 🛡️ VERIFICAR QUE EL CHAT_ID NO ESTÉ YA REGISTRADO EN OTRO CONDUCTOR
-        otro_conductor = Conductor.query.filter_by(telegram_id=chat_id).first()
-        if otro_conductor and otro_conductor.id_conductor != conductor.id_conductor:
-            enviar_mensaje(chat_id, "❌ Este Telegram ya está vinculado a otra unidad. Contacta al administrador.")
-            usuarios_reportando.pop(chat_id, None)
-            return {"status": "telegram_ya_vinculado"}, 200
-        conductor.telegram_id = chat_id
-        db.session.commit()
-        
-        # Limpiar estado temporal
-        usuarios_reportando.pop(chat_id, None)
-        
-        enviar_mensaje(chat_id, f"🎉 ¡Bienvenido {conductor.nombre}! Cuenta activada correctamente.")
-        enviar_menu_botones(chat_id)
-        return {"status": "vinculacion_exitosa"}, 200
-    else:
-        # No coinciden: la cuenta de Telegram es de otra persona o número
-        usuarios_reportando.pop(chat_id, None)
-        enviar_mensaje(chat_id, "❌ **Acceso denegado**: El número de esta cuenta de Telegram no coincide con el teléfono registrado para esta unidad en el sistema.")
-        return {"status": "vinculacion_rechazada_por_telefono"}, 200
