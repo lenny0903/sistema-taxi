@@ -1,6 +1,5 @@
 // ==================== Bloque 1: Flujo rápido (alta demanda) ====================
 let memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} };
-
 // * 🟢 Función Global para llenar el selectConductorUnico
 // * Mapea resilientemente los campos del backend (codigo/numero_control, id_conductor, nombre)
 // */
@@ -64,18 +63,6 @@ window.llenarSelectConductoresUnico = function(conductoresEnTurno) {
 
     console.log(`✅ Select Express poblado exitosamente con ${contador} conductor(es) en turno disponible(s).`);
 };
-async function obtenerEnlaceCorto(urlLarga) {
-    try {
-        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(urlLarga)}`);
-        if (response.ok) {
-            const urlCorta = await response.text();
-            return urlCorta; // Ej: https://tinyurl.com/2p9...
-        }
-    } catch (error) {
-        console.error("Error acortando enlace, usando largo por defecto:", error);
-    }
-    return urlLarga; // Si falla el internet, devuelve el largo como respaldo
-}
 // * 📡 Consulta autosuficiente para cargar únicamente los conductores EN TURNO
 
 async function refrescarSelectConductorUnico() { 
@@ -173,7 +160,7 @@ async function ejecutarDespachoDirecto({
                 // 🎯 Mensaje específico con el motivo real del backend
                 mostrarToast(`⚠️ Despacho creado. Conductor sin GPS: ${motivoInvalido}`, "warning");
             }
-            
+
             // 📲 3. GENERAR BANNER FLOTANTE (Protegido en bloque independiente)
             try {
                 const inputNombre = document.getElementById("desNombre") || document.getElementById("modalNombreCliente");
@@ -198,7 +185,21 @@ async function ejecutarDespachoDirecto({
                 // Dentro de tu función de despacho en el frontend de JavaScript:
                 const idDespachoActual = result.id_despacho || window.despachoIdCreado; 
                 console.log("ID actual:", idDespachoActual);
-                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`;
+
+               // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
+                // 🔗 Enlace dinámico al bot de Telegram con el ID de servicio específico
+                // Cambiar Taxilospatriotastest_bot a minúsculas:
+                // Cambiar Taxilospatriotastest_bot a minúsculas:
+                //const dominioPublico = "https://patrick-profit-medicines-ccd.trycloudflare.com";
+                
+
+                // 🛡️ Verificar si el backend permitió generar el enlace o si el conductor está inactivo/expirado
+               // 🚀 Enlace al CANAL de producción (para el mensaje de WhatsApp)
+                const urlBotSeguimiento = `https://t.me/Lospatriotas_bot?start=srv-${idDespachoActual}`; 
+                //const conductorValido = result.enlace_generado !== false;
+                console.log("🔍 idDespachoActual:", idDespachoActual);
+                console.log("🔍 urlBotSeguimiento:", urlBotSeguimiento);
+
                 const msgCliente = conductorValido ? (
                     `🚖 ¡Hola! Su servicio está confirmado.\n\n` +
                     `📍 Vea a su taxi acercarse en tiempo real:\n` +
@@ -350,28 +351,27 @@ async function ejecutarDespachoDirecto({
                     }
                 });
 
-               // 💬 Evento dinámico para el botón del cliente
+                // 💬 Evento dinámico para el botón del cliente
                 bannerDiv.querySelector('#btnTextoCli').addEventListener('click', async (e) => {
                     e.preventDefault();
                     if (!conductorValido) {
-                        alert("⚠️ ATENCIÓN: Este despacho se registró con una unidad inactiva o con el tiempo de GPS expirado. El enlace de rastreo no está disponible.");
+                        alert("⚠️ ATENCIÓN: Este despacho se registró con una unidad inactiva o con el tiempo de GPS expirado. El enlace de rastreo no está disponible. Debe reasignar el servicio si desea enviar un seguimiento.");
                         return;
                     }
-                    const exito = await copiarTextoAlPortapapeles(msgCliente);
-                    if (exito) {
+                    try {
+                        await navigator.clipboard.writeText(msgCliente);
                         mostrarToast("📋 Mensaje cliente copiado", "success");
-                    } else {
+                    } catch (err) {
                         mostrarToast("⚠️ No se pudo copiar el texto", "error");
                     }
                 });
 
-                // 🚗 Evento para el botón del conductor
                 bannerDiv.querySelector('#btnCond').addEventListener('click', async (e) => {
                     e.preventDefault();
-                    const exito = await copiarTextoAlPortapapeles(msgConductor);
-                    if (exito) {
+                    try {
+                        await navigator.clipboard.writeText(msgConductor);
                         mostrarToast("📋 Mensaje conductor copiado", "success");
-                    } else {
+                    } catch (err) {
                         mostrarToast("⚠️ No se pudo copiar", "error");
                     }
                 });
@@ -411,133 +411,8 @@ async function ejecutarDespachoDirecto({
         }
     } catch (err) {
         console.error("❌ Error en Despacho:", err);
-        
-        // 🛠️ Extraer el mensaje exacto enviado por el servidor (Flask)
-        let mensajeError = err.message || "Error de conexión o del servidor";
-        
-        // Si el mensaje viene en formato JSON o trae texto estructurado, intentamos limpiarlo
-        try {
-            if (mensajeError.includes("{")) {
-                const jsonInicio = mensajeError.indexOf("{");
-                const objError = JSON.parse(mensajeError.substring(jsonInicio));
-                mensajeError = objError.error || objError.msg || mensajeError;
-            }
-        } catch (e) {
-            // Se mantiene el mensaje por defecto si no es JSON
-        }
-
-        mostrarToast("❌ " + mensajeError, "error");
+        mostrarToast("❌ Error de conexión o del servidor", "error");
         window.isDespachandoFlag = false;
-        return false;
-    }
-}
-// 🛡️ Función auxiliar universal para copiar texto en HTTP/HTTPS
-async function copiarTextoAlPortapapeles(texto) {
-    if (navigator.clipboard && window.isSecureContext) {
-        try {
-            await navigator.clipboard.writeText(texto);
-            return true;
-        } catch (err) {
-            console.warn("Clipboard API falló, intentando método clásico:", err);
-        }
-    }
-
-    // Método de respaldo para HTTP / IP local (0.0.0.0)
-    try {
-        const textArea = document.createElement("textarea");
-        textArea.value = texto;
-        textArea.style.position = "fixed";
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const exito = document.execCommand("copy");
-        document.body.removeChild(textArea);
-        return exito;
-    } catch (err) {
-        console.error("Error en fallback de copia:", err);
-        return false;
-    }
-}
-// 🚀 FUNCIÓN AUXILIAR: Aplica los datos del cliente a la UI y HABILITA EL LÁPIZ
-function aplicarDatosClienteUI(resultado, telActual) {
-    const nomInput = document.getElementById("desNombre");
-    const oriInput = document.getElementById("desOrigen");
-    const desInput = document.getElementById("desDestino");
-    const btnMod = document.getElementById("btnModificarCliente");
-    const btnEnviar = document.getElementById("btnEnviarDespacho");
-
-    if (resultado && resultado.valido === true && resultado.cliente) {
-        const c = resultado.cliente;
-
-        if (nomInput) {
-            nomInput.value = c.nombre || "";
-            nomInput.readOnly = true;
-            nomInput.style.backgroundColor = "#f3f4f6"; 
-        }
-        if (oriInput) {
-            oriInput.value = c.direccion || "";
-            oriInput.disabled = false;
-            oriInput.readOnly = false;
-            oriInput.style.backgroundColor = "#f3f4f6";
-        }
-        if (desInput) {
-            desInput.disabled = false;
-            desInput.readOnly = false;
-            desInput.style.backgroundColor = "#ffffff";
-            desInput.value = ""; 
-            desInput.focus(); 
-        }
-
-        // 🖍️ AQUÍ SE HABILITA EL LÁPIZ
-        if (btnMod) {
-            btnMod.disabled = false;
-            btnMod.style.opacity = "1";
-            btnMod.onclick = () => {
-                if (!c.id_cliente) c.id_cliente = c.cliente_id || c.id;
-                abrirModalCliente(telActual, c); 
-            };
-        }
-
-        if (btnEnviar) {
-            btnEnviar.disabled = false;
-            btnEnviar.classList.remove("opacity-50", "cursor-not-allowed");
-        }
-
-        window.clienteListoParaEnviar = telActual; // Para el semáforo
-        return true;
-    } else {
-        // Cliente nuevo
-        if (nomInput) {
-            nomInput.disabled = false;     
-            nomInput.readOnly = false;     
-            nomInput.value = "";
-            nomInput.style.backgroundColor = "#ffffff";
-        }
-        if (oriInput) {
-            oriInput.disabled = false;     
-            oriInput.readOnly = false;
-            oriInput.value = "";
-            oriInput.style.backgroundColor = "#ffffff";
-        }
-        if (desInput) {
-            desInput.disabled = false;
-            desInput.readOnly = false;
-        }
-        window.clienteIdActual = null;
-        
-        if (typeof mostrarToast === 'function') {
-            mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
-        }
-
-        setTimeout(() => {
-            if (nomInput) {
-                nomInput.focus();
-                nomInput.select();
-            }
-        }, 50);
         return false;
     }
 }
@@ -679,7 +554,7 @@ document.addEventListener("DOMContentLoaded", () => {
             event.preventDefault();
             event.stopImmediatePropagation();
 
-            // 🛡️ 1. Normalizar y validar (tu código original)
+            // 🛡️ CORRECCIÓN: Normalizar automáticamente antes de validar y buscar
             const resultadoNormalizacion = normalizarTelefonoVenezolano(telRaw);
             if (resultadoNormalizacion.valido) {
                 telefonoInput.value = resultadoNormalizacion.numero;
@@ -692,14 +567,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return; 
             }
 
-            // 🛡️ 2. Condición corregida: Solo salta si el lápiz YA está habilitado
-            const btnModCheck = document.getElementById("btnModificarCliente");
-            if (clienteListoParaEnviar === telActual && nomInput && nomInput.value.trim() !== "" && btnModCheck && !btnModCheck.disabled) {
+            if (clienteListoParaEnviar === telActual && nomInput && nomInput.value.trim() !== "") {
                 if (desInput) desInput.focus();
                 return;
             }
 
-            // 🛡️ 3. Feedback visual mientras busca
             if (nomInput) nomInput.value = "Buscando..."; 
             if (oriInput) oriInput.value = "Buscando..."; 
             if (desInput) desInput.value = ""; 
@@ -707,10 +579,80 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof refrescarSelectConductorUnico === "function") {
                 refrescarSelectConductorUnico();
             }
-            
-            // 🛡️ 4. Llamar al backend y aplicar el resultado con UNA SOLA LÍNEA
             const resultado = await validarClienteExpreso();
-            aplicarDatosClienteUI(resultado, telActual);
+            
+            if (resultado && resultado.valido === true && resultado.cliente) {
+                const c = resultado.cliente;
+                
+                if (nomInput) {
+                    nomInput.value = c.nombre || "";
+                    nomInput.readOnly = true;
+                    nomInput.style.backgroundColor = "#f3f4f6"; 
+                }
+                if (oriInput) {
+                    oriInput.value = c.direccion || "";
+                    oriInput.disabled = false;
+                    oriInput.readOnly = false;
+                    oriInput.style.backgroundColor = "#f3f4f6";
+                }
+
+                const btnMod = document.getElementById("btnModificarCliente"); 
+                if (btnMod) {
+                    btnMod.disabled = false;
+                    btnMod.style.opacity = "1";
+                    btnMod.onclick = () => {
+                        if (!c.id_cliente) c.id_cliente = c.cliente_id || c.id;
+                        abrirModalCliente(telActual, c); 
+                    };
+                }
+               
+                if (desInput) {
+                    desInput.disabled = false;
+                    desInput.readOnly = false;
+                    desInput.style.backgroundColor = "#ffffff";
+                    desInput.value = ""; 
+                    desInput.focus(); 
+                }
+
+                clienteListoParaEnviar = telActual; 
+                if (btnEnviar) activarBotonEnviar(btnEnviar);
+
+            } else {
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast("✨ Cliente nuevo. Ingresa el nombre y origen.", "info");
+                }
+
+                if (nomInput) {
+                    nomInput.disabled = false;     
+                    nomInput.readOnly = false;     
+                    nomInput.value = "";
+                    nomInput.style.backgroundColor = "#ffffff";
+                }
+
+                if (oriInput) {
+                    oriInput.disabled = false;     
+                    oriInput.readOnly = false;
+                    oriInput.value = "";
+                    oriInput.style.backgroundColor = "#ffffff";
+                }
+
+                if (desInput) {
+                    desInput.disabled = false;
+                    desInput.readOnly = false;
+                }
+
+                window.clienteIdActual = null;
+                clienteListoParaEnviar = telActual; 
+                if (btnEnviar) activarBotonEnviar(btnEnviar);
+
+                telefonoInput.blur();
+                setTimeout(() => {
+                    if (nomInput) {
+                        nomInput.focus();
+                        nomInput.select();
+                    }
+                }, 50);
+            }
         }
     });
 
@@ -719,181 +661,174 @@ document.addEventListener("DOMContentLoaded", () => {
     // --------------------------------------------------------------------------
     formDespacho?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        
-        // 🛡️ BLOQUEO ANTIDUPLICADOS INMEDIATO
-        if (window.isEnviandoFormulario) {
-            console.warn("⚠️ Envío ya en curso. Ignorando doble clic/Enter.");
+
+        if (window.semaforoRojo) {
+            if (typeof mostrarToast === "function") mostrarToast("🚫 Operación bloqueada por Veto General del cliente", "error");
             return;
         }
-        window.isEnviandoFormulario = true;
 
-        try {
-            if (window.semaforoRojo) {
-                if (typeof mostrarToast === "function") mostrarToast("🚫 Operación bloqueada por Veto General del cliente", "error");
+        if (btnEnviar && btnEnviar.disabled) {
+            if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete la información del cliente antes de enviar.", "error");
+            return;
+        }
+        // 🛡️ FILTRO DE INTEGRIDAD: Normalizar nombres numéricos (ej: "34")
+        const nomInputTemp = document.getElementById("desNombre");
+        let nombreLimpio = nomInputTemp ? nomInputTemp.value.trim() : "";
+
+        if (!nombreLimpio || /^\d+$/.test(nombreLimpio)) {
+            const sufijoNum = nombreLimpio ? ` #${nombreLimpio}` : "";
+            nombreLimpio = `Cliente Ocasional${sufijoNum}`;
+            if (nomInputTemp) {
+                nomInputTemp.value = nombreLimpio; // Se actualiza visualmente en pantalla
+            }
+        }
+        const selectTipoDespacho = document.getElementById("tipoDespacho");
+        const tipoSeleccionado = selectTipoDespacho ? selectTipoDespacho.value : "1";
+
+        if (tipoSeleccionado === "reserva") return;
+
+        let clienteIdFinal = window.clienteIdActual;
+
+        if (!clienteIdFinal) {
+            const telNuevo = telefonoInput?.value.trim();
+            const nomNuevo = nomInput?.value.trim();
+            const oriNuevo = oriInput?.value.trim();
+
+            if (!telNuevo || !nomNuevo || !oriNuevo) {
+                if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete Teléfono, Nombre y Origen para continuar", "error");
                 return;
             }
 
-            if (btnEnviar && btnEnviar.disabled) {
-                if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete la información del cliente antes de enviar.", "error");
-                return;
-            }
-
-            // 🛡️ FILTRO DE INTEGRIDAD: Normalizar nombres numéricos (ej: "34")
-            const nomInputTemp = document.getElementById("desNombre");
-            let nombreLimpio = nomInputTemp ? nomInputTemp.value.trim() : "";
-
-            if (!nombreLimpio || /^\d+$/.test(nombreLimpio)) {
-                const sufijoNum = nombreLimpio ? ` #${nombreLimpio}` : "";
-                nombreLimpio = `Cliente Ocasional${sufijoNum}`;
-                if (nomInputTemp) {
-                    nomInputTemp.value = nombreLimpio;
-                }
-            }
-            
-            const selectTipoDespacho = document.getElementById("tipoDespacho");
-            const tipoSeleccionado = selectTipoDespacho ? selectTipoDespacho.value : "1";
-
-            if (tipoSeleccionado === "reserva") return;
-
-            let clienteIdFinal = window.clienteIdActual;
-
-            if (!clienteIdFinal) {
-                const telNuevo = telefonoInput?.value.trim();
-                const nomNuevo = nomInput?.value.trim();
-                const oriNuevo = oriInput?.value.trim();
-
-                if (!telNuevo || !nomNuevo || !oriNuevo) {
-                    if (typeof mostrarToast === "function") mostrarToast("⚠️ Complete Teléfono, Nombre y Origen para continuar", "error");
-                    return;
-                }
-
-                try {
-                    const resCliente = await apiFetch("/clientes/", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            telefono: telNuevo,
-                            nombre: nomNuevo,
-                            direccion: oriNuevo
-                        })
-                    });
-
-                    clienteIdFinal = resCliente?.id_cliente || resCliente?.cliente_id || resCliente?.id;
-
-                    if (!clienteIdFinal) {
-                        const clienteBuscado = await apiFetch(`/clientes/buscar?telefono=${encodeURIComponent(telNuevo)}`);
-                        clienteIdFinal = clienteBuscado?.id_cliente || clienteBuscado?.id;
-                    }
-
-                    if (clienteIdFinal) {
-                        clienteIdFinal = parseInt(clienteIdFinal);
-                        window.clienteIdActual = clienteIdFinal;
-                    } else {
-                        throw new Error("No se pudo obtener un ID válido para el cliente.");
-                    }
-
-                } catch (err) {
-                    console.error("❌ Error registrando cliente nuevo:", err);
-                    if (typeof mostrarToast === "function") mostrarToast("❌ No se pudo guardar la información del cliente", "error");
-                    return;
-                }
-            }
-
-            // 🎯 DETECTAR SI ES UNA CREACIÓN MÚLTIPLE DESDE EL SELECTOR (2, 3, 4...)
-            let cantidad = 1;
-            if (['2', '3', '4'].includes(tipoSeleccionado)) {
-                cantidad = parseInt(tipoSeleccionado);
-            } else if (tipoSeleccionado.includes("2") || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) {
-                cantidad = parseInt(tipoSeleccionado.charAt(0)) || 1;
-            }
-
-            if ((cantidad > 1 || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) && !window.idColaEnEdicion) {
-                const telefono = telefonoInput?.value.trim() || "";
-                const nombre   = nomInput?.value.trim() || "";
-                const origen   = oriInput?.value.trim() || "";
-                const esDiferentesDestinos = tipoSeleccionado.includes("_dif");
-
-                const destinoComun = desInput?.value.trim() || "";
-                const tarifaBase = tarifaInput ? parseFloat(tarifaInput.value) || 0 : 0;
-
-                if (!origen) {
-                    if (typeof mostrarToast === "function") mostrarToast("⚠️ Por favor ingresa el origen.", "warning");
-                    return;
-                }
-
-                try {
-                    // Construir el array de despachos para enviarlo de un solo golpe al backend (Ruta /lote)
-                    const despachosLote = [];
-                    for (let i = 0; i < cantidad; i++) {
-                        const destinoFinal = esDiferentesDestinos ? "PENDIENTE (Diferente Destino)" : destinoComun;
-                        const tarifaFinal = esDiferentesDestinos ? 0 : tarifaBase;
-
-                        despachosLote.push({
-                            cliente_id: parseInt(clienteIdFinal),
-                            origen: origen,
-                            destino: destinoFinal,
-                            tarifa: tarifaFinal,
-                            estado: "En espera"
-                        });
-                    }
-
-                    const result = await apiFetch("/cola_despachos/lote", {
-                        method: "POST",
-                        body: JSON.stringify({ despachos: despachosLote })
-                    });
-
-                    if (result && result.status === "success") {
-                        if (typeof mostrarToast === "function") {
-                            mostrarToast(`✅ Cola múltiple de ${cantidad} unidades creada con éxito`, "success");
-                        }
-                    } else {
-                        if (typeof mostrarToast === "function") mostrarToast(`❌ Error: ${result.error || "No se pudo procesar el lote"}`, "error");
-                    }
-
-                    formDespacho.reset();
-                    if (selectTipoDespacho) {
-                        selectTipoDespacho.selectedIndex = 0;
-                    }
-                    window.clienteIdActual = null;
-                    clienteListoParaEnviar = null;
-                    window.idColaEnEdicion = null;
-                    if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
-                    telefonoInput?.focus();
-
-                    if (typeof window.cargarColaClientes === "function") {
-                        await window.cargarColaClientes();
-                    }
-
-                } catch (err) {
-                    console.error("Error en envío múltiple:", err);
-                    if (typeof mostrarToast === "function") mostrarToast("❌ Error de conexión", "error");
-                }
-                return;
-            }
-
-            // 🎯 DESPACHO DIRECTO O ASIGNACIÓN DESDE COLA
-            const idConductor = selectConductor?.value.trim();
-
-            if (idConductor) {
-                const optionSel = selectConductor.options[selectConductor.selectedIndex];
-                const idAuto = optionSel.dataset.autoId || idConductor;
-                
-                if (btnEnviar) {
-                    btnEnviar.disabled = true;
-                    btnEnviar.innerText = "Procesando...";
-                }
-
-                const exito = await ejecutarDespachoDirecto({
-                    clienteId: parseInt(clienteIdFinal),
-                    conductorId: parseInt(idConductor),
-                    autoId: parseInt(idAuto),
-                    origen: oriInput?.value.trim(),
-                    destino: desInput?.value.trim(),
-                    tarifa: parseFloat(tarifaInput?.value || 0),
-                    idCola: window.idColaEnEdicion || null,
-                    optionCondText: optionSel.text
+            try {
+                const resCliente = await apiFetch("/clientes/", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        telefono: telNuevo,
+                        nombre: nomNuevo,
+                        direccion: oriNuevo
+                    })
                 });
 
-                if (exito) {
+                clienteIdFinal = resCliente?.id_cliente || resCliente?.cliente_id || resCliente?.id;
+
+                if (!clienteIdFinal) {
+                    const clienteBuscado = await apiFetch(`/clientes/buscar?telefono=${encodeURIComponent(telNuevo)}`);
+                    clienteIdFinal = clienteBuscado?.id_cliente || clienteBuscado?.id;
+                }
+
+                if (clienteIdFinal) {
+                    clienteIdFinal = parseInt(clienteIdFinal);
+                    window.clienteIdActual = clienteIdFinal;
+                } else {
+                    throw new Error("No se pudo obtener un ID válido para el cliente.");
+                }
+
+            } catch (err) {
+                console.error("❌ Error registrando cliente nuevo:", err);
+                if (typeof mostrarToast === "function") mostrarToast("❌ No se pudo guardar la información del cliente", "error");
+                return;
+            }
+        }
+
+        // 🎯 DETECTAR SI ES UNA CREACIÓN MÚLTIPLE DESDE EL SELECTOR (2, 3, 4...)
+        // Ojo: Solo si NO estamos editando/asignando un elemento existente de la cola.
+        let cantidad = 1;
+        if (['2', '3', '4'].includes(tipoSeleccionado)) {
+            cantidad = parseInt(tipoSeleccionado);
+        } else if (tipoSeleccionado.includes("2") || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) {
+            cantidad = parseInt(tipoSeleccionado.charAt(0)) || 1;
+        }
+
+        // Si la cantidad es mayor a 1 Y NO venimos de darle al botón "Asignar" (es decir, no hay idColaEnEdicion activo)
+        if ((cantidad > 1 || tipoSeleccionado.includes("_mismo") || tipoSeleccionado.includes("_dif")) && !window.idColaEnEdicion) {
+            const telefono = telefonoInput?.value.trim() || "";
+            const nombre   = nomInput?.value.trim() || "";
+            const origen   = oriInput?.value.trim() || "";
+            const esDiferentesDestinos = tipoSeleccionado.includes("_dif");
+
+            // Si es mismo destino, el destino y tarifa son obligatorios aquí; si es _dif, van pendientes
+            const destino  = esDiferentesDestinos ? "PENDIENTE (Diferente Destino)" : (desInput?.value.trim() || "");
+            const tarifa   = esDiferentesDestinos ? 0 : parseFloat(tarifaInput?.value || 0);
+
+            if (!origen) {
+                if (typeof mostrarToast === "function") mostrarToast("⚠️ Por favor ingresa el origen.", "warning");
+                return;
+            }
+
+            try {
+                let errores = 0;
+                for (let i = 0; i < cantidad; i++) {
+                    // Si es mismo destino, va el destino limpio sin coletillas; si es diferente, va vacío para la cola
+                    const destinoFinal = esDiferentesDestinos ? "" : destino;
+                    const tarifaFinal = esDiferentesDestinos ? 0 : tarifa;
+
+                    const payload = {
+                        cliente_id: parseInt(clienteIdFinal),
+                        telefono,
+                        nombre: `${nombre} [Unidad ${i + 1}/${cantidad}]`, // 👈 El desglose de unidad va en el nombre
+                        origen,
+                        destino: destinoFinal,                               // 👈 Destino 100% puro y limpio
+                        tarifa: tarifaFinal
+                    };
+
+                    const result = await apiFetch("/cola_despachos/", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!result || result.error) errores++;
+                }
+
+                if (errores > 0) {
+                    if (typeof mostrarToast === "function") mostrarToast(`❌ Hubo errores en ${errores} registros`, "error");
+                } else {
+                    if (typeof mostrarToast === "function") {
+                        mostrarToast(`✅ Cola múltiple de ${cantidad} unidades creada con éxito`, "success");
+                    }
+                }
+
+                formDespacho.reset();
+                window.clienteIdActual = null;
+                clienteListoParaEnviar = null;
+                window.idColaEnEdicion = null;
+                if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                telefonoInput?.focus();
+
+                if (typeof window.cargarColaClientes === "function") {
+                    await window.cargarColaClientes();
+                }
+
+            } catch (err) {
+                console.error("Error en envío múltiple:", err);
+                if (typeof mostrarToast === "function") mostrarToast("❌ Error de conexión", "error");
+            }
+            return;
+        }
+
+        // 🎯 DESPACHO DIRECTO O ASIGNACIÓN DESDE COLA (Único o Múltiple ya listo para despachar)
+        const idConductor = selectConductor?.value.trim();
+
+        if (idConductor) {
+            const optionSel = selectConductor.options[selectConductor.selectedIndex];
+            const idAuto = optionSel.dataset.autoId || idConductor;
+            // 🧹 LIMPIEZA DE DESTINO PARA DESPACHOS MÚLTIPLES
+            let destinoLimpio = desInput?.value.trim() || "";
+            destinoLimpio = destinoLimpio.replace(/\s*\(Auto\s+\d+\s+de\s+\d+\)/gi, "").trim();
+            btnEnviar.disabled = true;
+            btnEnviar.innerText = "Procesando...";
+
+            const exito = await ejecutarDespachoDirecto({
+                clienteId: parseInt(clienteIdFinal),
+                conductorId: parseInt(idConductor),
+                autoId: parseInt(idAuto),
+                origen: oriInput?.value.trim(),
+                destino: desInput?.value.trim(),
+                tarifa: parseFloat(tarifaInput?.value || 0),
+                idCola: window.idColaEnEdicion || null,
+                optionCondText: optionSel.text
+            });
+
+            if (exito) {
                    
                     formDespacho.reset();
                     window.clienteIdActual = null;
@@ -911,54 +846,51 @@ document.addEventListener("DOMContentLoaded", () => {
                     btnEnviar.innerText = "Enviar Despacho";
                 }
 
-            } else {
-                // Guardar en cola de espera individual
-                try {
-                    const domTelefono = document.getElementById("desTelefono")?.value.trim() || "";
-                    const domNombre   = document.getElementById("desNombre")?.value.trim() || "";
-                    const domOrigen   = document.getElementById("desOrigen")?.value.trim() || "";
-                    const domDestino  = document.getElementById("desDestino")?.value.trim() || "";
-                    const domTarifa   = document.getElementById("tarifaClienteUnico")?.value.trim() || "0";
 
-                    const payloadCola = {
-                        cliente_id: parseInt(clienteIdFinal) || null,
-                        telefono: domTelefono,
-                        nombre: domNombre,
-                        origen: domOrigen,     
-                        destino: domDestino,   
-                        tarifa: parseFloat(domTarifa) || 0
-                    };
+        } else {
+            // Guardar en cola de espera individual (si no se seleccionó conductor)
+            try {
+                // 🛡️ BLINDAJE ABSOLUTO: Leer directamente del DOM ignorando cualquier caché o memoria previa
+                const domTelefono = document.getElementById("desTelefono")?.value.trim() || "";
+                const domNombre   = document.getElementById("desNombre")?.value.trim() || "";
+                const domOrigen   = document.getElementById("desOrigen")?.value.trim() || "";
+                const domDestino  = document.getElementById("desDestino")?.value.trim() || "";
+                const domTarifa   = document.getElementById("tarifaClienteUnico")?.value.trim() || "0";
 
-                    const resCola = await apiFetch("/cola_despachos/", {
-                        method: "POST",
-                        body: JSON.stringify(payloadCola)
-                    });
+                const payloadCola = {
+                    cliente_id: parseInt(clienteIdFinal) || null,
+                    telefono: domTelefono,
+                    nombre: domNombre,
+                    origen: domOrigen,     
+                    destino: domDestino,   
+                    tarifa: parseFloat(domTarifa) || 0
+                };
 
-                    if (resCola && (resCola.id_cola || resCola.id)) {
-                        if (typeof mostrarToast === "function") mostrarToast("📋 Cliente en cola de espera", "success");
+                const resCola = await apiFetch("/cola_despachos/", {
+                    method: "POST",
+                    body: JSON.stringify(payloadCola)
+                });
 
-                        formDespacho?.reset();
-                        window.clienteIdActual = null;
-                        clienteListoParaEnviar = null;
-                        window.idColaEnEdicion = null;
-                        window.memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} };
+                if (resCola && (resCola.id_cola || resCola.id)) {
+                    if (typeof mostrarToast === "function") mostrarToast("📋 Cliente en cola de espera", "success");
 
-                        if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
-                        if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
+                    formDespacho?.reset();
+                    window.clienteIdActual = null;
+                    clienteListoParaEnviar = null;
+                    window.idColaEnEdicion = null;
+                    window.memoriaEdicionCola1 = { origenes: {}, destinos: {}, tarifas: {} }; // Limpiar memoria por si acaso
 
-                        telefonoInput?.focus();
-                    } else {
-                        if (typeof mostrarToast === "function") mostrarToast("❌ Error al enviar a la cola", "error");
-                    }
-                } catch (err) {
-                    console.error("❌ Error de red en la cola:", err);
+                    if (typeof activarCamposDespacho === "function") activarCamposDespacho(false);
+                    if (typeof window.cargarColaClientes === "function") window.cargarColaClientes();
+
+                    telefonoInput?.focus();
+                } else {
                     if (typeof mostrarToast === "function") mostrarToast("❌ Error al enviar a la cola", "error");
                 }
+            } catch (err) {
+                console.error("❌ Error de red en la cola:", err);
+                if (typeof mostrarToast === "function") mostrarToast("❌ Error al enviar a la cola", "error");
             }
-
-        } finally {
-            // 🛡️ GARANTÍA ABSOLUTA: La bandera se libera siempre pase lo que pase
-            window.isEnviandoFormulario = false;
         }
     });
 
@@ -989,16 +921,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 });
-window.cerrarModalCola = function() {
-    const modalCola = document.getElementById("modalColaClientes") || document.getElementById("modalCola");
-    if (modalCola) {
-        modalCola.classList.add("hidden");
-    }
-};
-const btnCerrarCola = document.getElementById("btnCerrarCola");
-if (btnCerrarCola) {
-  btnCerrarCola.addEventListener("click", cerrarModalCola);
-}
+
 
 // ==================== Cola de Clientes (Modal Editable) ====================
 window.memoriaEdicionCola1 = window.memoriaEdicionCola1 || {
@@ -1231,51 +1154,32 @@ function prepararAsignacion(idCola, idCliente) {
 }
 let motivoSuspensionGlobal = "";
 
-// 🛡️ Controlador global para abortar búsquedas anteriores al escribir o pegar rápido
-let controllerBusquedaCliente = null;
-
 async function validarClienteExpreso() {
     const telInput = document.getElementById('desTelefono');
     if (!telInput) return { valido: false, motivo: "Input no encontrado" };
     const tel = telInput.value.trim();
     if (!tel) return { valido: false, motivo: "Teléfono vacío" };
-
-    // 🛑 1. ABORTAR INMEDIATAMENTE cualquier petición anterior que siga volando en la red
-    if (controllerBusquedaCliente) {
-        controllerBusquedaCliente.abort();
-    }
-    controllerBusquedaCliente = new AbortController();
-
-    // Limpieza visual preventiva para evitar mostrar datos viejos de otro cliente
-    if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "Buscando...";
-    if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = "Buscando...";
+    if (document.getElementById('desNombre')) document.getElementById('desNombre').value = "";
+    if (document.getElementById('desOrigen')) document.getElementById('desOrigen').value = "";
     if (document.getElementById('desDestino')) document.getElementById('desDestino').value = "";
-
     try {
-        console.log(`📡 [ANTI-ESTRÉS] Buscando cliente con teléfono: ${tel}`);
+        console.log(`📡 [NUEVO] Buscando cliente con teléfono: ${tel}`);
         
         const token = localStorage.getItem("token");
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        // ⏱️ Timeout de seguridad de 6 segundos para liberar la pantalla si la red parpadea
-        const timeoutId = setTimeout(() => controllerBusquedaCliente.abort(), 6000);
-
         const response = await fetch(`/clientes/buscar?telefono=${tel}&t=${Date.now()}`, {
             method: "GET",
-            headers: headers,
-            signal: controllerBusquedaCliente.signal
+            headers: headers
         });
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
-            restablecerCamposBusqueda();
             return { valido: false, motivo: "Error en el servidor al buscar cliente" };
         }
 
         const dataCliente = await response.json();
-        console.log("🔍 [ANTI-ESTRÉS] Datos crudos del cliente:", dataCliente);
+        console.log("🔍 [NUEVO] Datos crudos del cliente:", dataCliente);
 
         const cliente = Array.isArray(dataCliente) ? dataCliente[0] : dataCliente;
         
@@ -1299,79 +1203,72 @@ async function validarClienteExpreso() {
             window.telefonoClienteGlobal = cliente.telefono || "";
             window.clienteIdActual = cliente.id_cliente || cliente.id || cliente.cliente_id;
 
-            // 🚀 2. VERIFICACIÓN DE INCIDENCIAS EN SEGUNDO PLANO (No bloquea la UI del operador)
-            setTimeout(async () => {
-                try {
-                    const tokenInc = localStorage.getItem('token') || localStorage.getItem('access_token');
-                    const misHeaders = {
-                        'Content-Type': 'application/json',
-                        ...(tokenInc ? { 'Authorization': `Bearer ${tokenInc}` } : {})
-                    };
+            // 🛑 Consultar e interpretar incidencias ANTES de continuar
+            try {
+                // 🛡️ Asegurar headers con JWT token
+                const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+                const misHeaders = {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                };
 
-                    const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
-                        headers: misHeaders,
-                        signal: controllerBusquedaCliente.signal 
-                    });
-                    
-                    if (resIncidencias.ok) {
-                        const check = await resIncidencias.json();
-                        console.log("🛑 Resumen de incidencias recibido del backend:", check);
+                // 🎯 RUTA CORRECTA SEGÚN TU BACKEND FLASK: /incidencias/verificar_cliente/ID
+                // (Si tu Blueprint está registrado con prefijo '/incidencias', usa '/incidencias/verificar_cliente/...')
+                const resIncidencias = await fetch(`/incidencias/verificar_cliente/${window.clienteIdActual}?t=${Date.now()}`, { 
+                    headers: misHeaders 
+                });
+                
+                if (resIncidencias.ok) {
+                    const check = await resIncidencias.json();
+                    console.log("🛑 Resumen de incidencias recibido del backend:", check);
 
-                        if (check && check.tiene_veto_general === true) {
-                            window.semaforoRojo = true;
-                            const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
-                            if (typeof crearToastEmergencia === "function") {
-                                crearToastEmergencia(msgVeto);
-                            } else if (typeof mostrarToast === "function") {
-                                mostrarToast(msgVeto, "error");
-                            }
-                        } else {
-                            window.semaforoRojo = false;
-                            if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
-                                const cat = check.categoria ? `[${check.categoria}] ` : '';
-                                const det = check.descripcion || '';
-                                const textoAlerta = `⚠️ ATENCIÓN CLIENTE: ${cat}${det}`;
-                                if (typeof mostrarToast === "function") {
-                                    mostrarToast(textoAlerta, "error");
-                                } else if (typeof crearToastEmergencia === "function") {
-                                    crearToastEmergencia(textoAlerta);
-                                }
-                            }
+                    // 1. Bloqueo Absoluto (VETO GENERAL / NO PAGO)
+                    if (check && check.tiene_veto_general === true) {
+                        window.semaforoRojo = true; // 🔴 Bloquea despacho
+                        const msgVeto = `🚫 VETO GENERAL: ${check.mensaje_veto || check.descripcion || 'Cliente suspendido'}`;
+                        
+                        if (typeof crearToastEmergencia === "function") {
+                            crearToastEmergencia(msgVeto);
+                        } else if (typeof mostrarToast === "function") {
+                            mostrarToast(msgVeto, "error");
                         }
                     } else {
-                        window.semaforoRojo = false;
+                        window.semaforoRojo = false; // 🔓 Paso libre
+
+                        // 2. ⚠️ Advertencia visual para Incidencias / Exclusiones
+                        if (check && (check.tiene_incidencias || check.tiene_exclusiones)) {
+                            const cat = check.categoria ? `[${check.categoria}] ` : '';
+                            const det = check.descripcion || '';
+                            const textoAlerta = `⚠️ ATENCIÓN CLIENTE: ${cat}${det}`;
+                            
+                            console.warn("📢 Disparando alerta visual de incidencias:", textoAlerta);
+
+                            if (typeof mostrarToast === "function") {
+                                mostrarToast(textoAlerta, "error");
+                            } else if (typeof crearToastEmergencia === "function") {
+                                crearToastEmergencia(textoAlerta);
+                            }
+                        }
                     }
-                } catch (eErr) {
-                    if (eErr.name !== 'AbortError') {
-                        console.error("❌ Error grave al verificar incidencias:", eErr);
-                    }
+                } else {
+                    console.warn("⚠️ Error en endpoint de incidencias. Status:", resIncidencias.status);
                     window.semaforoRojo = false;
                 }
-            }, 10);
+            } catch (eErr) {
+                console.error("❌ Error grave al verificar incidencias:", eErr);
+                window.semaforoRojo = false;
+            }
 
             console.log("✅ Validación completa. Siguiente Enter enviará.");
             return { valido: true, cliente: cliente };
         }
 
-        restablecerCamposBusqueda();
         return { valido: false, motivo: "Cliente no registrado" };
 
     } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log("ℹ️ Búsqueda anterior cancelada correctamente por una nueva interacción del operador.");
-        } else {
-            console.error("❌ Error grave en validarClienteExpreso:", err);
-            restablecerCamposBusqueda();
-        }
-        return { valido: false, motivo: "Cancelado o error de red" };
+        console.error("❌ Error grave en validarClienteExpreso:", err);
+        return { valido: false, motivo: "Error de conexión" };
     }
-}
-
-function restablecerCamposBusqueda() {
-    const nom = document.getElementById('desNombre');
-    const ori = document.getElementById('desOrigen');
-    if (nom && nom.value === "Buscando...") nom.value = "";
-    if (ori && ori.value === "Buscando...") ori.value = "";
 }
 
 function crearToastEmergencia(mensaje, tipo = "VETO") {
@@ -1596,45 +1493,36 @@ function normalizarTelefonoVenezolano(textoRaw) {
     };
 }
 
-// 🎯 Captura en el Pegado (Ctrl+V) con control de re-entradas
-let isProcesandoPaste = false;
-
+// 🎯 Captura en el Pegado (Ctrl+V)
 document.addEventListener("paste", function(e) {
     const target = e.target;
     if (target && target.id === "desTelefono") {
         e.preventDefault();
         e.stopPropagation();
 
-        if (isProcesandoPaste) return;
-        isProcesandoPaste = true;
-
         const textoClipboard = (e.clipboardData || window.clipboardData).getData("text");
         const resultado = normalizarTelefonoVenezolano(textoClipboard);
 
+        // Inyectamos SIEMPRE el número transformado y limpio (Ej: 04167739099)
         target.value = resultado.numero;
 
         if (resultado.valido) {
             console.log(`✅ [INTEGRIDAD OK] Pegado limpio: "${textoClipboard}" ➔ BD: "${resultado.numero}"`);
             
-            setTimeout(async () => {
-                target.dispatchEvent(new Event('input', { bubbles: true }));
-                try {
-                    const resValidacion = await validarClienteExpreso();
-                    aplicarDatosClienteUI(resValidacion, resultado.numero);
-                } finally {
-                    isProcesandoPaste = false;
-                }
-            }, 50);
+            // Disparar búsqueda del cliente en la BD
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            const eventoEnter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+            target.dispatchEvent(eventoEnter);
         } else {
-            // 🛑 LIBERAR EL CANDADO SI EL TELÉFONO ES INVÁLIDO
-            isProcesandoPaste = false;
             console.warn(`⚠️ Teléfono inválido tras normalizar: "${resultado.numero}"`);
             if (typeof mostrarToast === 'function') {
                 mostrarToast("⚠️ El número debe ser un celular (04...) o fijo (0276...)", "error");
             }
         }
     }
-}, true);// ⚡ Evaluador de estado del formulario Express
+}, true);
+
+// ⚡ Evaluador de estado del formulario Express
 function verificarEstadoFormularioExpress() {
     const btnEnviar = document.getElementById("btnEnviarDespacho");
     const tel = document.getElementById("desTelefono")?.value.trim();
@@ -1655,3 +1543,16 @@ function verificarEstadoFormularioExpress() {
     }
 }
 window.verificarEstadoFormularioExpress = verificarEstadoFormularioExpress;
+// 🧹 1. Definir primero la función global para cerrar el modal de cola
+window.cerrarModalCola = function() {
+    const modalCola = document.getElementById("modalColaClientes") || document.getElementById("modalCola");
+    if (modalCola) {
+        modalCola.classList.add("hidden");
+    }
+};
+
+// 🖱️ 2. Luego asociarla de forma segura al botón si existe en el DOM
+const btnCerrarCola = document.getElementById("btnCerrarCola");
+if (btnCerrarCola) {
+  btnCerrarCola.addEventListener("click", window.cerrarModalCola);
+}

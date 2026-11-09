@@ -768,33 +768,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // 📌 Funciones auxiliares
   // -------------------------------
   
-    function generarTablaGeneral(data) {
+ function generarTablaGeneral(data) {
         return `
         <div class="tabla-dinamica mb-4">
             <table class="border-collapse border w-full min-w-max">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">#</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Tarifa</th>
-                    <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">ID</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">#</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Cliente</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Conductor</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Origen</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Destino</th>
+                <th class="border px-2 py-1 sticky top-0 bg-gray-100">Fecha</th>
+                
                 </tr>
             </thead>
             <tbody>
-            ${data.map((r, index) => {
-                // 💡 Formatear la tarifa de manera limpia si existe
-                let tarifaTexto = "A convenir";
-                if (r.tarifa && !isNaN(r.tarifa)) {
-                    tarifaTexto = parseFloat(r.tarifa).toLocaleString('es-VE') + " COP";
-                } else if (r.tarifa) {
-                    tarifaTexto = r.tarifa;
-                }
-
-                return `
+            ${data.map((r, index) => `
                 <tr>
                     <td class="border px-2 py-1">${r.id_despacho}</td>
                     <td class="border px-2 py-1 font-bold text-center">${index + 1}</td>
@@ -803,27 +794,25 @@ document.addEventListener("DOMContentLoaded", () => {
                         <div class="text-xs text-gray-500">${r.cliente_telefono}</div> 
                     </td>
                     <td class="border px-2 py-1 text-xs">
-                        ${r.conductor_codigo || ''} ${r.conductor_nombre || 'Sin asignar'} <br>
-                        <span class="text-[10px] font-mono bg-gray-200 px-1 rounded">${r.auto_placa || 'S/P'}</span>
+                        ${r.conductor_codigo} - ${r.conductor_nombre} <br>
+                        <span class="text-[10px] font-mono bg-gray-200 px-1 rounded">${r.auto_placa}</span>
                     </td>
+
                     <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
                         ${r.origen}
                     </td>
                     <td class="border px-2 py-1 text-xs" style="max-width: 200px; word-wrap: break-word; white-space: normal;">
                         ${r.destino}
                     </td>
-                    <td class="border px-2 py-1 text-xs font-semibold text-green-700 text-center">
-                        ${tarifaTexto}
-                    </td>
                     <td class="border px-2 py-1 text-[10px] leading-tight">${r.fecha}</td>
                 </tr>
-                `;
-            }).join("")}
+                `).join("")}
             </tbody>
             </table>
         </div>
         `;
     }
+
     function generarTablaConductores(data) {
       let totalServicios = 0;
       let totalMonto = 0;
@@ -935,16 +924,14 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             tbody.innerHTML = filas;
             } else {
-            // 💡 Corregido a colspan="5" para que cubra las 5 columnas nuevas
             tbody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron registros</td></tr>`;
             }
         } catch (err) {
             console.error("❌ Error:", err);
             alert(err.message);
         }
-        }); 
-     } 
-     
+        }); // Cierre del listener
+     } // Cierre del if  
     // -------------------------------
     // 📌 Atajo de teclado Alt+T (solo admins)
     document.addEventListener("keydown", (e) => {

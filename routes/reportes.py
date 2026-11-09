@@ -269,7 +269,7 @@ def reporte_por_cliente():
                 Conductor.nombre,
                 Despacho.origen_despacho,
                 Despacho.destino_despacho,
-                Despacho.tarifa,  # 👈 1. Agregamos el campo de tarifa del modelo Despacho (ajusta si se llama monto_tarifa o similar)
+                Despacho.tarifa,
                 Despacho.fecha_hora_fin
             )
             .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
@@ -285,10 +285,10 @@ def reporte_por_cliente():
         for r in resultados:
             ultima = r.fecha_hora_fin.strftime("%Y-%m-%d %H:%M") if r.fecha_hora_fin else "-"
             data.append({
-                "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 Código + Nombre formateado
+                "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
                 "origen": r.origen_despacho,
                 "destino": r.destino_despacho,
-                "tarifa": r.tarifa if r.tarifa is not None else "0.00", # 👈 2. Enviamos el campo 'tarifa'
+                "tarifa": float(r.tarifa) if r.tarifa else 0.0,
                 "ultima_fecha": ultima
             })
 
