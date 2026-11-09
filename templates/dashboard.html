@@ -141,6 +141,13 @@
                 </label>
             </div>
         </div>
+        <!-- Botón para verificar el estado del Webhook -->
+        <div class="mt-2 pt-2 border-t border-gray-200">
+            <button onclick="verificarWebhookRemoto()" 
+                    class="w-full text-left py-1.5 px-2 rounded hover:bg-gray-100 text-blue-600 font-bold flex items-center gap-2">
+                <span>🔍</span> Verificar Webhook Telegram
+            </button>
+        </div>
          <!-- Agrega esto en el nav lateral, después del switch de WhatsApp -->
         <li class="mt-2 pt-2 border-t border-gray-200">
             <button onclick="abrirWhatsAppWeb()" 
@@ -397,7 +404,11 @@
         <h2 class="text-2xl font-bold">Gestión de Cuotas Semanales</h2>
         <span class="badge bg-green-500 text-white px-3 py-1 rounded">Semana Actual</span>
       </div>
-
+      <!-- 💱 Widget Dinámico de Cuota Semanal (Estilo Despacho Express) -->
+        <div id="widgetCuotaSemanal" style="display: inline-flex; align-items: center; background: #2a2a2a; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: #fff; gap: 10px;">
+            <span>🪙 Cuota Actual: <strong id="txtMontoCuotaWidget" style="color: #4ade80;">40.000</strong> COP</span>
+            <button type="button" id="btnCambiarCuota" onclick="cambiarMontoCuotaSistema()" style="background: #0088cc; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Modificar monto de la cuota">✏️ Cambiar</button>
+        </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-4 shadow rounded-lg border-t-4 border-blue-500">
           <h3 class="font-bold mb-4">Registrar Nuevo Pago</h3>
@@ -431,9 +442,9 @@
             <div class="mb-3">
               <label class="block text-sm font-medium text-gray-700">Monto de la Cuota (COP)</label>
               <div class="relative">
-                <input type="text" value="40.000" readonly 
+                <input type="text" id="inputMontoCuotaVisual" value="40.000" readonly 
                       class="w-full border rounded p-2 bg-gray-100 font-bold text-blue-600 cursor-not-allowed">
-                <input type="hidden" name="monto_pagado" value="40000">
+                <input type="hidden" id="inputMontoCuotaHidden" name="monto_pagado" value="40000">
               </div>
             </div>
 
@@ -454,7 +465,7 @@
             </div>
 
             <button type="submit" id="btnProcesar" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
-              Procesar Pago (40.000 COP)
+              Procesar Pago (<span id="spanTextoBtnMonto">40.000</span> COP)
             </button>
           </form>
         </div>
@@ -999,8 +1010,8 @@
   "></div>
   <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
   <script>
-    // Función para mostrar toasts(mensajes flotantes)
-  function mostrarToast(mensaje, tipo="info") {
+ // Función para mostrar toasts (mensajes flotantes)
+  function mostrarToast(mensaje, tipo="info", duracion=6000) { // 👈 1. Añadimos el parámetro aquí
     console.log(`📢 Inyectando en la raíz del navegador (${tipo}): ${mensaje}`);
 
     // 1. Buscamos si ya existe la alerta para no duplicarla
@@ -1012,19 +1023,19 @@
     toast.id = "toastRaizAbsoluto";
     toast.textContent = mensaje;
 
-    // 📍 ESTILOS DE IMPACTO TOTAL (Independientes de formularios y modales)
+    // 📍 ESTILOS DE IMPACTO TOTAL
     toast.style.position = "fixed";
-    toast.style.top = "30px";             // Bien arriba en el centro
+    toast.style.top = "30px";             
     toast.style.left = "50%";
-    toast.style.transform = "translateX(-50%)"; // Centrado perfecto en la laptop
+    toast.style.transform = "translateX(-50%)"; 
     
-    // 🎨 COLOREADO INTELIGENTE (Soporte para 3 estados)
+    // 🎨 COLOREADO INTELIGENTE
     if (tipo === "error") {
-        toast.style.background = "#dc3545"; // 🔴 Rojo (Errores críticos)
+        toast.style.background = "#dc3545"; 
     } else if (tipo === "warning") {
-        toast.style.background = "#f59e0b"; // 🟠 Naranja (Advertencias como falta de GPS)
+        toast.style.background = "#f59e0b"; 
     } else {
-        toast.style.background = "#28a745"; // 🟢 Verde (Éxito / Info)
+        toast.style.background = "#28a745"; 
     }
     
     toast.style.color = "#ffffff";
@@ -1035,19 +1046,18 @@
     toast.style.textAlign = "center";
     toast.style.boxShadow = "0 8px 24px rgba(0,0,0,0.4)";
     toast.style.fontFamily = "sans-serif";
-    
-    // 🚨 SEGURIDAD RADICAL: Por encima de absolutamente todo, e inmune a destrucciones de vistas
     toast.style.zIndex = "2147483647"; 
     toast.style.display = "block";
 
-    // 🎯 EL TRUCO SUPREMO: Lo pegamos en el nodo raíz del documento, no en el body ni en secciones
     document.documentElement.appendChild(toast);
     console.log("🚀 Alerta clavada en la raíz del árbol HTML del navegador.");
 
-    // Desaparece solo a los 6 segundos
+    // ⏱️ 2. Usamos la variable 'duracion' en lugar del número estático 6000
     setTimeout(() => {
-        if (toast) toast.remove();
-    }, 6000);
+        if (toast && toast.parentNode) {
+            toast.remove();
+        }
+    }, duracion);
   }
     function abrirModalCambio() {
       var modal = new bootstrap.Modal(document.getElementById('modalCambiarPassword'));
@@ -1875,8 +1885,9 @@ document.addEventListener('DOMContentLoaded', () => {
                       cargarPuntos();
                       break;
                   case 'pagos': 
-                      console.log("💰 Cargando pagos...");
+                     console.log("💰 Cargando pagos...");
                       cargarConductoresSelect(); 
+                      cargarCuotaSemanal(); // 👈 Carga el valor actualizado al entrar al módulo
                       if (typeof window.cargarEstadoSemana === 'function') window.cargarEstadoSemana();
                       if (typeof window.cargarHistorialPagos === 'function') window.cargarHistorialPagos();
                       break;

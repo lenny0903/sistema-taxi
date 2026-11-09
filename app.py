@@ -243,6 +243,48 @@ def create_app():
         # Aquí puedes buscar el ID en tu BD si lo necesitas, o armar el start dinámico
         url_telegram = f"https://t.me/taxilospatriotastest_bot?start=srv-{id_servicio}"
         return redirect(url_telegram, code=302)
+
+    @app.route('/api/cuota_semanal', methods=['GET', 'POST'])
+    def gestionar_cuota_semanal():
+        import json as json_nativo
+        ARCHIVO_CUOTA = 'cuota_semanal_actual.json'
+        
+        if request.method == 'POST':
+            try:
+                data = request.get_json(silent=True) or {}
+                # Si no envían monto en el POST, usa el valor global del config
+                nuevo_monto = float(data.get('monto_cuota', MONTO_CUOTA_SEMANAL))
+                datos_nuevos = {"monto_cuota": nuevo_monto}
+                with open(ARCHIVO_CUOTA, 'w', encoding='utf-8') as f:
+                    json_nativo.dump(datos_nuevos, f)
+                return jsonify({"status": "success", **datos_nuevos})
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 400
+        
+        # Si el archivo JSON existe, devuelve el monto guardado dinámicamente
+        if os.path.exists(ARCHIVO_CUOTA):
+            try:
+                with open(ARCHIVO_CUOTA, 'r', encoding='utf-8') as f:
+                    return jsonify(json_nativo.load(f))
+            except:
+                pass
+                
+        # Si el archivo aún no se ha creado, cae en la constante de config.py
+        return jsonify({"monto_cuota": MONTO_CUOTA_SEMANAL})
+    
+    @app.route('/api/telegram/estado_webhook', methods=['GET'])
+    def estado_webhook_telegram():
+        import requests
+        TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+        if not TOKEN:
+            return jsonify({"ok": False, "error": "Token de Telegram no configurado en el servidor"}), 500
+        
+        url_api = f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo"
+        try:
+            response = requests.get(url_api, timeout=5)
+            return jsonify(response.json())
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
     
     app.wsgi_app = ProxyFix(
         app.wsgi_app, 
