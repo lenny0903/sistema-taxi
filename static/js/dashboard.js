@@ -2507,3 +2507,28 @@ window.cerrarBannerSolicitudLink = function() {
     if (b) b.remove();
     if (window.bannerSolicitudTimeout) clearTimeout(window.bannerSolicitudTimeout);
 };
+
+// 🆕 ESCUCHA: Cliente embarcado (notificación del conductor)
+window.socket.on('cliente_embarcado', (data) => {
+    console.log("✅ Cliente embarcado:", data);
+    if (typeof window.cargarDespachosActivos === 'function') {
+        window.cargarDespachosActivos();
+    }
+    if (typeof mostrarToast === 'function') {
+        mostrarToast(`✅ Despacho #${data.despacho_id} - Cliente embarcado (${data.conductor})`, "success");
+    }
+});
+
+// 🆕 ESCUCHA: Cliente desembarcado (servicio finalizado)
+window.socket.on('cliente_desembarcado', (data) => {
+    console.log("🏁 Cliente desembarcado:", data);
+    if (typeof window.cargarDespachosActivos === 'function') {
+        window.cargarDespachosActivos();
+    }
+    if (typeof window.cargarEstadoSemana === 'function') {
+        window.cargarEstadoSemana();
+    }
+    if (typeof mostrarToast === 'function') {
+        mostrarToast(`🏁 Despacho #${data.despacho_id} - Servicio finalizado (${data.conductor})`, "info");
+    }
+});

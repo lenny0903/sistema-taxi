@@ -317,12 +317,16 @@ def listar_despachos_activos():
             c_id = None
             if d.cliente:
                 c_id = getattr(d.cliente, 'id_cliente', getattr(d.cliente, 'id', None))
-            
             # 2. Extraer ID del conductor con seguridad
             cond_id = None
             if d.conductor:
                 cond_id = getattr(d.conductor, 'id_conductor', getattr(d.conductor, 'id', None))
-
+            
+            # 🆕 Formatear fecha de embarque si existe
+            fecha_embarque_str = None
+            if d.fecha_hora_embarque:
+                fecha_embarque_str = d.fecha_hora_embarque.strftime('%H:%M')
+            
             resultado.append({
                 "id_despacho": d.id_despacho,
                 "cliente_telefono": d.cliente.telefono if d.cliente else "-",
@@ -333,18 +337,15 @@ def listar_despachos_activos():
                 "destino": d.destino_despacho,
                 "tarifa": d.tarifa,
                 "estado_despacho": d.estado_despacho,
-                
+                "fecha_hora_embarque": fecha_embarque_str,  # 🆕 AGREGADO
                 # IDs extraídos con total seguridad para el frontend:
                 "cliente_id": c_id,
                 "conductor_id": cond_id
             })
-            
         return jsonify(resultado), 200
-
     except Exception as e:
         print(f"❌ Error en listar_despachos_activos: {str(e)}")
         return jsonify({"error": "Error interno del servidor", "detalle": str(e)}), 500
-
 @despachos_bp.route("/<int:id>/finalizar", methods=["PUT"])
 def finalizar_despacho(id):
     try:

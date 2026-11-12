@@ -100,7 +100,59 @@ def _manejar_callback(callback):
         else:
             enviar_mensaje(chat_id, "✅ ¡Muchas gracias por tu opinión!")
             return {"status": "encuesta_recibida"}, 200
+            # 🆕 HANDLER: Cliente Embarcado
+    if data and data.startswith('embarque_'):
+        confirmar_clic(callback_id)
+        try:
+            id_despacho = int(data.split('_')[1])
+            despacho = Despacho.query.get(id_despacho)
+            
+            if despacho and despacho.conductor_id:
+                conductor = Conductor.query.get(despacho.conductor_id)
+                if conductor and conductor.telegram_id == chat_id:
+                    despacho.fecha_hora_embarque = datetime.now()
+                    despacho.estado_despacho = 'en_curso'
+                    db.session.commit()
+                    
+                    emitir_al_panel('cliente_embarcado', {
+                        'despacho_id': id_despacho,
+                        'conductor': conductor.codigo,
+                        'hora': despacho.fecha_hora_embarque.strftime('%H:%M')
+                    })
+                    enviar_mensaje(chat_id, f"✅ Notificado: Cliente embarcado en despacho #{id_despacho}")
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No autorizado para este despacho.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Error al registrar embarque: {e}")
+        return {"status": "embarque_registrado"}, 200
 
+    # 🆕 HANDLER: Cliente Desembarcado
+    if data and data.startswith('desembarque_'):
+        confirmar_clic(callback_id)
+        try:
+            id_despacho = int(data.split('_')[1])
+            despacho = Despacho.query.get(id_despacho)
+            
+            if despacho and despacho.conductor_id:
+                conductor = Conductor.query.get(despacho.conductor_id)
+                if conductor and conductor.telegram_id == chat_id:
+                    despacho.fecha_hora_fin = datetime.now()
+                    despacho.estado_despacho = 'finalizado'
+                    db.session.commit()
+                    
+                    emitir_al_panel('cliente_desembarcado', {
+                        'despacho_id': id_despacho,
+                        'conductor': conductor.codigo,
+                        'hora': despacho.fecha_hora_fin.strftime('%H:%M')
+                    })
+                    enviar_mensaje(chat_id, f"🏁 Notificado: Servicio #{id_despacho} finalizado. ¡Gracias!")
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No autorizado para este despacho.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Error al registrar desembarque: {e}")
+        return {"status": "desembarque_registrado"}, 200
     return {"status": "callback_no_reconocido"}, 200
 
 
@@ -328,9 +380,14 @@ def notificar_despacho_a_conductor(id_despacho):
     dominio_actual = os.getenv('CLOUDFLARE_URL', 'http://127.0.0.1:5000')
     url_mapa = f"{dominio_actual}/monitoreo/{id_despacho}"
 
+    # 🆕 TECLADO CON BOTONES DE EMBARQUE/DESEMBARQUE
     teclado = {
         "inline_keyboard": [
-            [{"text": "🗺️ Abrir Mapa del Viaje", "url": url_mapa}]
+            [{"text": "🗺️ Abrir Mapa del Viaje", "url": url_mapa}],
+            [
+                {"text": "✅ Cliente Embarcado", "callback_data": f"embarque_{id_despacho}"},
+                {"text": "🏁 Cliente Desembarcado", "callback_data": f"desembarque_{id_despacho}"}
+            ]
         ]
     }
 

@@ -742,6 +742,7 @@
                   <th class="border px-2 py-1">Auto</th>
                   <th class="border px-2 py-1">Origen</th>
                   <th class="border px-2 py-1">Destino</th>
+                  <th class="border px-2 py-1">Embarque</th>
                   <th class="border px-2 py-1">Estado</th>
                   <th class="border px-2 py-1">Acciones</th>
                 </tr>
@@ -1940,65 +1941,71 @@ document.addEventListener('DOMContentLoaded', () => {
   let despachoSeleccionado = null;
 
   // Cargar despachos activos
-async function cargarDespachosActivos() {
-  try {
-    const data = await apiFetch('/despachos/activos');
-    const tbody = document.querySelector('#tablaDespachosActivos tbody');
 
-    if (!tbody) return;
+  async function cargarDespachosActivos() {
+    try {
+      const data = await apiFetch('/despachos/activos');
+      const tbody = document.querySelector('#tablaDespachosActivos tbody');
 
-    tbody.innerHTML = Array.isArray(data) && data.length > 0
-      ? data.map((t, index) => `
-        <tr class="hover:bg-gray-50 transition border-b">
-          <td class="border px-2 py-1 text-center font-bold">${index + 1}</td> 
-          
-          <td class="border px-2 py-1">${t.cliente_telefono || "-"}</td>
-          <td class="border px-2 py-1 font-semibold">${t.cliente_nombre || "-"}</td>
-          <td class="border px-2 py-1">${t.conductor_nombre || "—"}</td>
-          <td class="border px-2 py-1 font-mono">${t.auto_placa || "—"}</td>
-          
-          <td class="border px-2 py-1 text-sm">${t.origen || "—"}</td>
-          <td class="border px-2 py-1 text-sm">${t.destino || "—"}</td>
-          
-          <td class="border px-2 py-1 text-center">
-            <span class="text-xs font-bold uppercase text-blue-600">${t.estado_despacho}</span>
-          </td>
+      if (!tbody) return;
 
-          <td class="border px-2 py-1 text-center">
-            <div class="flex flex-wrap gap-1 justify-center">
-              
-              <button class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs shadow-sm"
-                      onclick="finalizarDespacho(${t.id_despacho})">
-                Finalizar
-              </button>
+      tbody.innerHTML = Array.isArray(data) && data.length > 0
+        ? data.map((t, index) => {
+            // 🆕 Lógica del indicador visual de embarque
+            const indicadorEmbarque = t.fecha_hora_embarque 
+              ? `<span class="inline-block px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-bold">✅ ${t.fecha_hora_embarque}</span>`
+              : `<span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 text-xs font-bold">⏳ Esperando</span>`;
 
-              <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs shadow-sm"
-                      onclick="cancelarDespacho(${t.id_despacho})">
-                Cancelar
-              </button>
+            return `
+              <tr class="hover:bg-gray-50 transition border-b">
+                <td class="border px-2 py-1 text-center font-bold">${index + 1}</td> 
+                <td class="border px-2 py-1">${t.cliente_telefono || "-"}</td>
+                <td class="border px-2 py-1 font-semibold">${t.cliente_nombre || "-"}</td>
+                <td class="border px-2 py-1">${t.conductor_nombre || "—"}</td>
+                <td class="border px-2 py-1 font-mono">${t.auto_placa || "—"}</td>
+                <td class="border px-2 py-1 text-sm">${t.origen || "—"}</td>
+                <td class="border px-2 py-1 text-sm">${t.destino || "—"}</td>
+                
+                <!-- 🆕 COLUMNA DE EMBARQUE -->
+                <td class="border px-2 py-1 text-center">
+                  ${indicadorEmbarque}
+                </td>
 
-              <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs shadow-sm"
-                      onclick="seleccionarDespacho(${t.id_despacho})">
-                Seleccionar
-              </button>
+                <td class="border px-2 py-1 text-center">
+                  <span class="text-xs font-bold uppercase text-blue-600">${t.estado_despacho}</span>
+                </td>
 
-            <button class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs shadow-sm"
-                      onclick="abrirModalIncidenciaSeguro('${encodeURIComponent(JSON.stringify(t))}')">
-                ⚠️
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('')
-      : '<tr><td colspan="9" class="text-center py-6 text-gray-500 italic">No hay despachos activos en este momento</td></tr>';
+                <td class="border px-2 py-1 text-center">
+                  <div class="flex flex-wrap gap-1 justify-center">
+                    <button class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs shadow-sm"
+                            onclick="finalizarDespacho(${t.id_despacho})">
+                      Finalizar
+                    </button>
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs shadow-sm"
+                            onclick="cancelarDespacho(${t.id_despacho})">
+                      Cancelar
+                    </button>
+                    <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs shadow-sm"
+                            onclick="seleccionarDespacho(${t.id_despacho})">
+                      Seleccionar
+                    </button>
+                    <button class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs shadow-sm"
+                            onclick="abrirModalIncidenciaSeguro('${encodeURIComponent(JSON.stringify(t))}')">
+                      ⚠️
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')
+        : '<tr><td colspan="10" class="text-center py-6 text-gray-500 italic">No hay despachos activos en este momento</td></tr>'; // 🆕 colspan cambiado a 10
 
-    return data;
-  } catch (err) {
-    console.error("❌ Error cargando despachos:", err);
-    return [];
+      return data;
+    } catch (err) {
+      console.error("❌ Error cargando despachos:", err);
+      return [];
+    }
   }
-}
-
  
   
    // Conectar el botón con la función
