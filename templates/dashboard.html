@@ -416,7 +416,11 @@
         <h2 class="text-2xl font-bold">Gestión de Cuotas Semanales</h2>
         <span class="badge bg-green-500 text-white px-3 py-1 rounded">Semana Actual</span>
       </div>
-
+      <!-- 💱 Widget Dinámico de Cuota Semanal (Estilo Despacho Express) -->
+        <div id="widgetCuotaSemanal" style="display: inline-flex; align-items: center; background: #2a2a2a; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: #fff; gap: 10px;">
+            <span>🪙 Cuota Actual: <strong id="txtMontoCuotaWidget" style="color: #4ade80;">40.000</strong> COP</span>
+            <button type="button" id="btnCambiarCuota" onclick="cambiarMontoCuotaSistema()" style="background: #0088cc; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Modificar monto de la cuota">✏️ Cambiar</button>
+        </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-4 shadow rounded-lg border-t-4 border-blue-500">
           <h3 class="font-bold mb-4">Registrar Nuevo Pago</h3>
@@ -450,9 +454,9 @@
             <div class="mb-3">
               <label class="block text-sm font-medium text-gray-700">Monto de la Cuota (COP)</label>
               <div class="relative">
-                <input type="text" value="40.000" readonly 
+                <input type="text" id="inputMontoCuotaVisual" value="40.000" readonly 
                       class="w-full border rounded p-2 bg-gray-100 font-bold text-blue-600 cursor-not-allowed">
-                <input type="hidden" name="monto_pagado" value="40000">
+                <input type="hidden" id="inputMontoCuotaHidden" name="monto_pagado" value="40000">
               </div>
             </div>
 
@@ -473,7 +477,7 @@
             </div>
 
             <button type="submit" id="btnProcesar" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
-              Procesar Pago (40.000 COP)
+              Procesar Pago (<span id="spanTextoBtnMonto">40.000</span> COP)
             </button>
           </form>
         </div>
@@ -1887,8 +1891,9 @@ document.addEventListener('DOMContentLoaded', () => {
                       cargarPuntos();
                       break;
                   case 'pagos': 
-                      console.log("💰 Cargando pagos...");
+                     console.log("💰 Cargando pagos...");
                       cargarConductoresSelect(); 
+                      cargarCuotaSemanal(); // 👈 Carga el valor actualizado al entrar al módulo
                       if (typeof window.cargarEstadoSemana === 'function') window.cargarEstadoSemana();
                       if (typeof window.cargarHistorialPagos === 'function') window.cargarHistorialPagos();
                       break;

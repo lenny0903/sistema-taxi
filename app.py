@@ -286,6 +286,34 @@ def create_app():
                 'lon': lon
             }, room=room)
             print(f"📍 Coordenada GPS del cliente recibida y retransmitida en la Room #{room}: ({lat}, {lon})")        
+
+    @app.route('/api/cuota_semanal', methods=['GET', 'POST'])
+    def gestionar_cuota_semanal():
+        import json as json_nativo
+        ARCHIVO_CUOTA = 'cuota_semanal_actual.json'
+        
+        if request.method == 'POST':
+            try:
+                data = request.get_json(silent=True) or {}
+                # Si no envían monto en el POST, usa el valor global del config
+                nuevo_monto = float(data.get('monto_cuota', MONTO_CUOTA_SEMANAL))
+                datos_nuevos = {"monto_cuota": nuevo_monto}
+                with open(ARCHIVO_CUOTA, 'w', encoding='utf-8') as f:
+                    json_nativo.dump(datos_nuevos, f)
+                return jsonify({"status": "success", **datos_nuevos})
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 400
+        
+        # Si el archivo JSON existe, devuelve el monto guardado dinámicamente
+        if os.path.exists(ARCHIVO_CUOTA):
+            try:
+                with open(ARCHIVO_CUOTA, 'r', encoding='utf-8') as f:
+                    return jsonify(json_nativo.load(f))
+            except:
+                pass
+                
+        # Si el archivo aún no se ha creado, cae en la constante de config.py
+        return jsonify({"monto_cuota": MONTO_CUOTA_SEMANAL})        
     app.wsgi_app = ProxyFix(
         app.wsgi_app, 
         x_for=1, 
