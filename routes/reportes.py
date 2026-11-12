@@ -252,9 +252,6 @@ def reporte_embarque_desembarque():
     })
 
 
-# -------------------------------
-# 📌 Reporte por cliente (conductores que lo atendieron)
-# -------------------------------
 @reporte_bp.route("/cliente", methods=["GET"])
 @jwt_required()
 def reporte_por_cliente():
@@ -269,6 +266,7 @@ def reporte_por_cliente():
                 Conductor.nombre,
                 Despacho.origen_despacho,
                 Despacho.destino_despacho,
+                Despacho.tarifa,  # ✅ AGREGADO
                 Despacho.fecha_hora_fin
             )
             .join(Conductor, Conductor.id_conductor == Despacho.conductor_id)
@@ -284,9 +282,10 @@ def reporte_por_cliente():
         for r in resultados:
             ultima = r.fecha_hora_fin.strftime("%Y-%m-%d %H:%M") if r.fecha_hora_fin else "-"
             data.append({
-                "nombre_conductor": f"{r.codigo} - {r.nombre}",  # 👈 código+nombre
+                "nombre_conductor": f"{r.codigo} - {r.nombre}",
                 "origen": r.origen_despacho,
                 "destino": r.destino_despacho,
+                "tarifa": f"{r.tarifa:,.0f}" if r.tarifa else "0",  # ✅ AGREGADO (formateado)
                 "ultima_fecha": ultima
             })
 
@@ -296,7 +295,6 @@ def reporte_por_cliente():
     except Exception as e:
         print("❌ Error en reporte_por_cliente:", e)
         return jsonify({"error": str(e)}), 500
-
 
 # -------------------------------
 # 📌 Reporte de Pagos (Cierre de Caja)
