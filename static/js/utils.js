@@ -324,3 +324,98 @@ function verificarReservasUrgentes() {
 
 // Ejecutar la verificación al cargar y cada 60 segundos
 setInterval(verificarReservasUrgentes, 60000);
+//////////////PARA CUOTA SEMANAL DINAMICA////////////////////////
+// 🪙 Variable global para el monto de la cuota activa
+  window.montoCuotaActual = 40000;
+
+  // Función para cargar el monto de la cuota al abrir el módulo o iniciar
+  async function cargarCuotaSemanal() {
+      try {
+          const res = await fetch('/api/cuota_semanal');
+          const data = await res.json();
+          if (data && data.monto_cuota) {
+              window.montoCuotaActual = Number(data.monto_cuota);
+              actualizarInputsCuotaUI();
+          }
+      } catch (err) {
+          console.error("❌ Error cargando cuota semanal:", err);
+      }
+  }
+
+  // Refrescar los campos visuales con el monto actual formateado
+  function actualizarInputsCuotaUI() {
+      const montoFormateado = window.montoCuotaActual.toLocaleString('de-DE'); // Formato 40.000
+      
+      // 1. Widget superior
+      const txtWidget = document.getElementById("txtMontoCuotaWidget");
+      if (txtWidget) txtWidget.textContent = montoFormateado;
+
+      // 2. Input visual del formulario
+      const inputVis = document.getElementById("inputMontoCuotaVisual");
+      if (inputVis) inputVis.value = montoFormateado;
+
+      // 3. Input oculto enviado al backend
+      const inputHid = document.getElementById("inputMontoCuotaHidden");
+      if (inputHid) inputHid.value = window.montoCuotaActual;
+
+      // 4. Texto del botón de procesar
+      const spanBtn = document.getElementById("spanTextoBtnMonto");
+      if (spanBtn) spanBtn.textContent = montoFormateado;
+  }
+
+  // Función interactiva para cambiar el monto (idéntica en filosofía a tasas)
+  async function cambiarMontoCuotaSistema() {
+      const nuevoMontoStr = prompt("Ingrese el nuevo monto fijo para la cuota semanal (COP):", window.montoCuotaActual);
+      if (nuevoMontoStr === null) return; // Cancelado
+
+      const nuevoMonto = parseFloat(nuevoMontoStr);
+      if (isNaN(nuevoMonto) || nuevoMonto <= 0) {
+          mostrarToast("⚠️ Por favor ingrese un monto válido mayor a 0.", "error");
+          return;
+      }
+
+      try {
+          const res = await fetch('/api/cuota_semanal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ monto_cuota: nuevoMonto })
+          });
+          const data = await res.json();
+
+          if (res.ok && data.status === "success") {
+              window.montoCuotaActual = data.monto_cuota;
+              actualizarInputsCuotaUI();
+              mostrarToast(`✅ Cuota semanal actualizada a ${window.montoCuotaActual.toLocaleString('de-DE')} COP`, "success");
+          } else {
+              mostrarToast("❌ Error al guardar el nuevo monto", "error");
+          }
+      } catch (err) {
+          console.error("Error de red:", err);
+          mostrarToast("❌ Error de conexión con el servidor", "error");
+      }
+  }
+
+  //////Función para mostrar Toasts de resulado del comando curs para ver url del webhook
+  async function verificarWebhookRemoto() {
+    mostrarToast("Consultando estado del webhook en Telegram...", "info", 4000);
+    try {
+        const res = await apiFetch('/api/telegram/estado_webhook');
+        
+        if (res && res.ok && res.result) {
+            const urlConfigurada = res.result.url || "(Vacía / Sin configurar)";
+            const pendientes = res.result.pending_update_count || 0;
+            
+            if (urlConfigurada !== "(Vacía / Sin configurar)") {
+                // 🟢 Aquí le ponemos 10000 ms (10 segundos) para que la operadora lea la URL con calma
+                mostrarToast(`✅ Webhook activo. URL: ${urlConfigurada} | Pendientes: ${pendientes}`, "success", 10000);
+            } else {
+                mostrarToast(`⚠️ ADVERTENCIA: El webhook está VACÍO en Telegram. Pendientes: ${pendientes}`, "error", 10000);
+            }
+        } else {
+            mostrarToast("❌ Error al consultar la API de Telegram", "error", 6000);
+        }
+    } catch (err) {
+        console.error("Error verificando webhook:", err);
+        mostrarToast("❌ Error de conexión al verificar el webhook", "error", 6000);
+    }
+}

@@ -76084,3 +76084,25 @@ AttributeError: 'scoped_session' object has no attribute 'cursor'
 2026-11-11 21:51:14,175 - apscheduler.scheduler - INFO - Scheduler started
 2026-11-11 21:51:14,183 - werkzeug - WARNING -  * Debugger is active!
 2026-11-11 21:51:14,324 - werkzeug - INFO -  * Debugger PIN: 589-225-553
+2026-11-11 21:54:34,198 - werkzeug - INFO -  * Restarting with stat
+2026-11-11 21:54:36,688 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-11-11 21:54:36,689 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-11-11 21:54:36,689 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-11-11 21:54:36,689 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-11-11 21:54:36,691 - apscheduler.scheduler - INFO - Added job "job_verificar_reservas" to job store "default"
+2026-11-11 21:54:36,691 - apscheduler.scheduler - INFO - Added job "job_verificar_gps_conductores" to job store "default"
+2026-11-11 21:54:36,691 - apscheduler.scheduler - INFO - Added job "job_expirar_tiempos_gps" to job store "default"
+2026-11-11 21:54:36,691 - apscheduler.scheduler - INFO - Added job "ejecutar_respaldo_automatico" to job store "default"
+2026-11-11 21:54:36,692 - apscheduler.scheduler - INFO - Scheduler started
+2026-11-11 21:54:36,700 - werkzeug - WARNING -  * Debugger is active!
+2026-11-11 21:54:36,701 - werkzeug - INFO -  * Debugger PIN: 589-225-553
+2026-11-11 21:55:36,710 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:55:36 -04)" (scheduled at 2026-11-11 21:55:36.688508-04:00)
+2026-11-11 21:55:36,714 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:55:36 -04)" executed successfully
+2026-11-11 21:56:36,690 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:57:36 -04)" (scheduled at 2026-11-11 21:56:36.688508-04:00)
+2026-11-11 21:56:36,693 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:57:36 -04)" executed successfully
+2026-11-11 21:56:36,693 - apscheduler.executors.default - INFO - Running job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-11-11 21:56:36 -04)" (scheduled at 2026-11-11 21:56:36.689422-04:00)
+2026-11-11 21:56:36,698 - apscheduler.executors.default - INFO - Job "job_expirar_tiempos_gps (trigger: interval[0:02:00], next run at: 2026-11-11 21:56:36 -04)" executed successfully
+2026-11-11 21:57:36,690 - apscheduler.executors.default - INFO - Running job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:58:36 -04)" (scheduled at 2026-11-11 21:57:36.688508-04:00)
+2026-11-11 21:57:36,693 - apscheduler.executors.default - INFO - Job "job_verificar_reservas (trigger: interval[0:01:00], next run at: 2026-11-11 21:58:36 -04)" executed successfully
+2026-11-11 21:57:36,694 - apscheduler.executors.default - INFO - Running job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-11-11 22:00:36 -04)" (scheduled at 2026-11-11 21:57:36.689086-04:00)
+2026-11-11 21:57:37,380 - apscheduler.executors.default - INFO - Job "job_verificar_gps_conductores (trigger: interval[0:03:00], next run at: 2026-11-11 22:00:36 -04)" executed successfully
