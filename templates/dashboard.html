@@ -3190,6 +3190,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.socket.on("connect_error", (err) => {
         console.warn("⚠️ Intento de reconexión de alertas:", err.message);
     });
+    // 🔄 Cuando el conductor cancela el despacho desde Telegram
+    window.socket.on('despacho_cancelado', (data) => {
+        console.log(`⚠️ Despacho #${data.despacho_id} cancelado desde Telegram. Refrescando tabla de activos...`);
+        
+        // Si tu función para recargar la tabla se llama cargarDespachosActivos, la disparamos:
+        if (typeof cargarDespachosActivos === 'function') {
+            cargarDespachosActivos();
+        }
+    });
+
+    // 🔄 Opcional: aprovecha también para actualizar si embarca o finaliza desde Telegram
+    window.socket.on('cliente_embarcado', (data) => {
+        console.log(`🚖 Despacho #${data.despacho_id} embarcado. Refrescando tabla...`);
+        if (typeof cargarDespachosActivos === 'function') {
+            cargarDespachosActivos();
+        }
+    });
+
+    window.socket.on('cliente_desembarcado', (data) => {
+        console.log(`🏁 Despacho #${data.despacho_id} finalizado. Refrescando tabla...`);
+        if (typeof cargarDespachosActivos === 'function') {
+            cargarDespachosActivos();
+        }
+    });
+
  </script>
  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>  
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>

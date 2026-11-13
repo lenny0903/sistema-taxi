@@ -405,14 +405,44 @@ from utils.fechas import hora_local
 
 @despachos_bp.route("/<int:id>/cancelar", methods=["PUT"])
 def cancelar_despacho(id):
-    despacho = Despacho.query.get_or_404(id)
-    
-    # 1. Actualizar estado y fecha fin usando hora_local()
-    despacho.estado_despacho = "cancelado"
-    despacho.fecha_hora_fin = hora_local()
-    
-    db.session.commit()
-    return jsonify(despacho.to_dict()), 200
+    try:
+        despacho = Despacho.query.get_or_404(id)
+        
+        despacho.estado_despacho = "cancelado"
+        despacho.fecha_hora_fin = hora_local()
+        db.session.commit()
+
+        codigo_conductor = None
+        telegram_id_conductor = None
+        if despacho.conductor:
+            codigo_conductor = despacho.conductor.codigo
+            telegram_id_conductor = despacho.conductor.telegram_id
+
+        # 📡 Emitir evento Socket.IO al panel y mapa
+        from services.telegram_service import emitir_al_panel
+        emitir_al_panel('despacho_cancelado', {
+            'despacho_id': id,
+            'conductor': codigo_conductor,
+            'estado_despacho': 'cancelado'
+        })
+
+        # 📲 Notificar al conductor por Telegram si tiene chat activo
+        if telegram_id_conductor:
+            from utils.notificaciones import enviar_mensaje
+            enviar_mensaje(
+                telegram_id_conductor, 
+                f"❌ *Servicio Cancelado*\nEl despacho #{id} ha sido anulado por la central."
+            )
+
+        return jsonify({
+            "msg": "Despacho cancelado correctamente",
+            "id_despacho": despacho.id_despacho,
+            "estado_despacho": despacho.estado_despacho
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al cancelar despacho: {str(e)}"}), 500
 
 @despachos_bp.route("/<int:id>/embarque", methods=["PUT"])
 def registrar_embarque(id):

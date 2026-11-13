@@ -172,6 +172,39 @@ def _manejar_callback(callback):
             print(f"❌ Error al registrar desembarque: {e}")
         return {"status": "desembarque_registrado"}, 200
 
+    # 🆕 HANDLER: Cancelar Despacho desde Telegram
+    if data and data.startswith('cancelar_'):
+        confirmar_clic(callback_id)
+        try:
+            id_despacho = int(data.split('_')[1])
+            despacho = Despacho.query.get(id_despacho)
+            
+            if despacho and despacho.conductor_id:
+                conductor = Conductor.query.get(despacho.conductor_id)
+                if conductor and conductor.telegram_id == chat_id:
+                    
+                    if despacho.estado_despacho in ['finalizado', 'cancelado']:
+                        enviar_mensaje(chat_id, f"⚠️ El despacho #{id_despacho} ya se encuentra {despacho.estado_despacho}.")
+                        return {"status": "despacho_ya_cerrado"}, 200
+
+                    despacho.estado_despacho = 'cancelado'
+                    despacho.fecha_hora_fin = hora_local()
+                    db.session.commit()
+                    
+                    # 📡 Emitir al panel web y mapa de monitoreo para que el auto vuelva a VERDE
+                    emitir_al_panel('despacho_cancelado', {
+                        'despacho_id': id_despacho,
+                        'conductor': conductor.codigo,
+                        'estado_despacho': 'cancelado'
+                    })
+                    
+                    enviar_mensaje(chat_id, f"❌ Has cancelado el despacho #{id_despacho}.")
+                else:
+                    enviar_mensaje(chat_id, "⚠️ No autorizado para este despacho.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Error al cancelar despacho desde Telegram: {e}")
+        return {"status": "cancelacion_telegram_registrada"}, 200
     return {"status": "callback_no_reconocido"}, 200
 
 
@@ -406,6 +439,9 @@ def notificar_despacho_a_conductor(id_despacho):
             [
                 {"text": "✅ Cliente Embarcado", "callback_data": f"embarque_{id_despacho}"},
                 {"text": "🏁 Cliente Desembarcado", "callback_data": f"desembarque_{id_despacho}"}
+            ],
+            [
+                {"text": "❌ Cancelar Servicio", "callback_data": f"cancelar_{id_despacho}"}
             ]
         ]
     }

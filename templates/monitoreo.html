@@ -694,6 +694,19 @@
                     marcadores[data.conductor].setIcon(iconoVerde);
                 }
             });    
+            // 🔴 Evento: Despacho Cancelado (El auto vuelve a Verde de inmediato)
+            socket.on('despacho_cancelado', (data) => {
+                if (data.conductor) {
+                    console.log(`⚠️ Despacho #${data.despacho_id} cancelado. Unidad ${data.conductor} liberada (VERDE).`);
+                    delete vehiculosOcupados[data.conductor];
+                    
+                    // Si el marcador existe en el mapa, lo devolvemos al color verde libre
+                    if (marcadores[data.conductor]) {
+                        const iconoVerde = crearIconoVehiculo(data.conductor, false, 0, false);
+                        marcadores[data.conductor].setIcon(iconoVerde);
+                    }
+                }
+            });
             // Eventos de negocio (ubicaciones, inactivos)
             socket.on('nueva_ubicacion', () => actualizarMapa());
             socket.on('conductor_inactivo', () => actualizarMapa());
