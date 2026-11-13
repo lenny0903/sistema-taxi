@@ -1,3 +1,5 @@
+from operator import or_
+
 import pytz
 import json
 import os
@@ -21,6 +23,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.cola_despachos import ColaDespacho
 from utils.notificaciones import enviar_encuesta_satisfaccion
+from services.telegram_service import notificar_despacho_a_conductor
 
 def hora_local():
     return datetime.now(ZoneInfo("America/Caracas"))
@@ -95,7 +98,7 @@ def crear_despacho():
                 tarifa=tarifa_val,
                 estado_despacho=data.get("estado_despacho", "en curso"),
                 fecha_hora_inicio=ahora,
-                fecha_hora_embarque=ahora,
+                fecha_hora_embarque=None,
                 grupo_id=data.get("grupo_id")
             )
             db.session.add(nuevo_despacho)
@@ -162,7 +165,11 @@ def crear_despacho():
                 db.session.query(ColaDespacho).filter_by(id_cola=cola_id).delete(synchronize_session=False)
 
         db.session.commit()
-
+        # 🚀 LLAMADA CLAVE: Disparar la notificación al Telegram del conductor con los botones
+        try:
+            notificar_despacho_a_conductor(nuevo_despacho.id_despacho)
+        except Exception as e_tg:
+            print(f"⚠️ Error enviando botones de Telegram al conductor: {e_tg}")
         mensaje_respuesta = "Despacho creado exitosamente"
         if not conductor_valido:
             mensaje_respuesta += " (⚠️ Advertencia: GPS expirado, no se generó enlace de WhatsApp)."
@@ -309,7 +316,9 @@ def candelar_despacho(id):
 def listar_despachos_activos():
     try:
         # 🔹 Corregido: Buscamos tanto los que están 'en curso' como los 'notificado'
-        despachos = Despacho.query.filter_by(estado_despacho="en curso").all()
+        despachos = Despacho.query.filter(
+            Despacho.estado_despacho.in_(["en curso", "en_curso", "notificado"])
+        ).all()
         resultado = []
         
         for d in despachos:

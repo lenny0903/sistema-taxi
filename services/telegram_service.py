@@ -100,7 +100,8 @@ def _manejar_callback(callback):
         else:
             enviar_mensaje(chat_id, "✅ ¡Muchas gracias por tu opinión!")
             return {"status": "encuesta_recibida"}, 200
-            # 🆕 HANDLER: Cliente Embarcado
+
+    # 🆕 HANDLER: Cliente Embarcado (Con protección de clic único)
     if data and data.startswith('embarque_'):
         confirmar_clic(callback_id)
         try:
@@ -110,6 +111,12 @@ def _manejar_callback(callback):
             if despacho and despacho.conductor_id:
                 conductor = Conductor.query.get(despacho.conductor_id)
                 if conductor and conductor.telegram_id == chat_id:
+                    
+                    # 🛡️ BLINDAJE: Si ya tiene hora de embarque, ignorar clics repetidos
+                    if despacho.fecha_hora_embarque:
+                        enviar_mensaje(chat_id, f"⚠️ El despacho #{id_despacho} ya tiene registrado el embarque previamente.")
+                        return {"status": "embarque_ya_registrado"}, 200
+
                     despacho.fecha_hora_embarque = datetime.now()
                     despacho.estado_despacho = 'en_curso'
                     db.session.commit()
@@ -127,7 +134,7 @@ def _manejar_callback(callback):
             print(f"❌ Error al registrar embarque: {e}")
         return {"status": "embarque_registrado"}, 200
 
-    # 🆕 HANDLER: Cliente Desembarcado
+    # 🆕 HANDLER: Cliente Desembarcado (Con validación de embarque previo y clic único)
     if data and data.startswith('desembarque_'):
         confirmar_clic(callback_id)
         try:
@@ -137,6 +144,17 @@ def _manejar_callback(callback):
             if despacho and despacho.conductor_id:
                 conductor = Conductor.query.get(despacho.conductor_id)
                 if conductor and conductor.telegram_id == chat_id:
+                    
+                    # 🛡️ REGLA: No permitir desembarque si el cliente aún no se ha embarcado
+                    if not despacho.fecha_hora_embarque:
+                        enviar_mensaje(chat_id, f"⚠️ *Acción denegada:* Debes registrar el embarque del cliente antes de poder finalizar el servicio.")
+                        return {"status": "desembarque_sin_embarque_previo"}, 200
+
+                    # 🛡️ BLINDAJE: Evitar doble ejecución si ya se había finalizado
+                    if despacho.fecha_hora_fin:
+                        enviar_mensaje(chat_id, f"⚠️ El despacho #{id_despacho} ya fue finalizado previamente.")
+                        return {"status": "desembarque_ya_registrado"}, 200
+
                     despacho.fecha_hora_fin = datetime.now()
                     despacho.estado_despacho = 'finalizado'
                     db.session.commit()
@@ -153,6 +171,7 @@ def _manejar_callback(callback):
             db.session.rollback()
             print(f"❌ Error al registrar desembarque: {e}")
         return {"status": "desembarque_registrado"}, 200
+
     return {"status": "callback_no_reconocido"}, 200
 
 

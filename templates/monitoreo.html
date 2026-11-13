@@ -157,6 +157,7 @@
 
             let marcadores = {};
             let cronometrosActivos = {};
+            let vehiculosOcupados = {};
             const tbody = document.querySelector('#tabla-activa tbody');
 
             // Parseo seguro de fecha local con manejo de zona horaria explícita
@@ -205,18 +206,21 @@
                 
                 return `⏱️ Restan ${texto}`;
             }
-            function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision) {
-                let colorIcono = "#27ae60"; // Verde
+            // 🆕 Añadimos el parámetro 'ocupado' para alternar entre Verde (Libre) y Azul (Ocupado)
+            function crearIconoVehiculo(codigoUnidad, estaDesactualizado, precision, ocupado = false) {
+                let colorIcono = "#27ae60"; // Verde (Libre por defecto)
+                if (ocupado) {
+                    colorIcono = "#007bff"; // Azul (Ocupado con pasajero)
+                }
+                
                 if (estaDesactualizado) {
                     colorIcono = "#7f8c8d"; // Gris
                 } else if (precision > 50) {
                     colorIcono = "#e67e22"; // Naranja
                 }
                 
-                // Detectar si es vista de cliente
                 const esVistaCliente = (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '');
                 
-                // Tamaños según el tipo de vista (¡ahora sí se usan!)
                 const tamañoTaxi = esVistaCliente ? '64px' : '24px';
                 const tamañoTexto = esVistaCliente ? '18px' : '11px';
                 const paddingTexto = esVistaCliente ? '6px 14px' : '2px 6px';
@@ -286,6 +290,10 @@
                 });
 
                 data.forEach(c => {
+                    // 🛡️ PERSISTENCIA DE COLOR: Si el servidor dice que tiene despacho activo, se mantiene ocupado (Azul)
+                    if (c.id_despacho && c.estado_despacho === 'en_curso') {
+                        vehiculosOcupados[c.codigo] = true;
+                    }
                     // 🛑 FILTRO PARA CLIENTES: Si hay un despacho activo, ignorar cualquier otro conductor
                     if (typeof ID_DESPACHO_ACTIVO !== 'undefined' && ID_DESPACHO_ACTIVO !== '') {
                         if (parseInt(c.id_despacho) !== parseInt(ID_DESPACHO_ACTIVO)) {
@@ -477,6 +485,7 @@
                         
                         const coords = [parseFloat(c.latitud), parseFloat(c.longitud)];
                         const precision = parseFloat(c.horizontal_accuracy) || 0;
+                        const estaOcupado = !!vehiculosOcupados[c.codigo];
                         const iconoVehiculo = crearIconoVehiculo(c.codigo, estaDesactualizado || estaExpirado, precision);
 
                         // 🛑 CONTROL DE MARCADORES EN EL MAPA SEGÚN TIEMPO SIN SEÑAL
@@ -662,7 +671,29 @@
             socket.on('connect_error', (error) => {
                 console.warn('⚠️ Error de conexión Socket.IO:', error);
             });
+            // 🔵 Evento: Cliente Embarcado (El auto pasa a Azul)
+            socket.on('cliente_embarcado', (data) => {
+                console.log(`🚖 Conductor ${data.conductor} embarcó pasajero. Cambiando a AZUL.`);
+                vehiculosOcupados[data.conductor] = true;
+                
+                // Si el marcador ya existe en el mapa, actualizamos su icono de inmediato
+                if (marcadores[data.conductor]) {
+                    const iconoAzul = crearIconoVehiculo(data.conductor, false, 0, true);
+                    marcadores[data.conductor].setIcon(iconoAzul);
+                }
+            });
 
+            // 🟢 Evento: Cliente Desembarcado / Finalizado (El auto vuelve a Verde)
+            socket.on('cliente_desembarcado', (data) => {
+                console.log(`✅ Conductor ${data.conductor} finalizó servicio. Volviendo a VERDE.`);
+                delete vehiculosOcupados[data.conductor];
+                
+                // Si el marcador existe, lo devolvemos al color verde libre
+                if (marcadores[data.conductor]) {
+                    const iconoVerde = crearIconoVehiculo(data.conductor, false, 0, false);
+                    marcadores[data.conductor].setIcon(iconoVerde);
+                }
+            });    
             // Eventos de negocio (ubicaciones, inactivos)
             socket.on('nueva_ubicacion', () => actualizarMapa());
             socket.on('conductor_inactivo', () => actualizarMapa());
