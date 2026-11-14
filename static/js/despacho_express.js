@@ -1503,11 +1503,12 @@ async function actualizarContadorConductores() {
 // 1. Petición al endpoint de Flask
 async function cargarMatrizTarifas() {
     try {
-        const res = await fetch('/obtener_tarifas');
+        // 🧠 Apuntamos al motor de tarifas aprendidas en lugar de la matriz estática
+        const res = await fetch('/api/tarifas_aprendidas');
         if (!res.ok) throw new Error("Respuesta de servidor no OK");
         
         window.MATRIZ_TARIFAS = await res.json();
-        console.log(`📦 Se recibieron ${window.MATRIZ_TARIFAS.length} tarifas desde la BD.`);
+        console.log(`📦 Se recibieron ${window.MATRIZ_TARIFAS.length} tarifas (aprendidas de la calle) para el operador.`);
         
         generarDatalistTarifas();
     } catch (err) {

@@ -15,6 +15,7 @@ _socketio = None
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 def ejecutar_respaldo_automatico():
+    """Backup seguro usando el motor nativo de SQLite para evitar corrupción con WAL"""
     base_path = os.getcwd()
     ruta_db = os.path.join(base_path, 'taxis.db')
     carpeta_backups = os.path.join(base_path, 'backups_automaticos')
@@ -27,13 +28,20 @@ def ejecutar_respaldo_automatico():
     
     try:
         if os.path.exists(ruta_db):
-            shutil.copy2(ruta_db, ruta_destino)
-            print(f"[OK] [BACKUP] Respaldo generado con éxito: {nombre_backup}")
+            import sqlite3
+            # ✅ FIX: Conexión atómica que copia página por página de forma segura
+            conn_origen = sqlite3.connect(ruta_db)
+            conn_destino = sqlite3.connect(ruta_destino)
+            conn_origen.backup(conn_destino)
+            conn_origen.close()
+            conn_destino.close()
+            
+            print(f"[OK] [BACKUP] Respaldo seguro generado: {nombre_backup}")
             gestionar_almacenamiento_backups(carpeta_backups)
         else:
-            print(f"[ALERTA] [ERROR] No se encontró la DB en: {ruta_db}")
+            print(f"[ALERTA] No se encontró la DB en: {ruta_db}")
     except Exception as e:
-        print(f"[ERROR] [ERROR BACKUP] Fallo técnico: {e}")
+        print(f"[ERROR BACKUP] Fallo técnico: {e}")
 
 def gestionar_almacenamiento_backups(carpeta):
     backups = sorted([os.path.join(carpeta, f) for f in os.listdir(carpeta)], key=os.path.getmtime)
@@ -208,15 +216,25 @@ def job_verificar_gps_conductores():
                 (Conductor.longitud.is_(None))
             ).all()
 
-            for c_sin in conductores_sin_gps:
-                if c_sin.estado_red != 'desconectado':
-                    c_sin.estado_red = 'desconectado'
-                    db.session.commit()
+                        # 🛑 CANDADO INICIAL BLINDADO: Un solo loop, un solo commit
+            conductores_sin_gps = Conductor.query.filter(
+                Conductor.estado == 'activo',
+                (Conductor.ultima_actualizacion.is_(None)) | 
+                (Conductor.latitud.is_(None)) | 
+                (Conductor.longitud.is_(None))
+            ).all()
 
+            cambios_realizados = False
             for c_sin in conductores_sin_gps:
+                # Usamos getattr para evitar errores si el campo es NULL en la BD
                 if getattr(c_sin, 'estado_red', 'conectado') != 'desconectado':
                     c_sin.estado_red = 'desconectado'
-                    db.session.commit()
+                    cambios_realizados = True
+            
+            # ✅ UN SOLO COMMIT AL FINAL, sin importar cuántos conductores haya
+            if cambios_realizados:
+                db.session.commit()
+                print(f"📡 [GPS] {len(conductores_sin_gps)} unidades marcadas como desconectadas (sin coordenadas).")
 
             # --- SI LA RED SÍ ESTÁ ACTIVA, PROCEDEMOS CON EL FLUJO NORMAL ---
             conductores_candidatos = Conductor.query.filter(

@@ -34,7 +34,8 @@
         .btn-menu { width: 100%; padding: 18px; margin-bottom: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
         .btn-inmediato { background: #16a34a; }
         .btn-reserva { background: #2563eb; }
-        .btn-humano { background: #64748b; }
+        .btn-cotizar { background: #f59e0b; }
+        .btn-cotizar:hover { background: #d97706; }
     </style>
 </head>
 <body>
@@ -46,21 +47,61 @@
             <p style="color:#666; margin-bottom: 20px;">¿Qué desea hacer hoy?</p>
             <button type="button" class="btn-menu btn-inmediato" onclick="iniciarFlujo('inmediato')">🚖 Solicitar Servicio (Ahora)</button>
             <button type="button" class="btn-menu btn-reserva" onclick="iniciarFlujo('reserva')">📅 Reservar para más tarde</button>
-            <button type="button" class="btn-menu btn-humano" onclick="mostrarHumano()">👨‍💻 Hablar con un operador</button>
+            <button type="button" class="btn-menu btn-cotizar" onclick="mostrarCotizador()">💰 Consultar Tarifa Referencial</button>
         </div>
 
-        <!-- ================= MENSAJE HUMANO ================= -->
-        <div id="pantalla-humano" class="paso text-center">
-            <div style="font-size: 50px; margin-bottom: 10px;">💬</div>
-            <h3 style="color: #334155;">Atención Personalizada</h3>
-            <p style="color: #64748b; line-height: 1.5;">Regrese a su chat de <strong>WhatsApp</strong> y envíe un mensaje. Un operador le atenderá de inmediato.</p>
-            <button type="button" class="btn-atras" onclick="volverMenu()">Volver al menú</button>
+       <!-- ================= PANTALLA COTIZADOR REFERENCIAL ================= -->
+        <div id="pantalla-cotizador" class="paso text-center">
+            <h3 style="color: #1e293b; margin-top: 0;">💰 Consulta de Tarifa</h3>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+                Indica de dónde sales y hacia dónde vas para ver un estimado basado en servicios recientes.
+            </p>
+
+            <!-- ✅ NUEVO CAMPO: ORIGEN (Hereda la dirección registrada o permite escribir una) -->
+            <div class="form-group" style="text-align: left; margin-bottom: 15px;">
+                <label for="inputCotizarOrigen" style="font-weight: 600; color: #334155;">📍 Origen:</label>
+                <input type="text" id="inputCotizarOrigen" class="form-control" 
+                    value="{{ direccion if direccion else '' }}" 
+                    placeholder="Ej: Santa Teresa, Barrio Obrero..." 
+                    style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            </div>
+
+            <!-- CAMPO EXISTENTE: DESTINO -->
+            <div class="form-group" style="text-align: left; margin-bottom: 15px;">
+                <label for="inputCotizarDestino" style="font-weight: 600; color: #334155;">🏁 Destino:</label>
+                <input type="text" id="inputCotizarDestino" list="listaDestinos" placeholder="Ej: Barrio Obrero, Táriba, Centro..." oninput="calcularTarifaReferencial()" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            </div>
+
+            <!-- Resultado dinámico -->
+            <div id="resultadoCotizacion" style="display: none; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 10px; padding: 16px; margin: 16px 0;">
+                <div style="font-size: 13px; color: #64748b; font-weight: 600;">TARIFA REFERENCIAL ESTIMADA</div>
+                <!-- Muestra opcional de la ruta calculada -->
+                <div id="resumenRutaCotizada" style="font-size: 12px; color: #475569; margin-top: 4px; font-style: italic;"></div>
+                
+                <div id="montoCotizadoCOP" style="font-size: 28px; font-weight: 800; color: #16a34a; margin: 6px 0;">0 COP</div>
+                <div id="montoCotizadoBs" style="font-size: 14px; color: #334155; font-weight: 600;"></div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 8px; line-height: 1.3;">
+                    *Monto referencial basado en carreras recientes. Puede variar según ruta exacta, paradas o equipaje.
+                </div>
+                <button type="button" class="btn-siguiente btn-confirmar" style="margin-top: 14px;" onclick="pedirDesdeCotizador()">
+                    🚖 Solicitar taxi hacia este destino ➔
+                </button>
+            </div>
+
+            <div id="sinCotizacion" style="display: none; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 12px; border-radius: 8px; font-size: 13px; margin: 16px 0;">
+                No tenemos un historial reciente exacto para ese sector. Puedes solicitar el servicio y un operador te confirmará el monto por WhatsApp.
+            </div>
+
+            <button type="button" class="btn-atras" onclick="volverMenu()">⬅ Volver al menú principal</button>
         </div>
 
         <!-- ================= FORMULARIO PASO A PASO ================= -->
-        <form method="POST" id="formSolicitud">
+        <form action="/reservas/crear_desde_web" method="POST" id="formSolicitud">
+            <!-- 📱 Campos ocultos indispensables para identificar al cliente y el tipo de solicitud -->
+            <input type="hidden" name="telefono" value="{{ telefono }}">
+            <input type="hidden" name="nombre" value="{{ nombre }}">
             <input type="hidden" name="tipo_solicitud" id="inputTipoSolicitud" value="inmediato">
-            
+            <input type="hidden" name="origen" id="inputOrigenReal" value="{{ direccion }}">
                         <!-- PASO 1: ORIGEN -->
             <div id="paso-origen" class="paso">
                 
@@ -142,25 +183,64 @@
                 <!-- Contenedor de inputs de destino -->
                 <div id="contenedorDestinos" style="margin-top: 15px;"></div>
                 <datalist id="listaDestinos"></datalist>
-
+                <div style="margin: 20px 0; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; text-align: center;">
+                    <span style="font-size: 14px; color: #495057; display: block; margin-bottom: 8px;">📊 ¿Quieres verificar el estimado de esta ruta?</span>
+                    <button type="button" onclick="consultarTarifaRuta()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        🔍 Consultar Tarifa de esta Ruta
+                    </button>
+                    <div id="resultadoTarifaWeb" style="margin-top: 10px; font-weight: bold; font-size: 16px; color: #28a745;"></div>
+                </div>
                 <!-- Botón de confirmación (se muestra al final) -->
                 <button type="submit" id="btnConfirmar" class="btn-siguiente btn-confirmar" style="display:none;">✅ Confirmar Solicitud</button>
             </div>
 
-            <!-- PASO EXTRA: RESERVA (Solo si aplica) -->
-            <div id="paso-reserva" class="paso">
+           <div id="paso-reserva" class="paso">
                 <div class="pregunta">📅 ¿Para qué fecha y hora es la reserva?</div>
+                
                 <div class="form-group">
                     <label>Fecha:</label>
-                    <input type="date" name="fecha_reserva" id="fecha_reserva">
+                    <input type="date" name="fecha_reserva" id="fecha_reserva" class="form-control" required>
                 </div>
-                <div class="form-group">
-                    <label>Hora:</label>
-                    <input type="time" name="hora_reserva" id="hora_reserva">
-                </div>
-                <button type="button" class="btn-siguiente" onclick="mostrarPaso('paso-origen')">Siguiente ➔</button>
-            </div>
 
+                <div class="form-group">
+                    <label>Hora de recogida:</label>
+                    <!-- Selectores separados: cero fricción para el usuario -->
+                    <div style="display: flex; gap: 8px;">
+                        <select id="selHora" class="form-control" style="flex: 1;" onchange="actualizarHoraFinal()" required>
+                            <option value="">Hora</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+
+                        <select id="selMinuto" class="form-control" style="flex: 1;" onchange="actualizarHoraFinal()" required>
+                            <option value="00">00 min</option>
+                            <option value="15">15 min</option>
+                            <option value="30">30 min</option>
+                            <option value="45">45 min</option>
+                        </select>
+
+                        <select id="selAmPm" class="form-control" style="flex: 1;" onchange="actualizarHoraFinal()" required>
+                            <option value="AM">AM</option>
+                            <option value="PM" selected>PM</option>
+                        </select>
+                    </div>
+
+                    <!-- Input oculto que alimenta el backend con el formato de hora estándar (HH:MM en 24h) -->
+                    <input type="hidden" name="hora_reserva" id="hora_reserva">
+                </div>
+
+                <button type="button" class="btn-siguiente" onclick="validarYContinuarReserva()">Siguiente ➔</button>
+            </div>
         </form>
     </div>
 
@@ -195,18 +275,94 @@
             }
         }
 
-        function mostrarHumano() {
-            document.getElementById('menu-inicial').classList.remove('activo');
-            document.getElementById('pantalla-humano').classList.add('activo');
+        // Tasa inyectada desde Flask (con respaldo seguro)
+        const tasaCopVes = {{ tasa_cop_ves | default(3.2) }};
+        let destinoPreseleccionado = "";
+
+        function mostrarCotizador() {
+            document.querySelectorAll('.paso').forEach(p => p.classList.remove('activo'));
+            document.getElementById('pantalla-cotizador').classList.add('activo');
+            
+            // Limpiar estado previo
+            const input = document.getElementById('inputCotizarDestino');
+            input.value = "";
+            document.getElementById('resultadoCotizacion').style.display = 'none';
+            document.getElementById('sinCotizacion').style.display = 'none';
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function calcularTarifaReferencial() {
+            const val = document.getElementById('inputCotizarDestino').value.trim().toLowerCase();
+            const boxResultado = document.getElementById('resultadoCotizacion');
+            const boxVacio = document.getElementById('sinCotizacion');
+
+            // 💡 Sincronizamos el origen escrito en el cotizador con el input oculto del formulario principal
+            const origenCotizador = document.getElementById('inputCotizarOrigen').value.trim();
+            if (origenCotizador) {
+                document.getElementById('inputOrigenReal').value = origenCotizador;
+            }
+
+            if (!val || val.length < 3) {
+                boxResultado.style.display = 'none';
+                boxVacio.style.display = 'none';
+                return;
+            }
+
+            // Busca coincidencia exacta o parcial en la lista de tarifas aprendidas
+            const encontrado = matrizTarifas.find(t => (t.destino || "").toLowerCase() === val) ||
+                            matrizTarifas.find(t => (t.destino || "").toLowerCase().includes(val));
+
+            if (encontrado) {
+                const precioCOP = parseInt(encontrado.precio_cop || encontrado.precio || 0);
+                destinoPreseleccionado = encontrado.destino;
+
+                document.getElementById('montoCotizadoCOP').innerText = `${precioCOP.toLocaleString('es-VE')} COP`;
+                
+                // Muestra un resumen de la ruta calculada en la tarjeta
+                const origenTexto = origenCotizador || "{{ direccion }}";
+                document.getElementById('resumenRutaCotizada').innerText = `Ruta: De (${origenTexto}) a (${encontrado.destino})`;
+
+                if (precioCOP > 0 && tasaCopVes > 0) {
+                    const precioBs = Math.round(precioCOP / tasaCopVes);
+                    document.getElementById('montoCotizadoBs').innerText = `≈ ${precioBs.toLocaleString('es-VE')} Bs`;
+                } else {
+                    document.getElementById('montoCotizadoBs').innerText = "";
+                }
+
+                boxResultado.style.display = 'block';
+                boxVacio.style.display = 'none';
+            } else {
+                destinoPreseleccionado = document.getElementById('inputCotizarDestino').value.trim();
+                boxResultado.style.display = 'none';
+                boxVacio.style.display = val.length >= 5 ? 'block' : 'none';
+            }
+        }
+
+        function pedirDesdeCotizador() {
+            // 🛡️ Aseguramos que el origen del cotizador pase al flujo principal antes de avanzar
+            const origenCotizador = document.getElementById('inputCotizarOrigen').value.trim();
+            if (origenCotizador) {
+                document.getElementById('inputOrigenReal').value = origenCotizador;
+            }
+
+            // Inicia el flujo normal de solicitud (o salta directo al paso de cantidad/destinos)
+            iniciarFlujo('inmediato');
+            
+            // Guardamos el destino cotizado para pre-llenarlo
+            window.destinoCotizadoGuardado = destinoPreseleccionado;
+            
+            // Opcional: si ya cotizó con origen y destino, podemos llevarlo directo al paso de cantidad de autos
+            mostrarPaso('paso-cantidad');
         }
 
         function volverMenu() {
+            window.destinoCotizadoGuardado = "";
             document.querySelectorAll('.paso').forEach(p => p.classList.remove('activo'));
             document.getElementById('menu-inicial').classList.add('activo');
         }
 
                 // --- LÓGICA PASO 1: ORIGEN ---
-        function elegirOrigen(respuesta) {
+       function elegirOrigen(respuesta) {
             document.getElementById('inputEsMisma').value = respuesta;
             
             if (respuesta === 'SI') {
@@ -216,6 +372,8 @@
                     alert("No tenemos una dirección registrada para ti. Por favor, selecciona 'No' y escribe una.");
                     return;
                 }
+                // ✅ Asignamos la dirección de la BD al input oculto que exige el backend
+                document.getElementById('inputOrigenReal').value = direccionBD;
                 mostrarPaso('paso-cantidad');
             } else {
                 // Si dice que NO, mostramos el campo y obligamos a llenarlo
@@ -237,6 +395,9 @@
                 textarea.focus();
                 return;
             }
+            
+            // ✅ Asignamos la nueva dirección escrita por el usuario al input oculto del backend
+            document.getElementById('inputOrigenReal').value = nuevaDir;
             
             // Si todo está bien, avanza
             mostrarPaso('paso-cantidad');
@@ -304,12 +465,112 @@
 
         function renderizarInputDestino(labelText, inputName) {
             const contenedor = document.getElementById('contenedorDestinos');
+            // Si es el primer destino y viene de cotizar, lo pre-llenamos
+            const valorInicial = (inputName === 'destino_1' && window.destinoCotizadoGuardado) 
+                ? window.destinoCotizadoGuardado 
+                : '';
+
             contenedor.innerHTML += `
                 <div class="form-group">
                     <label>${labelText}:</label>
-                    <input type="text" name="${inputName}" list="listaDestinos" placeholder="Escribe el destino" required>
+                    <input type="text" name="${inputName}" list="listaDestinos" value="${valorInicial}" placeholder="Escribe el destino" required>
                 </div>
             `;
+        }
+        function actualizarHoraFinal() {
+            let hora = document.getElementById('selHora').value;
+            let minuto = document.getElementById('selMinuto').value;
+            let ampm = document.getElementById('selAmPm').value;
+            
+            if (!hora) return;
+            
+            let hNum = parseInt(hora);
+            if (ampm === 'PM' && hNum < 12) hNum += 12;
+            if (ampm === 'AM' && hNum === 12) hNum = 0;
+            
+            // Formato 24h estandarizado para que el backend lo guarde sin problemas
+            let hora24 = String(hNum).padStart(2, '0') + ':' + minuto;
+            document.getElementById('hora_reserva').value = hora24;
+        }
+
+        function validarYContinuarReserva() {
+            actualizarHoraFinal();
+            let fecha = document.getElementById('fecha_reserva').value;
+            let hora = document.getElementById('hora_reserva').value;
+            
+            if (!fecha || !hora) {
+                alert("Por favor selecciona la fecha y la hora de la reserva.");
+                return;
+            }
+            
+            // Pasa al siguiente paso (por ejemplo, origen)
+            mostrarPaso('paso-origen');
+        }
+        async function consultarTarifaRuta() {
+            // 1. Tomamos el origen real que el cliente seleccionó o escribió en el Paso 1
+            let origen = document.getElementById('inputOrigenReal').value;
+            
+            // 2. Tomamos el destino (asumiendo que el input del destino se llama destino_1 o similar en tu generador dinámico)
+            let inputDestino = document.querySelector('input[name="destino_1"]') || document.getElementById('txtDestino');
+            let destino = inputDestino ? inputDestino.value : '';
+
+            if (!origen) {
+                alert("Por favor define primero tu origen en el Paso 1.");
+                return;
+            }
+            if (!destino) {
+                alert("Por favor escribe el destino para consultar la tarifa.");
+                return;
+            }
+
+            try {
+                // Consultamos las tarifas aprendidas / matriz desde el backend de Flask
+                let respuesta = await fetch('/api/tarifas_aprendidas');
+                let tarifas = await respuesta.json();
+                
+                // Buscamos coincidencia con el destino ingresado
+                let match = tarifas.find(t => t.destino.toLowerCase() === destino.toLowerCase());
+                
+                let contenedorResultado = document.getElementById('resultadoTarifaWeb');
+                if (match) {
+                    contenedorResultado.innerHTML = `Estimado para la ruta: <span style="color: #007bff;">$${match.precio_cop.toLocaleString()} COP</span>`;
+                } else {
+                    contenedorResultado.innerHTML = `<span style="color: #e0a800;">Tarifa a convenir / Zona general</span>`;
+                }
+            } catch (e) {
+                console.error("Error consultando tarifa:", e);
+                document.getElementById('resultadoTarifaWeb').innerText = "No se pudo consultar el estimado en este momento.";
+            }
+        }
+        async function buscarTarifaCompleta() {
+            let origen = document.getElementById('consultaOrigen').value.trim();
+            let destino = document.getElementById('consultaDestino').value.trim();
+            let contenedor = document.getElementById('resultadoConsultaTarifa');
+
+            if (!destino) {
+                contenedor.innerHTML = "";
+                return;
+            }
+
+            try {
+                let respuesta = await fetch('/api/tarifas_aprendidas');
+                let tarifas = await respuesta.json();
+                
+                let match = tarifas.find(t => t.destino.toLowerCase().includes(destino.toLowerCase()));
+                
+                if (match) {
+                    let rutaTexto = origen ? `De <b>${origen}</b> a <b>${match.destino}</b>` : `Hacia <b>${match.destino}</b>`;
+                    contenedor.innerHTML = `
+                        <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; color: #2e7d32;">
+                            ${rutaTexto}<br>
+                            <span style="font-size: 18px;">Estimado: $${match.precio_cop.toLocaleString()} COP</span>
+                        </div>`;
+                } else {
+                    contenedor.innerHTML = `<span style="color: #856404;">Tarifa sujeta a distancia / A convenir</span>`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
         }
         // Evitar que presionar Enter envíe el formulario antes de tiempo
         document.getElementById('formSolicitud').addEventListener('keydown', function(e) {

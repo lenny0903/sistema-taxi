@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 from extensions import db
 from models.reserva import Reserva
 from models.clientes import Cliente
@@ -172,3 +172,59 @@ def crear_cliente():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
+@reservas_bp.route("/reservas/crear_desde_web", methods=["POST"])
+def crear_reserva_desde_web():
+    # 1. Capturar datos ya sea por Formulario Web (HTML) o JSON (API)
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form
+
+    telefono = data.get("telefono") or data.get("desTelefono")
+    nombre = data.get("nombre") or data.get("desNombre", "Cliente Web")
+    origen = data.get("origen") or data.get("nuevo_origen") or data.get("desOrigen")
+    destino = data.get("destino") or data.get("destino_1")
+    
+    # Manejo de fecha y hora para reservas
+    fecha_str = data.get("fecha_reserva") or data.get("fecha")
+    hora_str = data.get("hora_reserva") or data.get("hora")
+    tipo_solicitud = data.get("tipo_solicitud", "inmediato")
+
+    if not telefono or not origen:
+        return jsonify({"error" : "Teléfono y origen son obligatorios"}), 400
+
+    try:
+        # 2. Buscar o crear el cliente automáticamente utilizando el teléfono (igual que el operador)
+        cliente = Cliente.query.filter_by(telefono=telefono).first()
+        if not cliente:
+            cliente = Cliente(
+                telefono=telefono,
+                nombre=nombre,
+                direccion=origen
+            )
+            db.session.add(cliente)
+            db.session.commit()
+
+       # 3. Validar si es una reserva programada o un despacho inmediato
+        if tipo_solicitud == "reserva" and fecha_str and hora_str:
+            nueva_reserva = Reserva(
+                origen=origen,
+                destino=destino or "A convenir",
+                fecha=datetime.strptime(fecha_str, "%Y-%m-%d").date(),
+                hora=datetime.strptime(hora_str, "%H:%M").time(),
+                cliente_id=cliente.id_cliente,
+                estado="activo"
+            )
+            db.session.add(nueva_reserva)
+            db.session.commit()
+            
+            return render_template('reserva_exitosa.html', id_reserva=nueva_reserva.id_reserva), 200
+        else:
+            # 🚕 Si es inmediato, puedes registrarlo como despacho/turno o mostrar una vista similar de éxito
+            # (Por ahora, puedes renderizar la misma plantilla o una adaptada para servicios inmediatos)
+            return render_template('reserva_exitosa.html', id_reserva="Inmediato"), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400     

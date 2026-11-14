@@ -25,8 +25,8 @@ def obtener_url_tunel():
     global _url_tunel_cache, _ultimo_tiempo_lectura
     tiempo_actual = time.time()
     
-    # Si ya leímos el archivo hace menos de 30 segundos, devolvemos el valor guardado al instante (sin tocar el disco)
-    if _url_tunel_cache and (tiempo_actual - _ultimo_tiempo_lectura < 30):
+    # Reducimos el tiempo de caché a 2 segundos o lo desactivamos para pruebas
+    if _url_tunel_cache and (tiempo_actual - _ultimo_tiempo_lectura < 2):
         return _url_tunel_cache
 
     posibles_logs = ["tunel_log.txt", "tunnel.log"]
@@ -34,18 +34,17 @@ def obtener_url_tunel():
     for log_path in posibles_logs:
         if os.path.exists(log_path):
             try:
-                # Usamos una lectura rápida del final o del archivo completo si es pequeño
                 with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                     contenido = f.read()
-                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', contenido)
-                    if match:
-                        _url_tunel_cache = match.group(0)
+                    # 🔍 findall para buscar TODAS las apariciones y tomar la ÚLTIMA (la más fresca)
+                    matches = re.findall(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', contenido)
+                    if matches:
+                        _url_tunel_cache = matches[-1]  # <--- Usamos la última[cite: 7]
                         _ultimo_tiempo_lectura = tiempo_actual
                         return _url_tunel_cache
             except Exception:
                 continue
                 
-    # Respaldo por defecto si ninguno existe
     return "http://localhost:5000"
 @views_bp.route("/login_alt")
 def login_page_alt():

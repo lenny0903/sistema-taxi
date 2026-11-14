@@ -59,7 +59,11 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 # Bandera de control para evitar registro duplicado del listener
 _pragma_listener_registered = False
 
-
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 def create_app():
     global _pragma_listener_registered
     app = Flask(__name__)
@@ -313,7 +317,126 @@ def create_app():
                 pass
                 
         # Si el archivo aún no se ha creado, cae en la constante de config.py
-        return jsonify({"monto_cuota": MONTO_CUOTA_SEMANAL})        
+        return jsonify({"monto_cuota": MONTO_CUOTA_SEMANAL})  
+
+    @app.route('/api/tarifas_aprendidas', methods=['GET'])
+    def obtener_tarifas_aprendidas():
+        """
+        🧠 Motor de tarifas aprendidas:
+        Calcula dinámicamente el promedio de las tarifas reales cobradas 
+        en los despachos finalizados durante los últimos 30 días.
+        """
+        try:
+            query = text("""
+                SELECT 
+                    TRIM(destino_despacho) AS destino,
+                    ROUND(AVG(tarifa) / 1000.0) * 1000 AS precio_cop,
+                    COUNT(*) AS frecuencia
+                FROM despachos
+                WHERE estado_despacho = 'finalizado'
+                  AND tarifa > 0
+                  AND destino_despacho IS NOT NULL 
+                  AND TRIM(destino_despacho) != ''
+                  AND fecha_hora >= datetime('now', '-30 days')
+                GROUP BY LOWER(TRIM(destino_despacho))
+                HAVING frecuencia >= 2
+                ORDER BY frecuencia DESC;
+            """)
+            
+            resultado = db.session.execute(query).fetchall()
+            
+            tarifas_dinamicas = [
+                {
+                    "destino": row.destino,
+                    "precio_cop": int(row.precio_cop),
+                    "frecuencia": row.frecuencia
+                } for row in resultado
+            ]
+            
+            # Si por alguna razón la línea es nueva y aún no tiene suficientes despachos finalizados,
+            # hacemos un respaldo seguro devolviendo la matriz estática tradicional para que la página no se quede vacía.
+            if not tarifas_dinamicas:
+                tarifas_estaticas = MatrizTarifa.query.all()
+                tarifas_dinamicas = [
+                    {
+                        "destino": t.destino,
+                        "precio_cop": t.precio_cop,
+                        "municipio": t.municipio
+                    } for t in tarifas_estaticas
+                ]
+
+            return jsonify(tarifas_dinamicas), 200
+
+        except Exception as e:
+            print(f"❌ Error calculando tarifas aprendidas: {e}")
+            return jsonify([]), 500   
+    @app.route('/solicitud/<int:cliente_id>')
+    def vista_solicitud_cliente(cliente_id):
+        conn = sqlite3.connect('basedatos.db') # O tu conexión activa
+        conn.row_factory = dict_factory
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM clientes WHERE id_cliente = ?", (cliente_id,))
+        cliente = cursor.fetchone()
+        
+        # 🧠 1. INTENTO PRINCIPAL: Buscar tarifas aprendidas de la calle (últimos 30 días)
+        cursor.execute("""
+            SELECT 
+                TRIM(destino_despacho) AS destino,
+                ROUND(AVG(tarifa) / 1000.0) * 1000 AS precio_cop,
+                COUNT(*) AS frecuencia
+            FROM despachos
+            WHERE estado_despacho = 'finalizado'
+            AND tarifa > 0
+            AND destino_despacho IS NOT NULL 
+            AND TRIM(destino_despacho) != ''
+            AND fecha_hora >= datetime('now', '-30 days')
+            GROUP BY LOWER(TRIM(destino_despacho))
+            HAVING frecuencia >= 2
+            ORDER BY frecuencia DESC;
+        """)
+        tarifas_aprendidas = cursor.fetchall()
+        
+        # 🔄 2. RESPALDO HÍBRIDO (Fallback): Si un destino de la matriz estática 
+        # aún no tiene suficientes carreras en la calle, lo inyectamos para que 
+        # el cliente siempre vea el catálogo completo en la landing page.
+        if len(tarifas_aprendidas) < 5: # O si quieres asegurarte de tener un piso mínimo
+            cursor.execute("SELECT destino, precio_cop, municipio FROM matriz_tarifas")
+            tarifas_estaticas = cursor.fetchall()
+            
+            # Unimos ambas lógicas evitando duplicados (la calle tiene prioridad)
+            destinos_existentes = {t['destino'].lower() for t in tarifas_aprendidas}
+            for est in tarifas_estaticas:
+                if est['destino'].lower() not in destinos_existentes:
+                    tarifas_aprendidas.append({
+                        "destino": est['destino'],
+                        "precio_cop": est['precio_cop'],
+                        "frecuencia": 1
+                    })
+
+        # Obtener tasa y nombre de la línea (Marca Blanca)
+        cursor.execute("SELECT valor FROM configuracion WHERE clave = 'tasa_cop_ves'")
+        tasa_row = cursor.fetchone()
+        tasa_cop_ves = float(tasa_row['valor']) if tasa_row else 3.2
+        
+        cursor.execute("SELECT valor FROM configuracion WHERE clave = 'nombre_linea'")
+        linea_row = cursor.fetchone()
+        nombre_linea = linea_row['valor'] if linea_row else "Taxis Los Patriotas"
+        
+        conn.close()
+
+        if not cliente:
+            return "Cliente no encontrado", 404
+
+        return render_template(
+            'formulario_solicitud_3.html',
+            nombre=cliente.get('nombre', 'Cliente'),
+            telefono=cliente.get('telefono', ''),
+            direccion=cliente.get('direccion', ''),
+            tarifas=tarifas_aprendidas, # 👈 Aquí viaja el resultado híbrido al HTML
+            tasa_cop_ves=tasa_cop_ves,
+            nombre_linea=nombre_linea
+        )           
     app.wsgi_app = ProxyFix(
         app.wsgi_app, 
         x_for=1, 
